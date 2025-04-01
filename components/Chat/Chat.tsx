@@ -305,7 +305,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
     if (chatContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } =
         chatContainerRef.current;
-      const bottomTolerance = 30;
+      const bottomTolerance = 100; // 增加底部容差，让用户有更多空间浏览
 
       if (scrollTop + clientHeight < scrollHeight - bottomTolerance) {
         setAutoScrollEnabled(false);
@@ -319,10 +319,20 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
 
   const handleScrollDown = useCallback(() => {
     if (chatContainerRef?.current) {
-      chatContainerRef.current.scrollTo({
-        top: chatContainerRef.current.scrollHeight,
+      // 计算需要滚动的距离 - 计算滚动容器高度并留出足够的底部空间 
+      const container = chatContainerRef.current;
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      const maxScrollTop = scrollHeight - clientHeight;
+      
+      // 确保不会滚动到底部，而是在输入框上方一定距离停止
+      const scrollToPosition = maxScrollTop - 60; // 保留60px的空间
+      
+      container.scrollTo({
+        top: scrollToPosition > 0 ? scrollToPosition : 0,
         behavior: 'smooth',
       });
+      setAutoScrollEnabled(true);
     }
   }, [chatContainerRef]);
 
@@ -367,20 +377,29 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
     }
   }, [messageIsStreaming, throttledScrollDown]);
 
-  // 确保在新消息时总是滚动到底部
+  // 确保在新消息时总是滚动到底部，但只有在已启用自动滚动时
   useEffect(() => {
-    if (selectedConversation?.messages.length) {
+    if (selectedConversation?.messages.length && autoScrollEnabled) {
       throttledScrollDown();
-      
-      // 再次尝试滚动，以确保真正滚动到底部
-      setTimeout(throttledScrollDown, 300);
       
       // 设置当前消息
       setCurrentMessage(
         selectedConversation.messages[selectedConversation.messages.length - 2]
       );
     }
-  }, [selectedConversation?.messages.length, throttledScrollDown, selectedConversation]);
+  }, [selectedConversation?.messages.length, throttledScrollDown, selectedConversation, autoScrollEnabled]);
+
+  // 在初始加载或切换对话时滚动到底部
+  useEffect(() => {
+    if (
+      selectedConversation?.messages?.length > 0 &&
+      !messageIsStreaming
+    ) {
+      setTimeout(() => {
+        handleScrollDown();
+      }, 100);
+    }
+  }, [selectedConversation?.id, handleScrollDown]);
 
   return (
     <div
@@ -407,7 +426,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           {selectedConversation?.messages?.length === 0 ? (
             <>
               <div className="flex flex-col items-center justify-center h-full">
-                <div className="flex flex-col items-center absolute left-0 right-0 mx-auto bottom-[50%] mb-[100px]">
+                <div className="flex flex-col items-center text-center absolute left-0 right-0 mx-auto bottom-[65%] mb-[30px] max-w-3xl px-4 sm:px-8">
                   <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100 mb-2">eduhub.chat</h1>
                   <p className="text-lg text-gray-600 dark:text-gray-300">基于大语言模型的新一代知识助手</p>
                 </div>
@@ -415,34 +434,8 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
             </>
           ) : (
             <>
-              {/* 顶部导航栏 */}
-              <div
-                className={`sticky top-0 z-10 flex justify-between items-center border-b border-gray-200 px-4 py-2 dark:border-gray-800 ${
-                  lightMode === 'red'
-                    ? 'bg-[#F2ECBE]'
-                    : lightMode === 'blue'
-                    ? 'bg-[#F6F4EB]'
-                    : lightMode === 'green'
-                    ? 'bg-[#FAF1E4]'
-                    : lightMode === 'purple'
-                    ? 'bg-[#C5DFF8]'
-                    : lightMode === 'brown'
-                    ? 'bg-[#F4EEE0]'
-                    : 'bg-[#F6F6F6] dark:bg-[#343541]'
-                } dark:text-neutral-200`}
-              >
-                <div className="font-medium text-sm">{selectedConversation.name}</div>
-                
-                <div className="flex items-center gap-2">
-                  <button
-                    className="cursor-pointer rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
-                    onClick={onClearAll}
-                    title="清除所有消息"
-                  >
-                    <IconClearAll size={18} />
-                  </button>
-                </div>
-              </div>
+              {/* 删除顶部导航栏，保持界面简洁 */}
+              
               {showSettings && (
                 <div className="flex flex-col space-y-10 md:mx-auto md:max-w-xl md:gap-6 md:py-3 md:pt-6 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
                   <div className="flex h-full flex-col space-y-4 border-b border-neutral-200 p-4 dark:border-neutral-600 md:rounded-lg md:border">
@@ -468,13 +461,23 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
 
               {loading && <ChatLoader />}
 
-              {/* 空白区域，确保有足够空间滚动 */}
-              <div className="h-[180px]" ref={messagesEndRef} />
+              {/* 空白区域，确保有足够空间滚动但不会穿过输入框 */}
+              <div className="h-[200px]" ref={messagesEndRef} />
             </>
           )}
         </div>
 
-        <div className="absolute bottom-0 left-0 w-full">
+        {/* 底部固定区域作为mask层，确保内容不会滚动到这个区域下 */}
+        <div 
+          className="absolute bottom-0 left-0 w-full z-10 h-[140px]"
+          style={{ 
+            backgroundColor: 'inherit',
+            backgroundImage: 'inherit'
+          }}
+        ></div>
+
+        {/* 输入框区域，放在mask层上方 */}
+        <div className="absolute bottom-0 left-0 w-full z-20">
           <ModernChatInput
             stopConversationRef={stopConversationRef}
             textareaRef={textareaRef}
@@ -488,6 +491,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
               }
             }}
             showScrollDownButton={showScrollDownButton}
+            isCentered={selectedConversation?.messages?.length === 0}
           />
         </div>
       </>
