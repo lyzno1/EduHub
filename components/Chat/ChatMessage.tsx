@@ -188,7 +188,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
                         <IconTrash size={16} />
                       </button>
                     </div>
-                    <div className="bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-white px-4 py-3 rounded-2xl rounded-tr-none text-sm leading-relaxed border border-gray-200 dark:border-gray-600 shadow-sm">
+                    <div className="bg-blue-50 text-gray-900 dark:bg-blue-900 dark:text-white px-4 py-3 rounded-2xl rounded-tr-none text-sm leading-relaxed border border-blue-100 dark:border-blue-800 shadow-sm font-medium">
                       {message.content}
                     </div>
                   </div>
