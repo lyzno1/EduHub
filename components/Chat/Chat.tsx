@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 
 import { useTranslation } from 'next-i18next';
 
-import { getEndpoint } from '@/utils/app/api';
+import { getEndpoint, getModelEndpoint } from '@/utils/app/api';
 import {
   saveConversation,
   saveConversations,
@@ -109,7 +109,12 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           conversationID: updatedConversation.conversationID,
           user: user,
         };
-        const endpoint = getEndpoint(plugin);
+        const endpoint = plugin ? getEndpoint(plugin) : getModelEndpoint(updatedConversation.model.apiType);
+        
+        console.log("Using model:", updatedConversation.model.name);
+        console.log("Model API type:", updatedConversation.model.apiType);
+        console.log("Selected endpoint:", endpoint);
+        
         let body;
         if (!plugin) {
           body = JSON.stringify(chatBody);
@@ -378,14 +383,14 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
 
   useEffect(() => {
     if (
-      selectedConversation?.messages.length > 0 &&
+      selectedConversation?.messages?.length > 0 &&
       !messageIsStreaming
     ) {
       setTimeout(() => {
         handleScrollDown();
       }, 100);
     }
-  }, [selectedConversation?.messages.length, messageIsStreaming, handleScrollDown]);
+  }, [selectedConversation?.messages?.length, messageIsStreaming, handleScrollDown]);
 
   return (
     <div
@@ -409,7 +414,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           ref={chatContainerRef}
           onScroll={handleScroll}
         >
-          {selectedConversation?.messages.length === 0 ? (
+          {selectedConversation?.messages?.length === 0 ? (
             <>
               <div className="flex flex-col items-center justify-center h-full">
                 <div className="flex flex-col items-center absolute left-0 right-0 mx-auto bottom-[50%] mb-[100px]">
@@ -464,7 +469,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
                   onEdit={(editedMessage) => {
                     //编辑消息后，删除编辑的消息后面的所有消息，然后发送编辑后的消息。
                     const deleteCount =
-                      selectedConversation?.messages.length - index;
+                      selectedConversation?.messages?.length - index;
                     // handleSend是一个回调函数，用来处理用户发送消息的逻辑。
                     handleSend(editedMessage, deleteCount - 1);
                   }}

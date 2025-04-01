@@ -11,6 +11,174 @@ import {
 
 // 其他依赖和OpenAIError类定义保持不变
 
+// 添加DeepSeek Stream函数，用于处理DeepSeek API的请求
+export const DeepSeekStream = async (
+  query: string,
+  key: string,
+  user: string,
+  existingConversationId: string,
+) => {
+  // DeepSeek API URL
+  const url = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions';
+
+  console.log('DeepSeek URL:', url);
+  console.log('Using conversation ID:', existingConversationId);
+
+  // 解析消息
+  let messages;
+  try {
+    // 尝试解析query作为JSON消息数组
+    messages = JSON.parse(query);
+    console.log('Using parsed message array');
+  } catch (e) {
+    // 如果解析失败，则query是普通文本，将其作为用户消息
+    console.log('Using query as single user message');
+    messages = [
+      { role: "system", content: "You are a helpful, respectful and honest assistant." },
+      { role: "user", content: query }
+    ];
+  }
+
+  // 构建请求体
+  const requestBody = {
+    model: "deepseek-chat", // 默认模型，可根据实际情况调整
+    messages: messages,
+    stream: true,
+    temperature: 0.7,
+    max_tokens: 2000,
+  };
+
+  console.log('DeepSeek request body:', JSON.stringify(requestBody));
+
+  try {
+    // 发起HTTP请求
+    const res = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key || process.env.DEEPSEEK_API_KEY}`
+      },
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
+    // 处理非200的HTTP状态
+    if (res.status !== 200) {
+      console.error('DeepSeek API error status:', res.status);
+      
+      let errorMessage;
+      try {
+        const result = await res.json();
+        console.error('DeepSeek API error details:', result);
+        if (result.error) {
+          errorMessage = result.error.message || 'Unknown API error';
+          throw new OpenAIError(
+            result.error.message,
+            result.error.type || 'unknown',
+            result.error.param || 'unknown',
+            result.error.code || 'unknown',
+          );
+        } else {
+          errorMessage = 'Unknown API error';
+          throw new Error(`DeepSeek API returned an error: ${res.statusText}`);
+        }
+      } catch (parseError) {
+        console.error('Error parsing API error response:', parseError);
+        errorMessage = `DeepSeek API returned status ${res.status}: ${res.statusText}`;
+        throw new Error(errorMessage);
+      }
+    }
+
+    // 处理成功响应并创建一个ReadableStream
+    const stream = new ReadableStream({
+      async start(controller) {
+        let text = '';
+        
+        // 创建唯一的会话ID
+        const newConversationId = existingConversationId || `convid-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+        const onParse = (event: ParsedEvent | ReconnectInterval) => {
+          if (event.type === 'event') {
+            const data = event.data;
+            
+            try {
+              if (data === "[DONE]") {
+                // 流结束
+                console.log('DeepSeek stream completed');
+                
+                // 确保在流结束时发送最终消息
+                if (text) {
+                  const finalMessage = JSON.stringify({
+                    conversation_id: newConversationId,
+                    answer: text,
+                    finished: true
+                  }) + "\n";
+                  controller.enqueue(encoder.encode(finalMessage));
+                }
+                
+                controller.close();
+                return;
+              }
+              
+              const json = JSON.parse(data);
+              const delta = json.choices[0]?.delta?.content || "";
+              
+              if (delta) {
+                text += delta;
+                
+                // 将解析后的数据加入stream，采用与DifyStream兼容的格式
+                const response = JSON.stringify({ 
+                  conversation_id: newConversationId, 
+                  answer: delta 
+                }) + "\n";
+                
+                controller.enqueue(encoder.encode(response));
+              }
+              
+              // 如果是结束消息
+              if (json.choices[0]?.finish_reason) {
+                console.log('DeepSeek response finish_reason:', json.choices[0].finish_reason);
+                
+                // 发送最后一条完整消息
+                const finalMessage = JSON.stringify({
+                  conversation_id: newConversationId,
+                  answer: text,
+                  finished: true
+                }) + "\n";
+                controller.enqueue(encoder.encode(finalMessage));
+                controller.close();
+              }
+            } catch (e) {
+              console.error('Error parsing DeepSeek API response:', e);
+              controller.error(e);
+            }
+          }
+        };
+
+        const parser = createParser(onParse);
+
+        try {
+          for await (const chunk of res.body as any) {
+            parser.feed(decoder.decode(chunk));
+          }
+        } catch (readError) {
+          console.error('Error reading DeepSeek API response stream:', readError);
+          controller.error(readError);
+        }
+      },
+    });
+
+    return {
+      stream
+    };
+  } catch (error) {
+    console.error('DeepSeek API request failed:', error);
+    throw error;
+  }
+};
+
 export const DifyStream = async (
   query: string,
   key: string,
@@ -38,8 +206,6 @@ export const DifyStream = async (
 
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
-
-
 
   // 处理非200的HTTP状态
   if (res.status !== 200) {
@@ -86,10 +252,9 @@ export const DifyStream = async (
           resetTimeout();
 
           // 将解析后的数据加入stream
-// 将解析后的数据加入stream，并在每个对象后添加换行符作为分隔符
+          // 将解析后的数据加入stream，并在每个对象后添加换行符作为分隔符
           const queue = encoder.encode(JSON.stringify({ conversation_id: newConversationId, answer: answer }) + "\n");
           controller.enqueue(queue);
-
         }
       };
       // console.log('new||ConversationId', newConversationId);
@@ -101,7 +266,6 @@ export const DifyStream = async (
       }
     },
   });
-
 
   return {
     stream

@@ -7,6 +7,7 @@ export interface OpenAIModel {
   maxLength: number; // maximum length of a message
   tokenLimit: number;
   key: string;
+  apiType?: string; // 添加apiType字段来区分不同的API类型
 }
 
 
@@ -22,6 +23,8 @@ export enum OpenAIModelID {
   智能助手 = '智能助手',
   课程助教 = '课程助教',
   校园助手 = '校园助手',
+  // 添加DeepSeek模型
+  DEEPSEEK_CHAT = 'deepseek-chat',
 }
 
 // in case the `DEFAULT_MODEL` environment variable is not set or set to an unsupported model
@@ -104,5 +107,14 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
     maxLength: 12000,
     tokenLimit: 4000,
     key: keys['校园助手'] || process.env.DIFY_API_KEY || '',
+  },
+  // 添加DeepSeek模型配置
+  [OpenAIModelID.DEEPSEEK_CHAT]: {
+    id: OpenAIModelID.DEEPSEEK_CHAT,
+    name: 'DeepSeek AI',
+    maxLength: 16000,
+    tokenLimit: 8000,
+    key: process.env.DEEPSEEK_API_KEY || 'sk-ab2a2211867043e495918a0147bb620e',
+    apiType: 'deepseek' // 标记为deepseek类型
   },
 };

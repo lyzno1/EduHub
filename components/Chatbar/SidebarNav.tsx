@@ -6,6 +6,7 @@ import HomeContext from '@/pages/api/home/home.context';
 import { Conversation } from '@/types/chat';
 import { ConversationComponent } from './ConversationComponent';
 import Link from 'next/link';
+import { ModelSelectButton } from '../Chat/ModelSelectButton';
 
 interface Props {
   onToggle: () => void;
@@ -37,19 +38,16 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     }
   }, [searchTerm, conversations]);
 
-  useEffect(() => {
-    if (isSearching && selectedConversation) {
-      setSearchTerm('');
-      setIsSearching(false);
-    }
-  }, [selectedConversation, isSearching]);
-
   const displayedConversations = isSearching ? filteredConversations : conversations;
   const hasNoResults = isSearching && filteredConversations.length === 0;
 
   const handleClearSearch = () => {
     setSearchTerm('');
     setIsSearching(false);
+  };
+
+  const handleCreateNewChat = () => {
+    handleNewConversation();
   };
 
   return (
@@ -59,21 +57,25 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
       }`}
     >
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
-        <button 
-          className="flex h-10 flex-shrink-0 items-center gap-3 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-[#202123] dark:text-gray-300 dark:hover:bg-gray-700"
-          onClick={handleNewConversation}
-        >
-          <IconMessagePlus size={16} />
-          <span>{t('新建聊天')}</span>
-        </button>
+        <ModelSelectButton />
         
-        <button 
-          className="rounded-md p-1 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-          onClick={onToggle}
-          aria-label="关闭侧边栏"
-        >
-          <IconChevronLeft size={20} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+            onClick={handleCreateNewChat}
+            title={t('新建聊天')}
+          >
+            <IconMessagePlus size={20} />
+          </button>
+          
+          <button 
+            className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+            onClick={onToggle}
+            aria-label="关闭侧边栏"
+          >
+            <IconChevronLeft size={20} />
+          </button>
+        </div>
       </div>
       
       <div className="px-2 py-3">
@@ -136,7 +138,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
                 <p>{t('无聊天记录')}</p>
                 <button
                   className="mt-2 flex items-center justify-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-sm text-blue-500 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                  onClick={handleNewConversation}
+                  onClick={handleCreateNewChat}
                 >
                   <IconMessagePlus size={16} />
                   {t('开始新的对话')}
