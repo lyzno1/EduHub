@@ -3,7 +3,7 @@ import { useContext, useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'next-i18next';
 import HomeContext from '@/pages/api/home/home.context';
 import { OpenAIModel, OpenAIModelID, OpenAIModels } from '@/types/openai';
-import { IconBrandDeepseekAi } from '../Icons/DeepSeekIcon';
+import { IconBrandDeepseek } from '../Icons/DeepSeekIcon';
 
 export const ModelSelectButton = () => {
   const { t } = useTranslation('chat');
@@ -44,7 +44,7 @@ export const ModelSelectButton = () => {
   // 根据模型类型返回不同的图标
   const getModelIcon = (model: OpenAIModel) => {
     if (model.apiType === 'deepseek') {
-      return <IconBrandDeepseekAi size={18} />;
+      return <IconBrandDeepseek size={18} />;
     }
     return null;
   };
@@ -82,7 +82,7 @@ export const ModelSelectButton = () => {
                     }`}
                     onClick={() => handleModelChange(model)}
                   >
-                    <IconBrandDeepseekAi size={16} className={currentModel.id === model.id ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'} />
+                    <IconBrandDeepseek size={16} className={currentModel.id === model.id ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'} />
                     <span>{model.name}</span>
                   </button>
                 ))}

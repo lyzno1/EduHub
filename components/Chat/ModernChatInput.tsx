@@ -1,4 +1,4 @@
-import { IconArrowUp, IconPlus } from '@tabler/icons-react';
+import { IconArrowUp, IconPlus, IconX } from '@tabler/icons-react';
 import {
   KeyboardEvent,
   MutableRefObject,
@@ -134,11 +134,15 @@ export const ModernChatInput = ({
 
       <button
         className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-black text-white hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700"
-        onClick={handleSend}
-        aria-label="发送消息"
-        disabled={!content || messageIsStreaming}
+        onClick={messageIsStreaming ? handleStopConversation : handleSend}
+        aria-label={messageIsStreaming ? "停止生成" : "发送消息"}
+        disabled={!messageIsStreaming && (!content || messageIsStreaming)}
       >
-        <IconArrowUp size={18} />
+        {messageIsStreaming ? (
+          <IconX size={18} />
+        ) : (
+          <IconArrowUp size={18} />
+        )}
       </button>
       
       {activePlugin && (
@@ -191,11 +195,15 @@ export const ModernChatInput = ({
 
         <button
           className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-black text-white hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700"
-          onClick={handleSend}
-          aria-label="发送消息"
-          disabled={!content || messageIsStreaming}
+          onClick={messageIsStreaming ? handleStopConversation : handleSend}
+          aria-label={messageIsStreaming ? "停止生成" : "发送消息"}
+          disabled={!messageIsStreaming && (!content || messageIsStreaming)}
         >
-          <IconArrowUp size={18} />
+          {messageIsStreaming ? (
+            <IconX size={18} />
+          ) : (
+            <IconArrowUp size={18} />
+          )}
         </button>
         
         {activePlugin && (
@@ -211,18 +219,6 @@ export const ModernChatInput = ({
           </div>
         )}
       </div>
-
-      {messageIsStreaming && (
-        <div className="mt-3 flex justify-center">
-          <button
-            className="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-200 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-            onClick={handleStopConversation}
-          >
-            <IconArrowUp size={16} />
-            {t('停止生成')}
-          </button>
-        </div>
-      )}
 
       {showScrollDownButton && (
         <div className="fixed bottom-[120px] right-8">

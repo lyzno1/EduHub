@@ -111,7 +111,7 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
   // 添加DeepSeek模型配置
   [OpenAIModelID.DEEPSEEK_CHAT]: {
     id: OpenAIModelID.DEEPSEEK_CHAT,
-    name: 'DeepSeek AI',
+    name: 'DeepSeek',
     maxLength: 16000,
     tokenLimit: 8000,
     key: process.env.DEEPSEEK_API_KEY || 'sk-ab2a2211867043e495918a0147bb620e',

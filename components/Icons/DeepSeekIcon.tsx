@@ -5,7 +5,7 @@ interface IconProps {
   className?: string;
 }
 
-export const IconBrandDeepseekAi: React.FC<IconProps> = ({ size = 24, className = '' }) => {
+export const IconBrandDeepseek: React.FC<IconProps> = ({ size = 24, className = '' }) => {
   return (
     <svg 
       xmlns="http://www.w3.org/2000/svg" 
