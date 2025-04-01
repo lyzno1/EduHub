@@ -40,13 +40,20 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const displayedConversations = isSearching ? filteredConversations : conversations;
   const hasNoResults = isSearching && filteredConversations.length === 0;
 
-  const handleClearSearch = () => {
+  const handleClearSearch = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setSearchTerm('');
     setIsSearching(false);
   };
 
-  const handleCreateNewChat = () => {
+  const handleCreateNewChat = (e: React.MouseEvent) => {
+    e.stopPropagation();
     handleNewConversation();
+  };
+
+  // 阻止事件冒泡到外部容器
+  const stopPropagation = (e: React.MouseEvent) => {
+    e.stopPropagation();
   };
 
   return (
@@ -54,9 +61,10 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
       className={`fixed left-[60px] top-0 z-10 flex h-full w-[260px] flex-col border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out dark:border-gray-800 dark:bg-[#202123] ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
+      onClick={stopPropagation}
     >
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">对话列表</h2>
+        <div className="flex-1"></div>
         
         <div className="flex items-center gap-2">
           <button 
