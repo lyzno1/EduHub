@@ -104,7 +104,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
         const chatBody: ChatBody = {
           model: updatedConversation.model,
           messages: updatedConversation.messages,
-          key: updatedConversation.model.key,
+          key: updatedConversation.model.key || "",
           prompt: updatedConversation.prompt,
           temperature: updatedConversation.temperature,
           conversationID: updatedConversation.conversationID,
@@ -391,7 +391,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
   // 在初始加载或切换对话时滚动到底部
   useEffect(() => {
     if (
-      selectedConversation?.messages?.length > 0 &&
+      selectedConversation?.messages && selectedConversation.messages.length > 0 &&
       !messageIsStreaming
     ) {
       setTimeout(() => {
@@ -415,23 +415,75 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           ? 'bg-[#F4EEE0]'
           : 'bg-[#F6F6F6] dark:bg-[#343541]'
       }`}
+      style={{
+        '--bg-color': lightMode === 'red'
+          ? '#F2ECBE'
+          : lightMode === 'blue'
+          ? '#F6F4EB'
+          : lightMode === 'green'
+          ? '#FAF1E4'
+          : lightMode === 'purple'
+          ? '#C5DFF8'
+          : lightMode === 'brown'
+          ? '#F4EEE0'
+          : '#F6F6F6',
+        '--dark-bg-color': '#343541'
+      } as React.CSSProperties}
     >
       <>
         <div className="absolute top-4 left-4 z-30">
           <ModelSelectButton />
         </div>
 
+        {/* 顶部遮罩层，确保内容不会超过模型选择按钮区域 */}
+        <div 
+          className="absolute top-0 left-0 w-full z-10 h-[60px] bg-white dark:bg-[#343541]"
+          style={{
+            backgroundColor: lightMode === 'red'
+              ? '#F2ECBE'
+              : lightMode === 'blue'
+              ? '#F6F4EB'
+              : lightMode === 'green'
+              ? '#FAF1E4'
+              : lightMode === 'purple'
+              ? '#C5DFF8'
+              : lightMode === 'brown'
+              ? '#F4EEE0'
+              : ''
+          }}
+        ></div>
+
         <div
-          className="flex-1 overflow-y-auto"
+          className="flex-1 overflow-y-auto pt-16" /* 添加pt-16顶部内边距，确保内容从模型选择按钮下方开始 */
           ref={chatContainerRef}
           onScroll={handleScroll}
         >
           {selectedConversation?.messages?.length === 0 ? (
             <>
-              <div className="flex flex-col items-center justify-center h-full">
-                <div className="flex flex-col items-center text-center absolute left-0 right-0 mx-auto bottom-[65%] mb-[30px] max-w-3xl px-4 sm:px-8">
-                  <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100 mb-2">eduhub.chat</h1>
-                  <p className="text-lg text-gray-600 dark:text-gray-300">基于大语言模型的新一代知识助手</p>
+              {/* 空对话时的布局 - 居中显示欢迎内容和输入框 */}
+              <div className="flex flex-col items-center justify-center min-h-screen">
+                <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 -mt-60">
+                  <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100 mb-4">eduhub.chat</h1>
+                  <p className="text-lg text-gray-600 dark:text-gray-300 mb-20">基于大语言模型的新一代知识助手</p>
+                </div>
+                
+                {/* ModernChatInput会自动处理垂直居中 */}
+                <div className="w-full mt-16">
+                  <ModernChatInput
+                    stopConversationRef={stopConversationRef}
+                    textareaRef={textareaRef}
+                    onSend={(message, plugin) => {
+                      handleSend(message, 0, plugin);
+                    }}
+                    onScrollDownClick={handleScrollDown}
+                    onRegenerate={() => {
+                      if (currentMessage) {
+                        handleSend(currentMessage, 2);
+                      }
+                    }}
+                    showScrollDownButton={showScrollDownButton}
+                    isCentered={true}
+                  />
                 </div>
               </div>
             </>
@@ -469,11 +521,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
 
         {/* 底部固定区域作为mask层，确保内容不会滚动到这个区域下 */}
         <div 
-          className="absolute bottom-0 left-0 w-full z-10 h-[140px]"
-          style={{ 
-            backgroundColor: 'inherit',
-            backgroundImage: 'inherit'
-          }}
+          className="absolute bottom-0 left-0 w-full z-10 h-[140px] bg-gradient-to-t from-white dark:from-[#343541] to-transparent"
         ></div>
 
         {/* 输入框区域，放在mask层上方 */}

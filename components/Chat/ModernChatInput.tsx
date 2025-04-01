@@ -163,7 +163,7 @@ export const ModernChatInput = ({
   return (
     <div
       className={isCentered 
-        ? "absolute left-0 right-0 mx-auto bottom-[30%] w-full max-w-3xl px-4 sm:px-8 transition-all duration-500" 
+        ? "absolute bottom-0 left-0 w-full px-4 pb-8 z-20 transform translate-y-[-330px]" 
         : "absolute bottom-0 left-0 w-full px-4 pb-8 transition-all duration-500 z-10"
       }
       ref={inputContainerRef}
