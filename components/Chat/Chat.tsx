@@ -330,7 +330,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
       
       container.scrollTo({
         top: scrollToPosition > 0 ? scrollToPosition : 0,
-        behavior: 'smooth',
+        behavior: 'smooth', // 保持平滑滚动
       });
       setAutoScrollEnabled(true);
     }
@@ -354,21 +354,19 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
 
   const scrollDown = () => {
     if (autoScrollEnabled && chatContainerRef?.current) {
-      // 使用scrollIntoView确保消息区域滚动到底部
+      // 使用scrollIntoView确保消息区域滚动到底部，保留平滑效果但更快速
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       
       // 作为后备方案，也使用scrollTo
-      setTimeout(() => {
-        if (chatContainerRef.current) {
-          chatContainerRef.current.scrollTo({
-            top: chatContainerRef.current.scrollHeight,
-            behavior: 'smooth',
-          });
-        }
-      }, 100);
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTo({
+          top: chatContainerRef.current.scrollHeight,
+          behavior: 'smooth',
+        });
+      }
     }
   };
-  const throttledScrollDown = throttle(scrollDown, 250);
+  const throttledScrollDown = throttle(scrollDown, 150); // 减小节流时间，让滚动更快响应
 
   useEffect(() => {
     // 消息流式传输时确保自动滚动

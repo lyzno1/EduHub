@@ -72,13 +72,12 @@ export const ModernChatInput = ({
       textareaRef.current.blur();
     }
     
-    // 强化滚动到底部的逻辑，使用多次尝试确保滚动生效
+    // 强化滚动到底部的逻辑，保留平滑效果但更快速
+    onScrollDownClick();
+    // 短时间后再次尝试滚动确保到达底部
     setTimeout(() => {
       onScrollDownClick();
-      // 再次尝试滚动，确保真正到达底部
-      setTimeout(onScrollDownClick, 150);
-      setTimeout(onScrollDownClick, 300);
-    }, 50);
+    }, 150);
   };
 
   const handleStopConversation = () => {
