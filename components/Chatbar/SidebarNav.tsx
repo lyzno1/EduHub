@@ -6,7 +6,6 @@ import HomeContext from '@/pages/api/home/home.context';
 import { Conversation } from '@/types/chat';
 import { ConversationComponent } from './ConversationComponent';
 import Link from 'next/link';
-import { ModelSelectButton } from '../Chat/ModelSelectButton';
 
 interface Props {
   onToggle: () => void;
@@ -57,7 +56,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
       }`}
     >
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
-        <ModelSelectButton />
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">对话列表</h2>
         
         <div className="flex items-center gap-2">
           <button 

@@ -3,7 +3,6 @@ import { useContext, useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'next-i18next';
 import HomeContext from '@/pages/api/home/home.context';
 import { OpenAIModel, OpenAIModelID, OpenAIModels } from '@/types/openai';
-import { IconBrandDeepseek } from '../Icons/DeepSeekIcon';
 
 export const ModelSelectButton = () => {
   const { t } = useTranslation('chat');
@@ -41,14 +40,6 @@ export const ModelSelectButton = () => {
 
   const currentModel = selectedConversation?.model || OpenAIModels[OpenAIModelID.DEEPSEEK_CHAT];
   
-  // 根据模型类型返回不同的图标
-  const getModelIcon = (model: OpenAIModel) => {
-    if (model.apiType === 'deepseek') {
-      return <IconBrandDeepseek size={20} />;
-    }
-    return null;
-  };
-
   return (
     <div className="relative" ref={dropdownRef}>
       <button
@@ -56,7 +47,6 @@ export const ModelSelectButton = () => {
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="flex items-center gap-2.5">
-          {getModelIcon(currentModel)}
           <span>{currentModel.name}</span>
         </div>
         <IconChevronDown size={18} className="text-gray-600 dark:text-gray-400" />
@@ -82,7 +72,6 @@ export const ModelSelectButton = () => {
                     }`}
                     onClick={() => handleModelChange(model)}
                   >
-                    <IconBrandDeepseek size={16} className={currentModel.id === model.id ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'} />
                     <span>{model.name}</span>
                   </button>
                 ))}
@@ -105,7 +94,7 @@ export const ModelSelectButton = () => {
                     }`}
                     onClick={() => handleModelChange(model)}
                   >
-                    <span className="ml-6">{model.name}</span>
+                    <span className="ml-0">{model.name}</span>
                   </button>
                 ))}
             </div>
