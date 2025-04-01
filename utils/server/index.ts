@@ -1,5 +1,5 @@
 import { Message } from '@/types/chat';
-import { OpenAIModel } from '@/types/openai';
+import { OpenAIModel, ModelType } from '@/types/openai';
 
 import { AZURE_DEPLOYMENT_ID, OPENAI_API_HOST, OPENAI_API_TYPE, OPENAI_API_VERSION, OPENAI_ORGANIZATION } from '../app/const';
 
@@ -95,9 +95,36 @@ export const DeepSeekStream = async (
     const stream = new ReadableStream({
       async start(controller) {
         let text = '';
+        let isStreamClosed = false; // 标志流是否已经关闭
         
         // 创建唯一的会话ID
         const newConversationId = existingConversationId || `convid-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+        // 安全地向流中添加数据的函数
+        const safeEnqueue = (data: Uint8Array) => {
+          if (!isStreamClosed) {
+            try {
+              controller.enqueue(data);
+            } catch (error) {
+              console.error('Error enqueueing data to stream:', error);
+              // 如果出现错误，标记流已关闭
+              isStreamClosed = true;
+            }
+          }
+        };
+
+        // 安全地关闭流的函数
+        const safeClose = () => {
+          if (!isStreamClosed) {
+            try {
+              controller.close();
+              isStreamClosed = true;
+              console.log('DeepSeek stream closed successfully');
+            } catch (error) {
+              console.error('Error closing stream:', error);
+            }
+          }
+        };
 
         const onParse = (event: ParsedEvent | ReconnectInterval) => {
           if (event.type === 'event') {
@@ -109,23 +136,23 @@ export const DeepSeekStream = async (
                 console.log('DeepSeek stream completed');
                 
                 // 确保在流结束时发送最终消息
-                if (text) {
+                if (text && !isStreamClosed) {
                   const finalMessage = JSON.stringify({
                     conversation_id: newConversationId,
                     answer: text,
                     finished: true
                   }) + "\n";
-                  controller.enqueue(encoder.encode(finalMessage));
+                  safeEnqueue(encoder.encode(finalMessage));
                 }
                 
-                controller.close();
+                safeClose();
                 return;
               }
               
               const json = JSON.parse(data);
               const delta = json.choices[0]?.delta?.content || "";
               
-              if (delta) {
+              if (delta && !isStreamClosed) {
                 text += delta;
                 
                 // 将解析后的数据加入stream，采用与DifyStream兼容的格式
@@ -134,25 +161,20 @@ export const DeepSeekStream = async (
                   answer: delta 
                 }) + "\n";
                 
-                controller.enqueue(encoder.encode(response));
+                safeEnqueue(encoder.encode(response));
               }
               
-              // 如果是结束消息
+              // 如果是结束消息，但不在这里关闭流，让[DONE]事件来关闭
               if (json.choices[0]?.finish_reason) {
                 console.log('DeepSeek response finish_reason:', json.choices[0].finish_reason);
-                
-                // 发送最后一条完整消息
-                const finalMessage = JSON.stringify({
-                  conversation_id: newConversationId,
-                  answer: text,
-                  finished: true
-                }) + "\n";
-                controller.enqueue(encoder.encode(finalMessage));
-                controller.close();
+                // 不在这里关闭流，只记录结束原因
               }
             } catch (e) {
               console.error('Error parsing DeepSeek API response:', e);
-              controller.error(e);
+              if (!isStreamClosed) {
+                controller.error(e);
+                isStreamClosed = true;
+              }
             }
           }
         };
@@ -161,11 +183,16 @@ export const DeepSeekStream = async (
 
         try {
           for await (const chunk of res.body as any) {
+            // 如果流已关闭，不再处理后续数据
+            if (isStreamClosed) break;
             parser.feed(decoder.decode(chunk));
           }
         } catch (readError) {
           console.error('Error reading DeepSeek API response stream:', readError);
-          controller.error(readError);
+          if (!isStreamClosed) {
+            controller.error(readError);
+            isStreamClosed = true;
+          }
         }
       },
     });
@@ -378,3 +405,51 @@ export const OpenAIStream = async (
 
   return stream;
 };
+
+// 创建统一的ModelStreamFactory工厂类
+export class ModelStreamFactory {
+  /**
+   * 获取适合特定模型类型的流处理器
+   * @param modelType 模型类型
+   * @param query 查询字符串或消息数组的JSON字符串
+   * @param key API密钥
+   * @param user 用户标识
+   * @param conversationId 对话ID
+   * @returns 包含流的对象
+   */
+  static async getStream(
+    modelType: string,
+    query: string,
+    key: string,
+    user: string,
+    conversationId: string
+  ) {
+    console.log(`ModelStreamFactory: Processing ${modelType} model request`);
+    
+    switch (modelType) {
+      case ModelType.DEEPSEEK:
+        console.log('Using DeepSeek stream processor');
+        return DeepSeekStream(query, key, user, conversationId);
+        
+      case ModelType.CLAUDE:
+        // TODO: 实现Claude模型的流处理
+        console.log('Claude API not yet implemented');
+        throw new Error('Claude API not implemented yet');
+        
+      case ModelType.GEMINI:
+        // TODO: 实现Gemini模型的流处理
+        console.log('Gemini API not yet implemented');
+        throw new Error('Gemini API not implemented yet');
+        
+      case ModelType.OPENAI:
+        // TODO: 适配OpenAI流处理
+        console.log('OpenAI direct API not fully implemented');
+        throw new Error('OpenAI direct API not fully implemented');
+        
+      case ModelType.DIFY:
+      default:
+        console.log('Using Dify stream processor (default)');
+        return DifyStream(query, key, user, conversationId);
+    }
+  }
+}
