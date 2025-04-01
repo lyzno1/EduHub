@@ -44,7 +44,7 @@ export const ModelSelectButton = () => {
   // 根据模型类型返回不同的图标
   const getModelIcon = (model: OpenAIModel) => {
     if (model.apiType === 'deepseek') {
-      return <IconBrandDeepseek size={18} />;
+      return <IconBrandDeepseek size={20} />;
     }
     return null;
   };
@@ -52,14 +52,14 @@ export const ModelSelectButton = () => {
   return (
     <div className="relative" ref={dropdownRef}>
       <button
-        className="flex items-center gap-2 rounded-md bg-transparent py-2 px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50/30 dark:text-gray-300 dark:hover:bg-gray-800/30"
+        className="flex items-center gap-2 rounded-md bg-white/80 py-2.5 px-4 text-base font-semibold text-gray-800 shadow-sm transition-colors hover:bg-gray-100 dark:bg-gray-800/80 dark:text-gray-200 dark:hover:bg-gray-700/90"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           {getModelIcon(currentModel)}
           <span>{currentModel.name}</span>
         </div>
-        <IconChevronDown size={16} className="text-gray-500 dark:text-gray-400" />
+        <IconChevronDown size={18} className="text-gray-600 dark:text-gray-400" />
       </button>
 
       {isOpen && (

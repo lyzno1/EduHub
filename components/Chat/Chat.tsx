@@ -31,6 +31,7 @@ import { ChatLoader } from './ChatLoader';
 import { ErrorMessageDiv } from './ErrorMessageDiv';
 import { MemoizedChatMessage } from './MemoizedChatMessage';
 import { ModelSelect } from './ModelSelect';
+import { ModelSelectButton } from './ModelSelectButton';
 import { SystemPrompt } from './SystemPrompt';
 import { TemperatureSlider } from './Temperature';
 
@@ -416,6 +417,10 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
       }`}
     >
       <>
+        <div className="absolute top-4 left-4 z-30">
+          <ModelSelectButton />
+        </div>
+
         <div
           className="flex-1 overflow-y-auto"
           ref={chatContainerRef}
@@ -432,12 +437,9 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
             </>
           ) : (
             <>
-              {/* 删除顶部导航栏，保持界面简洁 */}
-              
               {showSettings && (
                 <div className="flex flex-col space-y-10 md:mx-auto md:max-w-xl md:gap-6 md:py-3 md:pt-6 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
                   <div className="flex h-full flex-col space-y-4 border-b border-neutral-200 p-4 dark:border-neutral-600 md:rounded-lg md:border">
-                    <ModelSelect />
                   </div>
                 </div>
               )}
