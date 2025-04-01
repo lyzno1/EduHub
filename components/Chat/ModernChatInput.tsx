@@ -22,6 +22,7 @@ interface Props {
   stopConversationRef: MutableRefObject<boolean>;
   textareaRef: MutableRefObject<HTMLTextAreaElement | null>;
   showScrollDownButton: boolean;
+  isCentered?: boolean;
 }
 
 export const ModernChatInput = ({
@@ -31,6 +32,7 @@ export const ModernChatInput = ({
   stopConversationRef,
   textareaRef,
   showScrollDownButton,
+  isCentered,
 }: Props) => {
   const { t } = useTranslation('chat');
 
@@ -157,7 +159,10 @@ export const ModernChatInput = ({
   // 根据是否有消息决定输入框容器位置
   return (
     <div
-      className="w-full px-4 pb-8 z-10"
+      className={isCentered 
+        ? "absolute left-0 right-0 mx-auto bottom-[30%] w-full max-w-3xl px-4 sm:px-8 transition-all duration-500" 
+        : "absolute bottom-0 left-0 w-full px-4 pb-8 transition-all duration-500 z-10"
+      }
       ref={inputContainerRef}
     >
       <div
