@@ -343,58 +343,48 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
   };
 
   const scrollDown = () => {
-    if (autoScrollEnabled) {
-      messagesEndRef.current?.scrollIntoView(true);
+    if (autoScrollEnabled && chatContainerRef?.current) {
+      // 使用scrollIntoView确保消息区域滚动到底部
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      
+      // 作为后备方案，也使用scrollTo
+      setTimeout(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTo({
+            top: chatContainerRef.current.scrollHeight,
+            behavior: 'smooth',
+          });
+        }
+      }, 100);
     }
   };
   const throttledScrollDown = throttle(scrollDown, 250);
 
   useEffect(() => {
-    throttledScrollDown();
-    selectedConversation &&
+    // 消息流式传输时确保自动滚动
+    if (messageIsStreaming) {
+      throttledScrollDown();
+    }
+  }, [messageIsStreaming, throttledScrollDown]);
+
+  // 确保在新消息时总是滚动到底部
+  useEffect(() => {
+    if (selectedConversation?.messages.length) {
+      throttledScrollDown();
+      
+      // 再次尝试滚动，以确保真正滚动到底部
+      setTimeout(throttledScrollDown, 300);
+      
+      // 设置当前消息
       setCurrentMessage(
-        selectedConversation.messages[selectedConversation.messages.length - 2],
+        selectedConversation.messages[selectedConversation.messages.length - 2]
       );
-  }, [selectedConversation, throttledScrollDown]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setAutoScrollEnabled(entry.isIntersecting);
-        if (entry.isIntersecting) {
-          setShowScrollDownButton(false);
-        }
-      },
-      {
-        root: null,
-        threshold: 0.5,
-      },
-    );
-    const messagesEndElement = messagesEndRef.current;
-    if (messagesEndElement) {
-      observer.observe(messagesEndElement);
     }
-    return () => {
-      if (messagesEndElement) {
-        observer.unobserve(messagesEndElement);
-      }
-    };
-  }, [messagesEndRef]);
-
-  useEffect(() => {
-    if (
-      selectedConversation?.messages?.length > 0 &&
-      !messageIsStreaming
-    ) {
-      setTimeout(() => {
-        handleScrollDown();
-      }, 100);
-    }
-  }, [selectedConversation?.messages?.length, messageIsStreaming, handleScrollDown]);
+  }, [selectedConversation?.messages.length, throttledScrollDown, selectedConversation]);
 
   return (
     <div
-      className={`relative flex-1 overflow-hidden ${
+      className={`relative flex-1 flex flex-col overflow-hidden bg-white dark:bg-[#343541] ${
         lightMode === 'red'
           ? 'bg-[#F2ECBE]'
           : lightMode === 'blue'
@@ -410,7 +400,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
     >
       <>
         <div
-          className="flex-1 overflow-y-auto pb-64"
+          className="flex-1 overflow-y-auto"
           ref={chatContainerRef}
           onScroll={handleScroll}
         >
@@ -478,41 +468,28 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
 
               {loading && <ChatLoader />}
 
-              {/* 回复消息下方的空白区域 */}
-              <div
-                className={`h-[200px] ${
-                  lightMode === 'red'
-                    ? 'bg-[#F2ECBE]'
-                    : lightMode === 'blue'
-                    ? 'bg-[#F6F4EB]'
-                    : lightMode === 'green'
-                    ? 'bg-[#FAF1E4]'
-                    : lightMode === 'purple'
-                    ? 'bg-[#C5DFF8]'
-                    : lightMode === 'brown'
-                    ? 'bg-[#F4EEE0]'
-                    : 'bg-[#F6F6F6] dark:bg-[#343541]'
-                }`}
-                ref={messagesEndRef}
-              />
+              {/* 空白区域，确保有足够空间滚动 */}
+              <div className="h-[180px]" ref={messagesEndRef} />
             </>
           )}
         </div>
 
-        <ModernChatInput
-          stopConversationRef={stopConversationRef}
-          textareaRef={textareaRef}
-          onSend={(message, plugin) => {
-            handleSend(message, 0, plugin);
-          }}
-          onScrollDownClick={handleScrollDown}
-          onRegenerate={() => {
-            if (currentMessage) {
-              handleSend(currentMessage, 2);
-            }
-          }}
-          showScrollDownButton={showScrollDownButton}
-        />
+        <div className="absolute bottom-0 left-0 w-full">
+          <ModernChatInput
+            stopConversationRef={stopConversationRef}
+            textareaRef={textareaRef}
+            onSend={(message, plugin) => {
+              handleSend(message, 0, plugin);
+            }}
+            onScrollDownClick={handleScrollDown}
+            onRegenerate={() => {
+              if (currentMessage) {
+                handleSend(currentMessage, 2);
+              }
+            }}
+            showScrollDownButton={showScrollDownButton}
+          />
+        </div>
       </>
     </div>
   );

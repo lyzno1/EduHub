@@ -45,8 +45,6 @@ export const ModernChatInput = ({
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [showPluginSelect, setShowPluginSelect] = useState<boolean>(false);
   const [activePlugin, setActivePlugin] = useState<Plugin | null>(null);
-  const [isCentered, setIsCentered] = useState<boolean>(true);
-  const [hasSubmitted, setHasSubmitted] = useState<boolean>(false);
 
   const inputContainerRef = useRef<HTMLDivElement>(null);
 
@@ -63,9 +61,6 @@ export const ModernChatInput = ({
     if (!content) {
       return;
     }
-
-    // 设置已提交状态为true - 这会使输入框永久固定在底部
-    setHasSubmitted(true);
     
     onSend({ role: 'user', content }, activePlugin);
     setContent('');
@@ -101,32 +96,6 @@ export const ModernChatInput = ({
       setIsTyping(true);
     }
   };
-
-  // 根据是否有消息和是否已提交来决定输入框位置
-  useEffect(() => {
-    if (hasSubmitted || (selectedConversation && selectedConversation.messages.length > 0)) {
-      setIsCentered(false);
-    } else {
-      setIsCentered(true);
-    }
-  }, [selectedConversation, hasSubmitted]);
-
-  // 添加对selectedConversation变化的监听，当切换对话时重置状态
-  useEffect(() => {
-    // 当选中的对话改变时，重置hasSubmitted状态
-    // 这样在切换到新对话时输入框会回到初始状态
-    if (selectedConversation && selectedConversation.id) {
-      // 如果是新对话（没有消息），重置为初始状态
-      if (selectedConversation.messages.length === 0) {
-        setHasSubmitted(false);
-        setIsCentered(true);
-      } else {
-        // 如果是有消息的对话，保持在底部
-        setHasSubmitted(true);
-        setIsCentered(false);
-      }
-    }
-  }, [selectedConversation?.id]);
 
   useEffect(() => {
     if (textareaRef && textareaRef.current) {
@@ -188,13 +157,55 @@ export const ModernChatInput = ({
   // 根据是否有消息决定输入框容器位置
   return (
     <div
-      className={isCentered 
-        ? "absolute left-0 right-0 mx-auto bottom-[35%] w-full max-w-2xl px-4 sm:px-8 transition-all duration-500" 
-        : "absolute bottom-0 left-0 w-full px-4 pb-8 transition-all duration-500 z-10"
-      }
+      className="w-full px-4 pb-8 z-10"
       ref={inputContainerRef}
     >
-      {renderInputBox()}
+      <div
+        className="relative flex flex-col rounded-3xl border border-gray-300 bg-white shadow-[0_0_15px_rgba(0,0,0,0.10)] dark:border-gray-700 dark:bg-[#40414f]"
+        style={{ maxWidth: '800px', margin: '0 auto' }}
+      >
+        <textarea
+          ref={textareaRef as MutableRefObject<HTMLTextAreaElement>}
+          className="min-h-[120px] w-full resize-none rounded-3xl border-0 bg-transparent p-5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-0 dark:text-white"
+          placeholder={t('有什么可以帮您的吗？') || ''}
+          value={content}
+          rows={1}
+          onCompositionStart={() => setIsTyping(true)}
+          onCompositionEnd={() => setIsTyping(false)}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+        />
+        
+        <button
+          className="absolute bottom-4 left-4 flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+          onClick={() => setShowPluginSelect(!showPluginSelect)}
+          aria-label="更多选项"
+        >
+          <IconPlus size={18} />
+        </button>
+
+        <button
+          className="absolute bottom-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-black text-white hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700"
+          onClick={handleSend}
+          aria-label="发送消息"
+          disabled={!content || messageIsStreaming}
+        >
+          <IconArrowUp size={18} />
+        </button>
+        
+        {activePlugin && (
+          <div className="flex items-center border-t border-gray-200 px-3 py-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
+            <span className="mr-2">使用插件:</span>
+            <span className="font-medium">{activePlugin.name}</span>
+            <button
+              className="ml-2 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-500"
+              onClick={() => setActivePlugin(null)}
+            >
+              取消
+            </button>
+          </div>
+        )}
+      </div>
 
       {messageIsStreaming && (
         <div className="mt-3 flex justify-center">
