@@ -31,6 +31,24 @@
   height: 6px;
 }
 
+/* 文本区域专用滚动条样式 */
+textarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+textarea::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 4px;
+}
+
+textarea::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
+
+textarea::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
 html {
   background: #ffffff; /* 默认背景为白色 */
 }

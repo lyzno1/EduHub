@@ -16,6 +16,8 @@
   --sidebar-border: #4b5563;
   --dropdown-bg: #2e3440;
   --dropdown-hover: #374151;
+  --textarea-scrollbar-thumb: #6b7280;
+  --textarea-scrollbar-thumb-hover: #9ca3af;
 }
 
 /* 深色模式滚动条样式 */
@@ -30,6 +32,24 @@
 
 .dark ::-webkit-scrollbar-track:hover {
   background-color: #2a2b2d;
+}
+
+/* 文本区域专用滚动条样式 */
+.dark textarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dark textarea::-webkit-scrollbar-thumb {
+  background-color: var(--textarea-scrollbar-thumb);
+  border-radius: 4px;
+}
+
+.dark textarea::-webkit-scrollbar-thumb:hover {
+  background-color: var(--textarea-scrollbar-thumb-hover);
+}
+
+.dark textarea::-webkit-scrollbar-track {
+  background-color: transparent;
 }
 
 /* 深色模式下的卡片 */
