@@ -108,8 +108,12 @@ export const ModernChatInput = ({
   // 创建输入框内容（确保在两种状态下完全一致）
   const renderInputBox = () => (
     <div
-      className="relative flex flex-col rounded-3xl border border-gray-300 bg-white shadow-[0_0_15px_rgba(0,0,0,0.10)] dark:border-gray-700 dark:bg-[#40414f]"
-      style={{ maxWidth: '800px', margin: '0 auto' }}
+      className="relative flex flex-col rounded-3xl border border-gray-300 bg-white dark:border-gray-700 dark:bg-[#40414f]"
+      style={{ 
+        maxWidth: '800px', 
+        margin: '0 auto',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 8px 15px -3px rgba(0, 0, 0, 0.1), 0 12px 20px -5px rgba(0, 0, 0, 0.15)'
+      }}
     >
       <textarea
         ref={textareaRef as MutableRefObject<HTMLTextAreaElement>}
@@ -169,8 +173,12 @@ export const ModernChatInput = ({
       ref={inputContainerRef}
     >
       <div
-        className="relative flex flex-col rounded-3xl border border-gray-300 bg-white shadow-[0_0_15px_rgba(0,0,0,0.10)] dark:border-gray-700 dark:bg-[#40414f]"
-        style={{ maxWidth: '800px', margin: '0 auto' }}
+        className="relative flex flex-col rounded-3xl border border-gray-300 bg-white dark:border-gray-700 dark:bg-[#40414f]"
+        style={{ 
+          maxWidth: '800px', 
+          margin: '0 auto',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 8px 15px -3px rgba(0, 0, 0, 0.1), 0 12px 20px -5px rgba(0, 0, 0, 0.15)'
+        }}
       >
         <textarea
           ref={textareaRef as MutableRefObject<HTMLTextAreaElement>}

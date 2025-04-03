@@ -437,7 +437,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
 
         {/* 顶部遮罩层，确保内容不会超过模型选择按钮区域 */}
         <div 
-          className="absolute top-0 left-0 w-full z-10 h-[60px] bg-white dark:bg-[#343541]"
+          className="absolute top-0 left-0 right-[17px] z-10 h-[60px] bg-white dark:bg-[#343541]"
           style={{
             backgroundColor: lightMode === 'red'
               ? '#F2ECBE'
@@ -456,7 +456,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
         ></div>
 
         <div
-          className="flex-1 overflow-y-auto pt-16"
+          className="flex-1 overflow-y-auto"
           ref={chatContainerRef}
           onScroll={handleScroll}
         >
@@ -489,36 +489,38 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
             </>
           ) : (
             <>
-              {showSettings && (
-                <div className="flex flex-col space-y-10 md:mx-auto md:max-w-xl md:gap-6 md:py-3 md:pt-6 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
-                  <div className="flex h-full flex-col space-y-4 border-b border-neutral-200 p-4 dark:border-neutral-600 md:rounded-lg md:border">
+              <div className="pt-16">
+                {showSettings && (
+                  <div className="flex flex-col space-y-10 md:mx-auto md:max-w-xl md:gap-6 md:py-3 md:pt-6 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
+                    <div className="flex h-full flex-col space-y-4 border-b border-neutral-200 p-4 dark:border-neutral-600 md:rounded-lg md:border">
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {selectedConversation?.messages.map((message, index) => (
-                <MemoizedChatMessage
-                  key={index}
-                  message={message}
-                  messageIndex={index}
-                  onEdit={(editedMessage) => {
-                    const deleteCount =
-                      selectedConversation?.messages?.length - index;
-                    handleSend(editedMessage, deleteCount - 1);
-                  }}
-                />
-              ))}
+                {selectedConversation?.messages.map((message, index) => (
+                  <MemoizedChatMessage
+                    key={index}
+                    message={message}
+                    messageIndex={index}
+                    onEdit={(editedMessage) => {
+                      const deleteCount =
+                        selectedConversation?.messages?.length - index;
+                      handleSend(editedMessage, deleteCount - 1);
+                    }}
+                  />
+                ))}
 
-              {loading && <ChatLoader />}
+                {loading && <ChatLoader />}
 
-              <div className="h-[200px]" ref={messagesEndRef} />
+                <div className="h-[200px]" ref={messagesEndRef} />
+              </div>
             </>
           )}
         </div>
 
         {/* 底部固定区域作为mask层，确保内容不会滚动到这个区域下 */}
         <div 
-          className="absolute bottom-0 left-0 w-full z-10 h-[140px]"
+          className="absolute bottom-0 left-0 right-[17px] z-10 h-[140px]"
           style={{
             backgroundColor: lightMode === 'red'
               ? '#F2ECBE'
