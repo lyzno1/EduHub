@@ -212,91 +212,168 @@ export const DifyStream = async (
   user: string,
   existingConversationId: string,
 ) => {
-  // 更新URL
-  const url = process.env.DIFY_API_URL || 'https://api.dify.ai/v1/chat-messages';
-
-  // 发起HTTP请求
-  const res = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${key || process.env.DIFY_API_KEY}`
-    },
-    method: 'POST',
-    body: JSON.stringify({
-      inputs: {}, // 这里可以根据API文档进行适当的调整
+  // 使用硬编码的URL，避免环境变量问题
+  let url = 'http://127.0.0.1:8088/v1/chat-messages';
+  console.log('Using hardcoded Dify URL:', url);
+  
+  try {
+    // 打印详细的参数信息，便于调试
+    console.log('Dify request parameters:');
+    console.log('- Query:', query);
+    console.log('- Key:', key ? key.substring(0, 8) + '...' : 'undefined');
+    console.log('- User:', user);
+    console.log('- ConversationID:', existingConversationId || 'none');
+    
+    // 最简化的请求体，避免不必要的字段
+    const requestBody: any = {
       query: query,
       response_mode: 'streaming',
-      user: user,
-      conversation_id: existingConversationId // 使用存在的conversation_id
-    }),
-  });
-
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-
-  // 处理非200的HTTP状态
-  if (res.status !== 200) {
-    const result = await res.json();
-    if (result.error) {
-      throw new OpenAIError(
-        result.error.message,
-        result.error.type,
-        result.error.param,
-        result.error.code,
-      );
-    } else {
-      throw new Error(`API returned an error: ${decoder.decode(result?.value) || result.statusText}`);
+      user: user || 'anonymous-user'
+    };
+    
+    // 只在会话ID有值时添加
+    if (existingConversationId) {
+      requestBody.conversation_id = existingConversationId;
     }
-  }
-
-  // 处理成功响应并创建一个ReadableStream
-  const stream = new ReadableStream({
-    async start(controller) {
-      // 添加超时逻辑
-      let timeoutId: ReturnType<typeof setTimeout>;
-      const timeoutDuration = Number(process.env.DIFY_API_TIMEOUT || 5000);
-
-      const resetTimeout = () => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-          controller.close(); // 关闭流
-        }, timeoutDuration);
-      };
-
-      resetTimeout(); // 初始化超时
-
-      const onParse = (event: ParsedEvent | ReconnectInterval) => {
-        if (event.type === 'event') {
-          const data = JSON.parse(event.data);
-
-          // 更新conversation_id
-          const newConversationId = data.conversation_id;
-
-          // 如果需要，可以将其他字段也解析出来
-          const answer = data.answer;
-
-          // 每次收到数据，重置超时
-          resetTimeout();
-
-          // 将解析后的数据加入stream
-          // 将解析后的数据加入stream，并在每个对象后添加换行符作为分隔符
-          const queue = encoder.encode(JSON.stringify({ conversation_id: newConversationId, answer: answer }) + "\n");
-          controller.enqueue(queue);
+    
+    console.log('Dify request body:', JSON.stringify(requestBody));
+    
+    // 发起HTTP请求，添加超时
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`
+        },
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      // 打印响应头信息，便于调试
+      console.log('Dify response status:', res.status);
+      const headerEntries: [string, string][] = [];
+      res.headers.forEach((value, key) => {
+        headerEntries.push([key, value]);
+      });
+      console.log('Dify response headers:', Object.fromEntries(headerEntries));
+      
+      // 处理非200的HTTP状态
+      if (res.status !== 200) {
+        let errorText = '';
+        try {
+          const errorBody = await res.text();
+          console.error('Dify API error response body:', errorBody);
+          try {
+            const errorJson = JSON.parse(errorBody);
+            console.error('Parsed error JSON:', errorJson);
+            errorText = errorJson.message || errorBody;
+          } catch {
+            errorText = errorBody;
+          }
+        } catch (e) {
+          console.error('Failed to read error response:', e);
+          errorText = 'Unknown error';
         }
-      };
-      // console.log('new||ConversationId', newConversationId);
-
-      const parser = createParser(onParse);
-
-      for await (const chunk of res.body as any) {
-        parser.feed(decoder.decode(chunk));
+        
+        throw new Error(`Dify API returned ${res.status}: ${errorText}`);
       }
-    },
-  });
-
-  return {
-    stream
-  };
+      
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+      
+      // 处理成功响应并创建一个ReadableStream
+      const stream = new ReadableStream({
+        async start(controller) {
+          // 添加超时逻辑
+          let timeoutId: ReturnType<typeof setTimeout> | undefined = undefined;
+          const timeoutDuration = Number(process.env.DIFY_API_TIMEOUT || 12000);
+          
+          const resetTimeout = () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+              console.log('Dify API response timeout');
+              controller.close(); // 关闭流
+            }, timeoutDuration);
+          };
+          
+          resetTimeout(); // 初始化超时
+          
+          const onParse = (event: ParsedEvent | ReconnectInterval) => {
+            if (event.type === 'event') {
+              try {
+                const data = JSON.parse(event.data);
+                console.log('Received data from Dify:', JSON.stringify(data).substring(0, 100) + '...');
+                
+                // 处理不同类型的事件
+                if (data.event === 'message') {
+                  // LLM 返回文本块事件
+                  const newConversationId = data.conversation_id;
+                  const answer = data.answer || '';
+                  
+                  // 每次收到数据，重置超时
+                  resetTimeout();
+                  
+                  // 将解析后的数据加入stream
+                  const queue = encoder.encode(JSON.stringify({ 
+                    conversation_id: newConversationId, 
+                    answer: answer 
+                  }) + "\n");
+                  
+                  controller.enqueue(queue);
+                } 
+                else if (data.event === 'message_end') {
+                  // 消息结束事件，可以记录元数据和使用信息
+                  console.log('Dify message completed:', data.message_id);
+                  // 不需要特别处理，让流自然结束
+                }
+                else if (data.event === 'error') {
+                  // 错误事件
+                  console.error('Dify API error event:', data.message);
+                  throw new Error(`Dify API error: ${data.message} (${data.code})`);
+                }
+                else {
+                  // 其他事件类型，如agent_thought, message_file等
+                  console.log('Received other event type:', data.event);
+                }
+              } catch (e) {
+                console.error('Error parsing Dify API event data:', e, 'Raw data:', event.data);
+              }
+            }
+          };
+          
+          const parser = createParser(onParse);
+          
+          try {
+            for await (const chunk of res.body as any) {
+              parser.feed(decoder.decode(chunk));
+            }
+          } catch (e) {
+            console.error('Error reading Dify API response stream:', e);
+            throw e;
+          } finally {
+            if (timeoutId) clearTimeout(timeoutId);
+          }
+        },
+      });
+      
+      return {
+        stream
+      };
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.error('Dify API request failed:', error);
+      throw error;
+    }
+  } catch (error) {
+    console.error('Dify request preparation failed:', error);
+    throw error;
+  }
 };
 
 export class OpenAIError extends Error {
