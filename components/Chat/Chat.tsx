@@ -413,7 +413,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           ? 'bg-[#C5DFF8]'
           : lightMode === 'brown'
           ? 'bg-[#F4EEE0]'
-          : 'bg-[#F6F6F6] dark:bg-[#343541]'
+          : 'bg-white dark:bg-[#343541]'
       }`}
       style={{
         '--bg-color': lightMode === 'red'
@@ -426,7 +426,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           ? '#C5DFF8'
           : lightMode === 'brown'
           ? '#F4EEE0'
-          : '#F6F6F6',
+          : '#FFFFFF',
         '--dark-bg-color': '#343541'
       } as React.CSSProperties}
     >
@@ -449,25 +449,25 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
               ? '#C5DFF8'
               : lightMode === 'brown'
               ? '#F4EEE0'
-              : ''
+              : lightMode === 'light'
+              ? '#FFFFFF'
+              : '#343541'
           }}
         ></div>
 
         <div
-          className="flex-1 overflow-y-auto pt-16" /* 添加pt-16顶部内边距，确保内容从模型选择按钮下方开始 */
+          className="flex-1 overflow-y-auto pt-16"
           ref={chatContainerRef}
           onScroll={handleScroll}
         >
           {selectedConversation?.messages?.length === 0 ? (
             <>
-              {/* 空对话时的布局 - 居中显示欢迎内容和输入框 */}
               <div className="flex flex-col items-center justify-center min-h-screen">
                 <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 -mt-60">
                   <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100 mb-4">eduhub.chat</h1>
                   <p className="text-lg text-gray-600 dark:text-gray-300 mb-20">基于大语言模型的新一代知识助手</p>
                 </div>
                 
-                {/* ModernChatInput会自动处理垂直居中 */}
                 <div className="w-full mt-16">
                   <ModernChatInput
                     stopConversationRef={stopConversationRef}
@@ -502,10 +502,8 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
                   message={message}
                   messageIndex={index}
                   onEdit={(editedMessage) => {
-                    //编辑消息后，删除编辑的消息后面的所有消息，然后发送编辑后的消息。
                     const deleteCount =
                       selectedConversation?.messages?.length - index;
-                    // handleSend是一个回调函数，用来处理用户发送消息的逻辑。
                     handleSend(editedMessage, deleteCount - 1);
                   }}
                 />
@@ -513,7 +511,6 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
 
               {loading && <ChatLoader />}
 
-              {/* 空白区域，确保有足够空间滚动但不会穿过输入框 */}
               <div className="h-[200px]" ref={messagesEndRef} />
             </>
           )}
@@ -521,7 +518,22 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
 
         {/* 底部固定区域作为mask层，确保内容不会滚动到这个区域下 */}
         <div 
-          className="absolute bottom-0 left-0 w-full z-10 h-[140px] bg-gradient-to-t from-white dark:from-[#343541] to-transparent"
+          className="absolute bottom-0 left-0 w-full z-10 h-[140px]"
+          style={{
+            backgroundColor: lightMode === 'red'
+              ? '#F2ECBE'
+              : lightMode === 'blue'
+              ? '#F6F4EB'
+              : lightMode === 'green'
+              ? '#FAF1E4'
+              : lightMode === 'purple'
+              ? '#C5DFF8'
+              : lightMode === 'brown'
+              ? '#F4EEE0'
+              : lightMode === 'light'
+              ? '#FFFFFF'
+              : '#343541'
+          }}
         ></div>
 
         {/* 输入框区域，放在mask层上方 */}

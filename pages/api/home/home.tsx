@@ -194,13 +194,21 @@ const Home = ({
   // CONVERSATION OPERATIONS  --------------------------------------------
 
   const handleNewConversation = () => {
-    // 检查当前是否已经是空的新对话
-    if (
-      selectedConversation &&
-      selectedConversation.messages.length === 0 &&
-      selectedConversation.name === t('New Conversation')
-    ) {
-      // 如果是空的新对话，直接返回
+    // 先检查是否已经存在空的新聊天
+    const existingNewChat = conversations.find(
+      (chat) => chat.messages.length === 0 && chat.name === t('New Conversation')
+    );
+
+    if (existingNewChat) {
+      // 如果存在空的新聊天，重新排序确保它在最前面
+      const updatedConversations = conversations.filter(chat => chat.id !== existingNewChat.id);
+      updatedConversations.unshift(existingNewChat);
+      
+      dispatch({ field: 'selectedConversation', value: existingNewChat });
+      dispatch({ field: 'conversations', value: updatedConversations });
+      
+      saveConversation(existingNewChat);
+      saveConversations(updatedConversations);
       return;
     }
 
@@ -225,8 +233,6 @@ const Home = ({
 
     saveConversation(newConversation);
     saveConversations(updatedConversations);
-
-    dispatch({ field: 'loading', value: false });
   };
 
   const handleUpdateConversation = (
@@ -297,56 +303,7 @@ const Home = ({
   // ON LOAD --------------------------------------------
 
   useEffect(() => {
-    if (user) {
-      dispatch({ field: 'user', value: user });
-
-    const defaultData = user.length === 8 ? teacherChat : studentChat;
-    console.log(user, user.length);
-    // 页面初始化时创建默认文件夹
-    const chatFolders: FolderInterface[] = defaultData.Folders.map(
-      (folder) => ({
-        ...folder,
-        type: 'chat',
-      }),
-    );
-
-    const PromptFolders: FolderInterface[] = defaultPrompt.Folders.map(
-      (folder) => ({
-        ...folder,
-        type: 'prompt',
-      }),
-    );
-
-    const defaultFolders = [...chatFolders, ...PromptFolders];
-    dispatch({ field: 'folders', value: defaultFolders });
-
-    const defaultConversations: Conversation[] = defaultData.Chats.map(
-      (chat) => ({
-        ...chat,
-        conversationID: '',
-        originalName: chat.name,
-        messages: [],
-        model: OpenAIModels[chat.name as keyof typeof OpenAIModels],
-        prompt: DEFAULT_SYSTEM_PROMPT,
-        temperature: DEFAULT_TEMPERATURE,
-        deletable: false,
-      }),
-    );
-
-    dispatch({ field: 'conversations', value: defaultConversations });
-
-    const loadedPrompt: Prompt[] = defaultPrompt.Prompts.map((prompt) => ({
-      ...prompt,
-      model: OpenAIModels['gpt-3.5-turbo'],
-      deletable: false,
-    }));
-    dispatch({ field: 'prompts', value: loadedPrompt });
-
-    }
-  }, [user]);
-
-  useEffect(() => {
-    setUser(CheckLogin()); // 检查是否登录并设置用户，执行一次即可
+    setUser(CheckLogin());
     setReady(true);
 
     // 获取并设置用户的主题设置。
@@ -423,54 +380,137 @@ const Home = ({
       dispatch({ field: 'prompts', value: JSON.parse(prompts) });
     }
 
-    // 获取并设置存储在本地的对话数据。
+    // 获取并设置存储在本地的对话数据
+    let savedConversations: Conversation[] = [];
     const conversationHistory = localStorage.getItem('conversationHistory');
+    
     if (conversationHistory) {
-      const parsedConversationHistory: Conversation[] =
-        JSON.parse(conversationHistory);
-      const cleanedConversationHistory = cleanConversationHistory(
-        parsedConversationHistory,
-      );
-
-      dispatch({ field: 'conversations', value: cleanedConversationHistory });
+      const parsedConversationHistory: Conversation[] = JSON.parse(conversationHistory);
+      savedConversations = cleanConversationHistory(parsedConversationHistory);
+      dispatch({ field: 'conversations', value: savedConversations });
     }
 
-    // 根据上次选择的对话或创建一个新的对话。
+    // 获取上次选中的对话
     const selectedConversation = localStorage.getItem('selectedConversation');
+    
     if (selectedConversation) {
-      const parsedSelectedConversation: Conversation =
-        JSON.parse(selectedConversation);
-      const cleanedSelectedConversation = cleanSelectedConversation(
-        parsedSelectedConversation,
+      // 如果有选中的对话，恢复它
+      const parsedSelectedConversation: Conversation = JSON.parse(selectedConversation);
+      const cleanedSelectedConversation = cleanSelectedConversation(parsedSelectedConversation);
+      
+      // 确保选中的对话在会话列表中
+      if (!savedConversations.find(conv => conv.id === cleanedSelectedConversation.id)) {
+        savedConversations = [cleanedSelectedConversation, ...savedConversations];
+        dispatch({ field: 'conversations', value: savedConversations });
+        saveConversations(savedConversations);
+      }
+      
+      dispatch({ field: 'selectedConversation', value: cleanedSelectedConversation });
+    } else if (savedConversations.length > 0) {
+      // 如果有已保存的对话但没有选中的对话，选择第一个对话
+      dispatch({ field: 'selectedConversation', value: savedConversations[0] });
+      saveConversation(savedConversations[0]);
+    } else {
+      // 只有当没有任何对话时，才创建新对话
+      const newConversation: Conversation = {
+        id: uuidv4(),
+        name: t('New Conversation'),
+        originalName: '',
+        messages: [],
+        model: OpenAIModels[OpenAIModelID.DEEPSEEK_CHAT] || OpenAIModels[defaultModelId],
+        prompt: DEFAULT_SYSTEM_PROMPT,
+        temperature: DEFAULT_TEMPERATURE,
+        folderId: null,
+        conversationID: '',
+        deletable: true,
+      };
+
+      const updatedConversations = [newConversation];
+      
+      dispatch({ field: 'selectedConversation', value: newConversation });
+      dispatch({ field: 'conversations', value: updatedConversations });
+      
+      saveConversation(newConversation);
+      saveConversations(updatedConversations);
+    }
+  }, [defaultModelId, dispatch, serverSideApiKeyIsSet, serverSidePluginKeysSet]);
+
+  useEffect(() => {
+    if (user) {
+      dispatch({ field: 'user', value: user });
+
+      const defaultData = user.length === 8 ? teacherChat : studentChat;
+      console.log(user, user.length);
+      
+      // 页面初始化时创建默认文件夹
+      const chatFolders: FolderInterface[] = defaultData.Folders.map(
+        (folder) => ({
+          ...folder,
+          type: 'chat',
+        }),
       );
 
-      dispatch({
-        field: 'selectedConversation',
-        value: cleanedSelectedConversation,
-      });
-    } else {
-      const lastConversation = conversations[conversations.length - 1];
-      dispatch({
-        field: 'selectedConversation',
-        value: {
+      const PromptFolders: FolderInterface[] = defaultPrompt.Folders.map(
+        (folder) => ({
+          ...folder,
+          type: 'prompt',
+        }),
+      );
+
+      const defaultFolders = [...chatFolders, ...PromptFolders];
+      dispatch({ field: 'folders', value: defaultFolders });
+
+      // 创建默认对话
+      const defaultConversations: Conversation[] = defaultData.Chats.map(
+        (chat) => ({
+          ...chat,
+          conversationID: '',
+          originalName: chat.name,
+          messages: [],
+          model: OpenAIModels[chat.name as keyof typeof OpenAIModels],
+          prompt: DEFAULT_SYSTEM_PROMPT,
+          temperature: DEFAULT_TEMPERATURE,
+          deletable: false,
+        }),
+      );
+
+      // 检查是否有已保存的对话
+      const savedConversations = localStorage.getItem('conversationHistory');
+      if (!savedConversations) {
+        // 如果没有已保存的对话，创建一个新的空对话并放在默认对话之前
+        const newConversation: Conversation = {
           id: uuidv4(),
           name: t('New Conversation'),
+          originalName: '',
           messages: [],
           model: OpenAIModels[OpenAIModelID.DEEPSEEK_CHAT] || OpenAIModels[defaultModelId],
           prompt: DEFAULT_SYSTEM_PROMPT,
-          temperature: lastConversation?.temperature ?? DEFAULT_TEMPERATURE,
+          temperature: DEFAULT_TEMPERATURE,
           folderId: null,
           conversationID: '',
           deletable: true,
-        },
-      });
+        };
+        
+        const initialConversations = [newConversation, ...defaultConversations];
+        dispatch({ field: 'conversations', value: initialConversations });
+        dispatch({ field: 'selectedConversation', value: newConversation });
+        
+        saveConversations(initialConversations);
+        saveConversation(newConversation);
+      } else {
+        // 如果有已保存的对话，保持现有的对话
+        const parsedConversations = JSON.parse(savedConversations);
+        dispatch({ field: 'conversations', value: parsedConversations });
+      }
+
+      const loadedPrompt: Prompt[] = defaultPrompt.Prompts.map((prompt) => ({
+        ...prompt,
+        model: OpenAIModels['gpt-3.5-turbo'],
+        deletable: false,
+      }));
+      dispatch({ field: 'prompts', value: loadedPrompt });
     }
-  }, [
-    defaultModelId,
-    dispatch,
-    serverSideApiKeyIsSet,
-    serverSidePluginKeysSet,
-  ]);
+  }, [user]);
 
   // 在return之前添加状态控制侧边栏显示
   const [showSidebar, setShowSidebar] = useState<boolean>(true);

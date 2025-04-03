@@ -6,10 +6,9 @@ import HomeContext from '@/pages/api/home/home.context';
 
 interface Props {
   onToggle: () => void;
-  isOpen?: boolean;
 }
 
-export const SidebarSlim: FC<Props> = ({ onToggle, isOpen = false }) => {
+export const SidebarSlim: FC<Props> = ({ onToggle }) => {
   const { t } = useTranslation('sidebar');
   
   const {

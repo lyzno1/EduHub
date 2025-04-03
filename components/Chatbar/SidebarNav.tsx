@@ -103,22 +103,12 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
               未找到相关聊天
             </div>
           ) : (
-            displayedConversations.slice().reverse().map((conversation) => (
+            displayedConversations.map((conversation) => (
               <ConversationComponent key={conversation.id} conversation={conversation} />
             ))
           )}
         </div>
       </div>
-      
-      <div className="border-t border-gray-200 p-4 text-center text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-        <Link 
-          href="https://github.com/ifLab/eduhub" 
-          target="_blank" 
-          className="hover:text-gray-700 dark:hover:text-gray-300"
-        >
-          EduHub © 2023 - 智能知识助手
-        </Link>
-      </div>
     </div>
   );
-}; 
+};

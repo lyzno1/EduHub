@@ -281,9 +281,17 @@ export const Chatbar = () => {
         }),
       });
     } else {
+      // 对conversations进行排序，确保新聊天在最上方
+      const sortedConversations = [...conversations].sort((a, b) => {
+        // 空聊天（无消息的新聊天）排在最前面
+        if (a.messages.length === 0 && a.name.includes('New Conversation')) return -1;
+        if (b.messages.length === 0 && b.name.includes('New Conversation')) return 1;
+        return 0;
+      });
+      
       chatDispatch({
         field: 'filteredConversations',
-        value: conversations,
+        value: sortedConversations,
       });
     }
   }, [searchTerm, conversations]);
