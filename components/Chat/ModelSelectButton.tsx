@@ -43,7 +43,7 @@ export const ModelSelectButton = () => {
   return (
     <div className="relative" ref={dropdownRef}>
       <button
-        className="flex items-center gap-2 rounded-md bg-white/80 py-2.5 px-4 text-base font-semibold text-gray-800 shadow-sm transition-colors hover:bg-gray-100 dark:bg-gray-800/80 dark:text-gray-200 dark:hover:bg-gray-700/90"
+        className="flex items-center gap-2 rounded-md py-1.5 px-3 text-base font-semibold text-gray-800 transition-colors hover:bg-gray-100/50 dark:text-gray-200 dark:hover:bg-gray-700/30"
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="flex items-center gap-2.5">

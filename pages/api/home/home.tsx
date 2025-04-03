@@ -563,7 +563,7 @@ const Home = ({
               {/* 侧边栏和导航栏放在不同的z-index层上，防止事件冒泡影响 */}
               {/* 侧边栏按钮层 */}
               <div className="relative z-30">
-                <SidebarSlim onToggle={toggleSidebar} />
+                <SidebarSlim onToggle={toggleSidebar} isSidebarOpen={showSidebar} />
               </div>
               
               {/* 导航栏层 */}

@@ -6,9 +6,10 @@ import HomeContext from '@/pages/api/home/home.context';
 
 interface Props {
   onToggle: () => void;
+  isSidebarOpen?: boolean;
 }
 
-export const SidebarSlim: FC<Props> = ({ onToggle }) => {
+export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
   const { t } = useTranslation('sidebar');
   
   const {
@@ -82,21 +83,41 @@ export const SidebarSlim: FC<Props> = ({ onToggle }) => {
           }}
           onMouseDown={(e) => e.preventDefault()}
         >
-          <svg 
-            viewBox="0 0 24 24" 
-            width="20" 
-            height="20" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            fill="none" 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-            <line x1="9" y1="3" x2="9" y2="21" />
-            <polyline points="13 8 17 12 13 16" />
-          </svg>
+          {isSidebarOpen ? (
+            // 左箭头图标（关闭侧边栏）
+            <svg 
+              viewBox="0 0 24 24" 
+              width="20" 
+              height="20" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              fill="none" 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+              <polyline points="17 8 13 12 17 16" />
+            </svg>
+          ) : (
+            // 右箭头图标（打开侧边栏）
+            <svg 
+              viewBox="0 0 24 24" 
+              width="20" 
+              height="20" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              fill="none" 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+              <polyline points="13 8 17 12 13 16" />
+            </svg>
+          )}
         </div>
         
         <div 

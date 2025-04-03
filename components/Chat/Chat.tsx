@@ -431,13 +431,13 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
       } as React.CSSProperties}
     >
       <>
-        <div className="absolute top-4 left-4 z-30">
+        <div className="absolute top-3 left-4 z-30">
           <ModelSelectButton />
         </div>
 
         {/* 顶部遮罩层，确保内容不会超过模型选择按钮区域 */}
         <div 
-          className="absolute top-0 left-0 right-[17px] z-10 h-[60px] bg-white dark:bg-[#343541]"
+          className="absolute top-0 left-0 right-[17px] z-10 h-[56px] bg-white dark:bg-[#343541]"
           style={{
             backgroundColor: lightMode === 'red'
               ? '#F2ECBE'
@@ -489,7 +489,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
             </>
           ) : (
             <>
-              <div className="pt-16">
+              <div className="pt-14">
                 {showSettings && (
                   <div className="flex flex-col space-y-10 md:mx-auto md:max-w-xl md:gap-6 md:py-3 md:pt-6 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
                     <div className="flex h-full flex-col space-y-4 border-b border-neutral-200 p-4 dark:border-neutral-600 md:rounded-lg md:border">
