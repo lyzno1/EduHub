@@ -1,15 +1,26 @@
 import { OPENAI_API_TYPE } from '../utils/app/const';
 import keys from '@/dify_keys.json';
 
+// 统一模型类型枚举
+export enum ModelType {
+  OPENAI = 'openai',
+  DIFY = 'dify',
+  DEEPSEEK = 'deepseek',
+  CLAUDE = 'claude',
+  GEMINI = 'gemini',
+  BAIDU = 'baidu',
+  ZHIPU = 'zhipu',
+  // 未来可扩展其他模型
+}
+
 export interface OpenAIModel {
-  id: string;
+  id: OpenAIModelID;
   name: string;
   maxLength: number; // maximum length of a message
   tokenLimit: number;
-  key: string;
-  apiType?: string; // 添加apiType字段来区分不同的API类型
+  key?: string;
+  apiType?: string; // 指定API类型，与ModelType对应
 }
-
 
 export enum OpenAIModelID {
   GPT_3_5 = 'gpt-3.5-turbo',
@@ -25,6 +36,9 @@ export enum OpenAIModelID {
   校园助手 = '校园助手',
   // 添加DeepSeek模型
   DEEPSEEK_CHAT = 'deepseek-chat',
+  // 为未来的模型预留位置
+  CLAUDE = 'claude',
+  GEMINI = 'gemini',
 }
 
 // in case the `DEFAULT_MODEL` environment variable is not set or set to an unsupported model
@@ -33,10 +47,10 @@ export const fallbackModelID = OpenAIModelID.GPT_3_5;
 export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
   [OpenAIModelID.GPT_3_5]: {
     id: OpenAIModelID.GPT_3_5,
-    name: '默认模型',
+    name: 'GPT-3.5',
     maxLength: 12000,
     tokenLimit: 4000,
-    key: keys['gpt-3.5-turbo'] || process.env.DIFY_API_KEY || '',
+    key: process.env.OPENAI_API_KEY || '',
   },
   [OpenAIModelID.写作导师]: {
     id: OpenAIModelID.写作导师,
@@ -115,6 +129,26 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
     maxLength: 16000,
     tokenLimit: 8000,
     key: process.env.DEEPSEEK_API_KEY || 'sk-ab2a2211867043e495918a0147bb620e',
-    apiType: 'deepseek' // 标记为deepseek类型
+    apiType: ModelType.DEEPSEEK // 使用ModelType枚举
+  },
+  
+  // 添加Claude模型配置
+  [OpenAIModelID.CLAUDE]: {
+    id: OpenAIModelID.CLAUDE,
+    name: 'Claude 2.1',
+    maxLength: 100000,
+    tokenLimit: 200000,
+    key: process.env.CLAUDE_API_KEY || '',
+    apiType: ModelType.CLAUDE
+  },
+  
+  // 添加Gemini模型配置
+  [OpenAIModelID.GEMINI]: {
+    id: OpenAIModelID.GEMINI, 
+    name: 'Gemini Pro',
+    maxLength: 30000,
+    tokenLimit: 30000,
+    key: process.env.GEMINI_API_KEY || '',
+    apiType: ModelType.GEMINI
   },
 };

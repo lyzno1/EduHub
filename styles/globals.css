@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 导入深色模式样式 */
+@import 'dark-mode.css';
+
 ::-webkit-scrollbar-track {
   background-color: transparent;
 }
@@ -29,6 +32,11 @@
 }
 
 html {
+  background: #ffffff; /* 默认背景为白色 */
+}
+
+/* 深色模式下的HTML背景 */
+html.dark {
   background: #202123;
 }
 
@@ -43,7 +51,12 @@ pre:has(div.codeblock) {
 }
 
 input::-webkit-input-placeholder {
-  color: #f2f2f2;
+  color: #9ca3af; /* 更合适的占位符颜色 */
+}
+
+/* 深色模式下的占位符颜色 */
+.dark input::-webkit-input-placeholder {
+  color: #6b7280;
 }
 
 @keyframes pulse-dot {

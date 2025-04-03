@@ -22,7 +22,8 @@ export const ConversationComponent = ({ conversation }: Props) => {
   
   const isSelected = selectedConversation?.id === conversation.id;
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     handleSelectConversation(conversation);
   };
 

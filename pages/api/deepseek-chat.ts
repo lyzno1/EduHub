@@ -1,7 +1,6 @@
-import { DEFAULT_SYSTEM_PROMPT, DEFAULT_TEMPERATURE } from '@/utils/app/const';
-import { OpenAIError, DeepSeekStream } from '@/utils/server';
-
-import { ChatBody, Message } from '@/types/chat';
+import { createChatHandler } from './chat-template';
+import { ModelType } from '@/types/openai';
+import { Message } from '@/types/chat';
 
 export const config = {
   runtime: 'edge',
@@ -29,82 +28,7 @@ function convertToDeepSeekMessages(messages: Message[]) {
   return deepseekMessages;
 }
 
-const handler = async (req: Request): Promise<Response> => {
-  try {
-    const {
-      model,
-      messages,
-      key,
-      prompt,
-      temperature,
-      conversationID,
-      user,
-    } = (await req.json()) as ChatBody;
-
-    console.log('DeepSeek API request received');
-    console.log('Model:', model.name);
-    console.log('Message count:', messages.length);
-
-    // 确保至少有一条消息
-    if (!messages || messages.length === 0) {
-      return new Response(
-        JSON.stringify({
-          error: {
-            message: 'No messages provided',
-            type: 'invalid_request_error',
-            param: null,
-            code: null,
-          },
-        }),
-        { status: 400 }
-      );
-    }
-
-    // 获取最新用户消息
-    const lastMessage = messages[messages.length - 1];
-    
-    if (lastMessage.role !== 'user') {
-      return new Response(
-        JSON.stringify({
-          error: {
-            message: 'Last message must be from user',
-            type: 'invalid_request_error',
-            param: null,
-            code: null,
-          },
-        }),
-        { status: 400 }
-      );
-    }
-    
-    // 转换消息格式并传递给DeepSeekStream
-    const deepseekMessages = convertToDeepSeekMessages(messages);
-    
-    console.log('Converted messages for DeepSeek:', JSON.stringify(deepseekMessages));
-    
-    // 使用DeepSeekStream处理请求
-    const { stream } = await DeepSeekStream(
-      JSON.stringify(deepseekMessages), // 将整个消息数组作为查询传递
-      key || process.env.DEEPSEEK_API_KEY || '', 
-      user || 'anonymous', 
-      conversationID || ''
-    );
-
-    return new Response(stream);
-  } catch (error) {
-    console.error('DeepSeek API error:', error);
-    return new Response(
-      JSON.stringify({
-        error: {
-          message: error instanceof Error ? error.message : 'An unknown error occurred',
-          type: 'server_error',
-          param: null,
-          code: null,
-        },
-      }),
-      { status: 500 }
-    );
-  }
-};
+// 使用模板创建处理器
+const handler = (req: Request) => createChatHandler(req, ModelType.DEEPSEEK, convertToDeepSeekMessages);
 
 export default handler; 

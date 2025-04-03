@@ -194,7 +194,15 @@ const Home = ({
   // CONVERSATION OPERATIONS  --------------------------------------------
 
   const handleNewConversation = () => {
-    const lastConversation = conversations[conversations.length - 1];
+    // 检查当前是否已经是空的新对话
+    if (
+      selectedConversation &&
+      selectedConversation.messages.length === 0 &&
+      selectedConversation.name === t('New Conversation')
+    ) {
+      // 如果是空的新对话，直接返回
+      return;
+    }
 
     const newConversation: Conversation = {
       id: uuidv4(),
@@ -203,13 +211,14 @@ const Home = ({
       messages: [],
       model: OpenAIModels[OpenAIModelID.DEEPSEEK_CHAT] || OpenAIModels[defaultModelId],
       prompt: DEFAULT_SYSTEM_PROMPT,
-      temperature: lastConversation?.temperature ?? DEFAULT_TEMPERATURE,
+      temperature: DEFAULT_TEMPERATURE,
       folderId: null,
       conversationID: '',
       deletable: true,
     };
 
-    const updatedConversations = [...conversations, newConversation];
+    // 将新对话添加到数组开头
+    const updatedConversations = [newConversation, ...conversations];
 
     dispatch({ field: 'selectedConversation', value: newConversation });
     dispatch({ field: 'conversations', value: updatedConversations });
@@ -341,13 +350,31 @@ const Home = ({
     setReady(true);
 
     // 获取并设置用户的主题设置。
-    // const settings = getSettings();
-    // if (settings.theme) {
-    //   dispatch({
-    //     field: 'lightMode',
-    //     value: settings.theme,
-    //   });
-    // }
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      dispatch({
+        field: 'lightMode',
+        value: savedTheme,
+      });
+      
+      // 立即应用主题
+      if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      }
+    } else {
+      // 如果没有保存的主题设置，默认使用白天模式
+      dispatch({
+        field: 'lightMode',
+        value: 'light',
+      });
+      localStorage.setItem('theme', 'light');
+      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.add('light');
+    }
 
     // 获取并设置存储在本地的API密钥。
     // const apiKey = localStorage.getItem('apiKey');
@@ -493,8 +520,16 @@ const Home = ({
             </div>
 
             <div className="flex h-full w-full pt-[48px] sm:pt-0">
-              <SidebarSlim onToggle={toggleSidebar} />
-              <SidebarNav onToggle={toggleSidebar} isOpen={showSidebar} />
+              {/* 侧边栏和导航栏放在不同的z-index层上，防止事件冒泡影响 */}
+              {/* 侧边栏按钮层 */}
+              <div className="relative z-30">
+                <SidebarSlim onToggle={toggleSidebar} />
+              </div>
+              
+              {/* 导航栏层 */}
+              <div className="relative z-20" onClick={e => e.stopPropagation()}>
+                <SidebarNav onToggle={toggleSidebar} isOpen={showSidebar} />
+              </div>
 
               <div className={`flex flex-1 transition-all duration-300 ${showSidebar ? 'ml-[320px]' : 'ml-[60px]'}`}>
                 <Chat stopConversationRef={stopConversationRef} />
