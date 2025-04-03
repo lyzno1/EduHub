@@ -198,17 +198,9 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
           </div>
         ) : (
           // AI助手消息 - 移除气泡样式，让它占据全宽
-          <div className="w-full">
-            <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+          <div className="w-full group relative pb-8">
+            <div className="flex items-center text-xs text-gray-500 mb-1">
               <span>AI助手</span>
-              <button
-                className={`${
-                  messagedCopied ? 'text-green-500' : 'text-gray-500 hover:text-gray-700'
-                }`}
-                onClick={copyOnClick}
-              >
-                {messagedCopied ? <IconCheck size={18} /> : <IconCopy size={18} />}
-              </button>
             </div>
             <div className="w-full text-gray-800 dark:text-gray-200 text-sm leading-relaxed">
               <MemoizedReactMarkdown
@@ -269,6 +261,19 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
                   messageIsStreaming && messageIndex == (selectedConversation?.messages.length ?? 0) - 1 ? '`▍`' : ''
                 }`}
               </MemoizedReactMarkdown>
+            </div>
+            {/* 复制按钮移到左下角，默认隐藏，悬停显示 */}
+            <div className="absolute bottom-0 left-0 invisible group-hover:visible z-10">
+              <button
+                className={`flex items-center justify-center rounded-md px-2 py-1 text-xs ${
+                  messagedCopied ? 'text-green-500 bg-green-50' : 'text-gray-500 bg-gray-50 hover:bg-gray-100'
+                } transition-colors duration-200 shadow-sm`}
+                onClick={copyOnClick}
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                {messagedCopied ? <IconCheck size={16} className="mr-1" /> : <IconCopy size={16} className="mr-1" />}
+                <span>{messagedCopied ? "已复制" : "复制"}</span>
+              </button>
             </div>
           </div>
         )}
