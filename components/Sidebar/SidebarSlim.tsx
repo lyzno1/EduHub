@@ -127,6 +127,7 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
             e.stopPropagation();
             // 主页按钮功能
           }}
+          onMouseDown={(e) => e.preventDefault()}
         >
           <IconHome className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
@@ -137,6 +138,7 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
           className="flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10"
           onClick={handleThemeChange}
           title={lightMode === 'light' ? '切换到深色模式' : '切换到浅色模式'}
+          onMouseDown={(e) => e.preventDefault()}
         >
           {lightMode === 'light' ? (
             <IconMoon className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
@@ -152,6 +154,7 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
             e.stopPropagation();
             // 设置按钮功能
           }}
+          onMouseDown={(e) => e.preventDefault()}
         >
           <IconAdjustments className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
@@ -163,6 +166,7 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
             e.stopPropagation();
             // 帮助按钮功能
           }}
+          onMouseDown={(e) => e.preventDefault()}
         >
           <IconHelp className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
@@ -173,6 +177,7 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
           rel="noopener noreferrer" 
           className="flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10"
           onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.preventDefault()}
         >
           <IconBrandGithub className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </a>

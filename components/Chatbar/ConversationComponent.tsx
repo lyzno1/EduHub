@@ -112,6 +112,7 @@ export const ConversationComponent = ({ conversation }: Props) => {
               className="invisible rounded-md p-1 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 group-hover:visible"
               onClick={handleStartEditing}
               aria-label="编辑对话名称"
+              onMouseDown={(e) => e.preventDefault()}
             >
               <IconPencil size={16} />
             </button>
@@ -119,6 +120,7 @@ export const ConversationComponent = ({ conversation }: Props) => {
               className="invisible rounded-md p-1 text-gray-500 hover:bg-gray-200 hover:text-red-500 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-red-400 group-hover:visible"
               onClick={handleDelete}
               aria-label="删除对话"
+              onMouseDown={(e) => e.preventDefault()}
             >
               <IconTrash size={16} />
             </button>
