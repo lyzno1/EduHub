@@ -6,9 +6,10 @@ import HomeContext from '@/pages/api/home/home.context';
 
 interface Props {
   onToggle: () => void;
+  isOpen?: boolean;
 }
 
-export const SidebarSlim: FC<Props> = ({ onToggle }) => {
+export const SidebarSlim: FC<Props> = ({ onToggle, isOpen = false }) => {
   const { t } = useTranslation('sidebar');
   
   const {
@@ -74,14 +75,29 @@ export const SidebarSlim: FC<Props> = ({ onToggle }) => {
     <div className="fixed left-0 top-0 z-20 flex h-full w-[60px] flex-col items-center border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-[#202123]">
       <div className="flex w-full flex-col items-center">
         <div 
-          className="mt-5 mb-2 flex cursor-pointer justify-center hover:bg-gray-100 dark:hover:bg-gray-700 w-full py-3"
+          className="mt-5 mb-2 flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10 mx-auto"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             onToggle();
           }}
+          onMouseDown={(e) => e.preventDefault()}
         >
-          <IconMenu2 className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
+          <svg 
+            viewBox="0 0 24 24" 
+            width="20" 
+            height="20" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            fill="none" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <line x1="9" y1="3" x2="9" y2="21" />
+            <polyline points="13 8 17 12 13 16" />
+          </svg>
         </div>
         
         <div 
