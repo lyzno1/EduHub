@@ -86,6 +86,7 @@ export const ModernChatInput = ({
       return;
     }
     
+    // 发送消息
     onSend({ role: 'user', content }, activePlugin);
     setContent('');
     setActivePlugin(null);
@@ -94,12 +95,15 @@ export const ModernChatInput = ({
       textareaRef.current.blur();
     }
     
-    // 强化滚动到底部的逻辑，保留平滑效果但更快速
-    onScrollDownClick();
-    // 短时间后再次尝试滚动确保到达底部
+    // 简单直接的方式：等DOM更新后，找到最后一个用户消息气泡并滚动
     setTimeout(() => {
-      onScrollDownClick();
-    }, 150);
+      const chatContainer = document.querySelector('.flex-1.overflow-y-auto');
+      if (chatContainer) {
+        // 强制滚动到顶部，这样用户消息就会显示在顶部
+        chatContainer.scrollTop = 0;
+        console.log('消息已发送，聊天区域已滚动到顶部');
+      }
+    }, 100);
   };
 
   const handleStopConversation = () => {

@@ -97,12 +97,17 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             messages: [...selectedConversation.messages, message],
           };
         }
+        
+        // 更新状态
         homeDispatch({
           field: 'selectedConversation',
           value: updatedConversation,
         });
         homeDispatch({ field: 'loading', value: true });
         homeDispatch({ field: 'messageIsStreaming', value: true });
+        
+        // 注意：滚动到顶部的逻辑已经移到了ModernChatInput组件中，这里不需要再处理
+        
         const chatBody: ChatBody = {
           model: updatedConversation.model,
           messages: updatedConversation.messages,
@@ -112,6 +117,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           conversationID: updatedConversation.conversationID,
           user: user,
         };
+        // 使用动态API端点，根据模型类型选择
         const endpoint = plugin ? getEndpoint(plugin) : getModelEndpoint(updatedConversation.model.apiType);
         
         console.log("Using model:", updatedConversation.model.name);
@@ -322,20 +328,20 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
   const handleScrollDown = useCallback(() => {
     if (chatContainerRef?.current) {
-      // 计算需要滚动的距离 - 计算滚动容器高度并留出足够的底部空间 
+      // 恢复原始滚动到底部功能
       const container = chatContainerRef.current;
       const scrollHeight = container.scrollHeight;
       const clientHeight = container.clientHeight;
       const maxScrollTop = scrollHeight - clientHeight;
       
-      // 确保不会滚动到底部，而是在输入框上方一定距离停止
-      const scrollToPosition = maxScrollTop - 60; // 保留60px的空间
-      
+      // 直接滚动到最底部
       container.scrollTo({
-        top: scrollToPosition > 0 ? scrollToPosition : 0,
-        behavior: 'smooth', // 保持平滑滚动
+        top: maxScrollTop,
+        behavior: 'smooth',
       });
+      
       setAutoScrollEnabled(true);
+      setShowScrollDownButton(false);
     }
   }, [chatContainerRef]);
 
@@ -356,39 +362,56 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   };
 
   const scrollDown = () => {
-    if (autoScrollEnabled && chatContainerRef?.current) {
-      // 使用scrollIntoView确保消息区域滚动到底部，保留平滑效果但更快速
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      
-      // 作为后备方案，也使用scrollTo
-      if (chatContainerRef.current) {
-        chatContainerRef.current.scrollTo({
-          top: chatContainerRef.current.scrollHeight,
-          behavior: 'smooth',
-        });
-      }
+    if (chatContainerRef?.current && messagesEndRef.current) {
+      // 直接滚动到底部
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   };
   const throttledScrollDown = throttle(scrollDown, 150); // 减小节流时间，让滚动更快响应
 
+  // 确保在新消息时的滚动行为
   useEffect(() => {
-    // 消息流式传输时确保自动滚动
-    if (messageIsStreaming) {
-      throttledScrollDown();
-    }
-  }, [messageIsStreaming, throttledScrollDown]);
-
-  // 确保在新消息时总是滚动到底部，但只有在已启用自动滚动时
-  useEffect(() => {
-    if (selectedConversation?.messages.length && autoScrollEnabled) {
-      throttledScrollDown();
+    if (selectedConversation?.messages.length) {
+      // 检查最新消息是否为用户消息
+      const messages = selectedConversation.messages;
+      const latestMessage = messages[messages.length - 1];
+      
+      if (latestMessage && latestMessage.role === 'user') {
+        // 用户刚发送了新消息，滚动到此消息顶部位置
+        setTimeout(() => {
+          const messageElements = chatContainerRef.current?.querySelectorAll('.flex.justify-center.py-3.w-full');
+          if (messageElements && messageElements.length > 0) {
+            // 不管用户在什么位置，都强制滚动到最新的用户消息位置
+            const userMessageElement = messageElements[messageElements.length - 1];
+            userMessageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setAutoScrollEnabled(true);
+          }
+        }, 100);
+      }
       
       // 设置当前消息
-      setCurrentMessage(
-        selectedConversation.messages[selectedConversation.messages.length - 2]
-      );
+      if (messages.length > 1) {
+        setCurrentMessage(messages[messages.length - 2]);
+      }
     }
-  }, [selectedConversation?.messages.length, throttledScrollDown, selectedConversation, autoScrollEnabled]);
+  }, [selectedConversation?.messages.length, selectedConversation]);
+
+  // 在模型开始回复时确保用户消息在顶部
+  useEffect(() => {
+    if (messageIsStreaming && selectedConversation?.messages?.length > 1) {
+      setTimeout(() => {
+        const messageElements = chatContainerRef.current?.querySelectorAll('.flex.justify-center.py-3.w-full');
+        if (messageElements && messageElements.length > 1) {
+          // 找到最后一个用户消息（通常是倒数第二条消息）
+          const userMessageElement = messageElements[messageElements.length - 2];
+          if (userMessageElement?.querySelector('.bg-blue-50')) {
+            // 滚动到用户消息位置
+            userMessageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
+      }, 100);
+    }
+  }, [messageIsStreaming]);
 
   // 在初始加载或切换对话时滚动到底部
   useEffect(() => {
@@ -436,7 +459,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         {/* 顶部遮罩层，确保内容有足够的padding，只在有聊天记录时显示 */}
         {selectedConversation?.messages?.length > 0 && (
           <div 
-            className="absolute top-0 left-0 right-[17px] z-10 h-[56px] bg-white dark:bg-[#343541]"
+            className="absolute top-0 left-0 right-[17px] z-10 h-[30px] bg-white dark:bg-[#343541]"
             style={{
               backgroundColor: lightMode === 'red'
                 ? '#F2ECBE'
@@ -500,7 +523,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             </>
           ) : (
             <>
-              <div className="pt-14">
+              <div className="pt-6">
                 {showSettings && (
                   <div className="flex flex-col space-y-10 md:mx-auto md:max-w-xl md:gap-6 md:py-3 md:pt-6 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
                     <div className="flex h-full flex-col space-y-4 border-b border-neutral-200 p-4 dark:border-neutral-600 md:rounded-lg md:border">
@@ -557,6 +580,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             stopConversationRef={stopConversationRef}
             textareaRef={textareaRef}
             onSend={(message, plugin) => {
+              // 只调用handleSend处理消息发送即可，滚动逻辑已在handleSend内实现
               handleSend(message, 0, plugin);
             }}
             onScrollDownClick={handleScrollDown}

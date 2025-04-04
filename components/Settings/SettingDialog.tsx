@@ -76,13 +76,11 @@ export const SettingDialog: FC<Props> = ({ open, onClose }) => {
   useEffect(() => {
     console.log("version",version)
     if(version!=localStorage.getItem('version')){
-      sessionStorage.clear();
-      localStorage.clear();
+      // 仅更新版本号，不清除缓存
       localStorage.setItem('version',version||'');
-      router.reload();
+      // 不再调用reload，避免页面刷新
     }
-  }
-  )
+  }, [version])
   const handleClearCache = () => {
     // 清除该页面的缓存
     sessionStorage.clear();
