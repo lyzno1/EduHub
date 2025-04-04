@@ -34,12 +34,14 @@ import { ModelSelect } from './ModelSelect';
 import { ModelSelectButton } from './ModelSelectButton';
 import { SystemPrompt } from './SystemPrompt';
 import { TemperatureSlider } from './Temperature';
+import { FunctionCards } from './FunctionCards';
 
 interface Props {
   stopConversationRef: MutableRefObject<boolean>;
+  showSidebar?: boolean;
 }
 
-export const Chat = memo(({ stopConversationRef }: Props) => {
+export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) => {
   const { t } = useTranslation('chat');
 
   const {
@@ -431,29 +433,27 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
       } as React.CSSProperties}
     >
       <>
-        <div className="absolute top-3 left-4 z-30">
-          <ModelSelectButton />
-        </div>
-
-        {/* 顶部遮罩层，确保内容不会超过模型选择按钮区域 */}
-        <div 
-          className="absolute top-0 left-0 right-[17px] z-10 h-[56px] bg-white dark:bg-[#343541]"
-          style={{
-            backgroundColor: lightMode === 'red'
-              ? '#F2ECBE'
-              : lightMode === 'blue'
-              ? '#F6F4EB'
-              : lightMode === 'green'
-              ? '#FAF1E4'
-              : lightMode === 'purple'
-              ? '#C5DFF8'
-              : lightMode === 'brown'
-              ? '#F4EEE0'
-              : lightMode === 'light'
-              ? '#FFFFFF'
-              : '#343541'
-          }}
-        ></div>
+        {/* 顶部遮罩层，确保内容有足够的padding，只在有聊天记录时显示 */}
+        {selectedConversation?.messages?.length > 0 && (
+          <div 
+            className="absolute top-0 left-0 right-[17px] z-10 h-[56px] bg-white dark:bg-[#343541]"
+            style={{
+              backgroundColor: lightMode === 'red'
+                ? '#F2ECBE'
+                : lightMode === 'blue'
+                ? '#F6F4EB'
+                : lightMode === 'green'
+                ? '#FAF1E4'
+                : lightMode === 'purple'
+                ? '#C5DFF8'
+                : lightMode === 'brown'
+                ? '#F4EEE0'
+                : lightMode === 'light'
+                ? '#FFFFFF'
+                : '#343541'
+            }}
+          ></div>
+        )}
 
         <div
           className="flex-1 overflow-y-auto"
@@ -463,12 +463,22 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           {selectedConversation?.messages?.length === 0 ? (
             <>
               <div className="flex flex-col items-center justify-center min-h-screen">
-                <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 -mt-60">
-                  <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100 mb-4">eduhub.chat</h1>
-                  <p className="text-lg text-gray-600 dark:text-gray-300 mb-20">基于大语言模型的新一代知识助手</p>
+                <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 -mt-[25vh] animate-fade-in">
+                  <div className="relative">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/30 to-purple-600/30 rounded-lg blur-xl opacity-70 dark:opacity-50"></div>
+                    <h1 className="relative text-4xl font-bold tracking-tight mb-4 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent drop-shadow-sm animate-slide-up" style={{ fontFamily: "'Poppins', sans-serif", letterSpacing: '-0.5px' }}>eduhub.chat</h1>
+                  </div>
+                  <p className="text-lg font-medium mb-20 bg-gradient-to-r from-gray-700 to-gray-500 dark:from-gray-300 dark:to-gray-100 bg-clip-text text-transparent animate-slide-up-delay" style={{ fontFamily: "'Inter', sans-serif", letterSpacing: '0.2px' }}>基于大语言模型的新一代知识助手</p>
                 </div>
                 
-                <div className="w-full mt-16">
+                {/* 功能卡片区域 - 只在新建页面显示 */}
+                <div className={`w-full absolute bottom-[18vh] px-4 transition-all duration-300`}>
+                  <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+                    <FunctionCards />
+                  </div>
+                </div>
+                
+                <div className="w-full mt-8">
                   <ModernChatInput
                     stopConversationRef={stopConversationRef}
                     textareaRef={textareaRef}
@@ -483,6 +493,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
                     }}
                     showScrollDownButton={showScrollDownButton}
                     isCentered={true}
+                    showSidebar={showSidebar}
                   />
                 </div>
               </div>
@@ -518,25 +529,27 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           )}
         </div>
 
-        {/* 底部固定区域作为mask层，确保内容不会滚动到这个区域下 */}
-        <div 
-          className="absolute bottom-0 left-0 right-[17px] z-10 h-[140px]"
-          style={{
-            backgroundColor: lightMode === 'red'
-              ? '#F2ECBE'
-              : lightMode === 'blue'
-              ? '#F6F4EB'
-              : lightMode === 'green'
-              ? '#FAF1E4'
-              : lightMode === 'purple'
-              ? '#C5DFF8'
-              : lightMode === 'brown'
-              ? '#F4EEE0'
-              : lightMode === 'light'
-              ? '#FFFFFF'
-              : '#343541'
-          }}
-        ></div>
+        {/* 底部固定区域作为mask层，确保内容不会滚动到这个区域下，只在有聊天记录时显示 */}
+        {selectedConversation?.messages?.length > 0 && (
+          <div 
+            className="absolute bottom-0 left-0 right-[17px] z-10 h-[140px]"
+            style={{
+              backgroundColor: lightMode === 'red'
+                ? '#F2ECBE'
+                : lightMode === 'blue'
+                ? '#F6F4EB'
+                : lightMode === 'green'
+                ? '#FAF1E4'
+                : lightMode === 'purple'
+                ? '#C5DFF8'
+                : lightMode === 'brown'
+                ? '#F4EEE0'
+                : lightMode === 'light'
+                ? '#FFFFFF'
+                : '#343541'
+            }}
+          ></div>
+        )}
 
         {/* 输入框区域，放在mask层上方 */}
         <div className="absolute bottom-0 left-0 w-full z-20">
@@ -554,6 +567,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
             }}
             showScrollDownButton={showScrollDownButton}
             isCentered={selectedConversation?.messages?.length === 0}
+            showSidebar={showSidebar}
           />
         </div>
       </>

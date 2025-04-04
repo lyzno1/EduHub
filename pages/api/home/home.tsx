@@ -513,18 +513,22 @@ const Home = ({
   }, [user]);
 
   // 在return之前添加状态控制侧边栏显示
-  const [showSidebar, setShowSidebar] = useState<boolean>(true);
+  const [showSidebar, setShowSidebar] = useState<boolean>(false);
 
   const toggleSidebar = () => {
     setShowSidebar(!showSidebar);
     localStorage.setItem('showSidebar', (!showSidebar).toString());
   };
 
-  // 在useEffect中加载侧边栏状态
+  // 在useEffect中加载侧边栏状态，默认为收起状态
   useEffect(() => {
     const savedShowSidebar = localStorage.getItem('showSidebar');
     if (savedShowSidebar !== null) {
       setShowSidebar(savedShowSidebar === 'true');
+    } else {
+      // 默认为收起状态
+      setShowSidebar(false);
+      localStorage.setItem('showSidebar', 'false');
     }
   }, []);
 
@@ -572,7 +576,7 @@ const Home = ({
               </div>
 
               <div className={`flex flex-1 transition-all duration-300 ${showSidebar ? 'ml-[320px]' : 'ml-[60px]'}`}>
-                <Chat stopConversationRef={stopConversationRef} />
+                <Chat stopConversationRef={stopConversationRef} showSidebar={showSidebar} />
               </div>
             </div>
           </main>
