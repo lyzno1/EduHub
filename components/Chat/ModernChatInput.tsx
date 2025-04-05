@@ -85,31 +85,32 @@ export const ModernChatInput = ({
   const adjustHeight = useCallback(() => {
     setTimeout(() => {
       if (textareaRef.current) {
-        // 彻底重置高度 - 使用极小值确保完全重置
-        textareaRef.current.style.height = '1px';
+        // 使用更稳定的方式重置高度，避免闪烁
+        textareaRef.current.style.height = 'auto';
         
-        // 获取内容实际需要的高度
-        const scrollHeight = textareaRef.current.scrollHeight;
-        const maxHeight = isCentered ? 170 : 120;
+        // 获取内容实际需要的高度，增加1px容错
+        const scrollHeight = textareaRef.current.scrollHeight + 1;
+        const maxHeight = 220;
         
-        // 如果内容为空，确保设置为最小高度
+        // 如果内容为空，设置一个统一的最小高度
         const newHeight = content.trim() === '' 
           ? 24 
           : Math.min(scrollHeight, maxHeight);
         
         // 设置新高度
-        textareaRef.current.style.height = newHeight + 'px';
+        textareaRef.current.style.height = `${newHeight}px`;
         
-        // 处理滚动条
+        // 处理滚动条，确保一致的行为
         textareaRef.current.style.overflow = 
           scrollHeight > maxHeight ? 'auto' : 'hidden';
         
-        // 更新容器高度
-        const newContainerHeight = Math.max(65, newHeight + 40);
+        // 确保容器高度与内容一致，避免抖动
+        const containerPadding = 40; // 顶部和底部padding总和
+        const newContainerHeight = Math.max(65, newHeight + containerPadding);
         setInputHeight(newContainerHeight);
       }
-    }, 0);
-  }, [isCentered, textareaRef, content]);
+    }, 10); // 增加延迟确保DOM完全更新
+  }, [textareaRef, content]);
 
   // 重置输入框
   const resetHeight = useCallback(() => {
@@ -179,7 +180,7 @@ export const ModernChatInput = ({
     };
   }, [content, adjustHeight]);
 
-  // 添加自定义样式表，处理placeholder样式
+  // 更新样式内容，确保平滑过渡和一致的padding
   useEffect(() => {
     // 创建样式表
     const styleEl = document.createElement('style');
@@ -223,17 +224,19 @@ export const ModernChatInput = ({
       .dark-mode .scrollbar-thin::-webkit-scrollbar-thumb:hover {
         background: rgba(200, 200, 200, 0.5);
       }
-      /* 平滑过渡效果 - 应用于输入框高度变化 */
+      /* 平滑过渡效果 - 使用更平滑的过渡 */
       .textarea-transition {
-        transition: height 0.1s linear !important;
+        transition: height 0.15s ease-out !important;
       }
       /* 输入区域容器样式 */
       .input-container {
-        transition: all 0.1s linear !important;
+        transition: all 0.15s ease-out !important;
       }
       /* 输入区域内容容器 */
       .input-content-container {
-        transition: all 0.1s linear !important;
+        transition: all 0.15s ease-out !important;
+        padding-top: 16px !important;
+        padding-bottom: 10px !important;
       }
     `;
     
@@ -252,7 +255,7 @@ export const ModernChatInput = ({
         existingStyle.remove();
       }
     };
-  }, [lightMode]); // 添加lightMode作为依赖项
+  }, [lightMode]);
 
   // 更新高度时，也更新data属性
   useEffect(() => {
@@ -283,12 +286,12 @@ export const ModernChatInput = ({
       >
         {/* 这里是真正的输入区，高度根据内容动态变化但不会影响外部布局 */}
         <div 
-          className={`min-h-[65px] overflow-y-auto rounded-t-3xl pt-4 px-5 ${isDarkMode() ? 'chat-input-dark-bg' : ''} input-content-container`}
+          className={`min-h-[65px] overflow-y-auto rounded-t-3xl px-5 ${isDarkMode() ? 'chat-input-dark-bg' : ''} input-content-container`}
           style={{ 
             display: 'flex', 
             flexDirection: 'column',
             backgroundColor: isDarkMode() ? '#343541' : getBgColor(),
-            maxHeight: isCentered ? '175px' : '125px', // 设置最大高度与textarea相同，加上padding
+            maxHeight: '260px', // 统一设置为容器最大高度
           }}
         >
           <textarea
@@ -298,9 +301,8 @@ export const ModernChatInput = ({
               backgroundColor: 'transparent',
               color: isDarkMode() ? '#FFFFFF' : '#1A1A1A',
               minHeight: '24px',
-              maxHeight: isCentered ? '170px' : '120px',
-              paddingTop: '3px',
-              transition: 'height 0.1s linear',
+              maxHeight: '220px', // 统一设置为输入框最大高度
+              transition: 'height 0.15s ease-out', // 直接在元素上也添加过渡效果
             }}
             placeholder={t('有什么可以帮您的吗？') || ''}
             value={content}
