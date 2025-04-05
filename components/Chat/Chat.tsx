@@ -68,6 +68,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showScrollDownButton, setShowScrollDownButton] =
     useState<boolean>(false);
+  // 添加一个锁定变量，防止按钮状态在短时间内频繁变化
+  const scrollButtonLockRef = useRef<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -148,37 +150,47 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
   // 简化滚动处理函数，减少DOM操作和计算
   const handleScroll = useCallback(() => {
-    if (chatContainerRef.current) {
+    if (chatContainerRef.current && !scrollButtonLockRef.current) {
       const { scrollTop, scrollHeight, clientHeight } =
         chatContainerRef.current;
-      const bottomTolerance = 100;
+      // 增加容差值，避免在底部边缘闪烁
+      const bottomTolerance = 150;
 
       if (scrollTop + clientHeight < scrollHeight - bottomTolerance) {
         setAutoScrollEnabled(false);
         setShowScrollDownButton(true);
       } else {
         setAutoScrollEnabled(true);
+        // 当滚动接近底部时，立即隐藏按钮
         setShowScrollDownButton(false);
       }
     }
   }, []);
 
-  // 使用节流减少handleScroll的调用频率
+  // 使用节流减少handleScroll的调用频率，增加节流时间减少闪烁
   const throttledHandleScroll = useCallback(
-    throttle(handleScroll, 250), // 增大节流时间
+    throttle(handleScroll, 300),
     [handleScroll]
   );
 
   // 简化滚动到底部的函数
   const handleScrollDown = useCallback(() => {
     if (chatContainerRef?.current) {
+      // 点击按钮后立即隐藏按钮并锁定状态变化
+      setShowScrollDownButton(false);
+      scrollButtonLockRef.current = true;
+      
       chatContainerRef.current.scrollTo({
         top: chatContainerRef.current.scrollHeight,
         behavior: 'smooth',
       });
       
       setAutoScrollEnabled(true);
-      setShowScrollDownButton(false);
+      
+      // 滚动动画完成后解锁
+      setTimeout(() => {
+        scrollButtonLockRef.current = false;
+      }, 800); // 延长锁定时间，确保滚动完全结束
     }
   }, [chatContainerRef]);
 
@@ -452,6 +464,10 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
   const scrollDown = () => {
     if (chatContainerRef?.current && messagesEndRef.current) {
+      // 点击按钮后立即隐藏按钮并锁定状态变化
+      setShowScrollDownButton(false);
+      scrollButtonLockRef.current = true;
+      
       // 使用messagesEndRef实现精确滚动
       messagesEndRef.current.scrollIntoView({
         behavior: 'smooth',
@@ -459,7 +475,11 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       });
       
       setAutoScrollEnabled(true);
-      setShowScrollDownButton(false);
+      
+      // 滚动动画完成后解锁
+      setTimeout(() => {
+        scrollButtonLockRef.current = false;
+      }, 800); // 延长锁定时间，确保滚动完全结束
     }
   };
   // 减小节流时间，让滚动更快响应

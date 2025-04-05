@@ -239,6 +239,14 @@ export const ModernChatInput = ({
         padding-top: 14px !important;
         padding-bottom: 12px !important;
       }
+      /* 添加滚动按钮动画 */
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .animate-fade-in {
+        animation: fadeIn 0.3s ease-in-out;
+      }
     `;
     
     // 更新或添加样式表
@@ -381,17 +389,23 @@ export const ModernChatInput = ({
       </div>
       
       {showScrollDownButton && (
-        <div className="fixed bottom-[120px] right-8">
+        <div className="fixed bottom-[120px] right-8 z-50 animate-fade-in" style={{ 
+          transition: "opacity 0.3s ease",
+          animation: "fadeIn 0.3s ease-in-out"
+        }}>
           <button
-            className="flex h-10 w-10 items-center justify-center rounded-full"
+            className="flex h-12 w-12 items-center justify-center rounded-full transition-all duration-300 hover:scale-105"
             style={{
-              backgroundColor: isDarkMode() ? '#4b5563' : '#FFFFFF',
+              backgroundColor: isDarkMode() ? 'rgba(75, 85, 99, 0.9)' : 'rgba(255, 255, 255, 0.9)',
               color: isDarkMode() ? '#d1d5db' : '#6b7280',
-              boxShadow: isDarkMode() ? '0 2px 4px rgba(0, 0, 0, 0.4)' : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+              boxShadow: isDarkMode() ? '0 2px 8px rgba(0, 0, 0, 0.5)' : '0 2px 8px rgba(0, 0, 0, 0.2)',
+              transform: 'translateZ(0)',
+              willChange: 'transform, opacity',
+              transition: 'transform 0.2s ease, opacity 0.2s ease'
             }}
             onClick={onScrollDownClick}
           >
-            <IconArrowUp size={18} className="rotate-180" />
+            <IconArrowUp size={20} className="rotate-180" />
           </button>
         </div>
       )}
