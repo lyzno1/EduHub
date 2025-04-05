@@ -77,11 +77,13 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const [inputBoxHeight, setInputBoxHeight] = useState<number>(65);
   // 添加状态追踪输入框是否真正扩展了
   const [isInputExpanded, setIsInputExpanded] = useState<boolean>(false);
+  // 添加状态追踪底部输入框的高度(用于对话模式)
+  const [bottomInputHeight, setBottomInputHeight] = useState<number>(65);
 
   // 获取消息数量
   const messagesLength = selectedConversation?.messages?.length || 0;
 
-  // 添加一个useEffect来监听输入框高度的变化
+  // 添加一个useEffect来监听输入框高度的变化(初始界面)
   useEffect(() => {
     // 如果有消息或在流式生成中，不需要监听
     if (messagesLength || messageIsStreaming) {
@@ -112,6 +114,37 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       observer.disconnect();
     };
   }, [messagesLength, messageIsStreaming, inputBoxHeight]);
+
+  // 添加useEffect监听对话模式下底部输入框的高度变化
+  useEffect(() => {
+    // 只有在有消息时才监听底部输入框
+    if (!messagesLength) {
+      return;
+    }
+    
+    // 查找底部输入框容器
+    const bottomInputContainer = document.querySelector('.absolute.bottom-0.left-0.w-full.z-20 [data-input-height]');
+    if (!bottomInputContainer) return;
+    
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'data-input-height') {
+          const height = parseInt(bottomInputContainer.getAttribute('data-input-height') || '65', 10);
+          
+          // 只有当高度显著变化时才更新状态
+          if (Math.abs(height - bottomInputHeight) >= 5) {
+            setBottomInputHeight(height);
+          }
+        }
+      });
+    });
+    
+    observer.observe(bottomInputContainer, { attributes: true });
+    
+    return () => {
+      observer.disconnect();
+    };
+  }, [messagesLength, bottomInputHeight]);
 
   // 简化滚动处理函数，减少DOM操作和计算
   const handleScroll = useCallback(() => {
@@ -584,33 +617,18 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
                 {loading && <ChatLoader />}
 
-                <div className="h-[200px]" ref={messagesEndRef} />
+                {/* 添加底部空白区域，确保内容可见性 */}
+                <div 
+                  style={{ 
+                    height: `${Math.max(200, bottomInputHeight + 130)}px`,
+                    transition: 'height 0.15s ease-out'
+                  }} 
+                  ref={messagesEndRef} 
+                />
               </div>
             </>
           )}
         </div>
-
-        {/* 底部固定区域 */}
-        {messagesLength > 0 && (
-          <div 
-            className="absolute bottom-0 left-0 right-[17px] z-10 h-[140px]"
-            style={{
-              backgroundColor: lightMode === 'red'
-                ? '#F2ECBE'
-                : lightMode === 'blue'
-                ? '#F6F4EB'
-                : lightMode === 'green'
-                ? '#FAF1E4'
-                : lightMode === 'purple'
-                ? '#C5DFF8'
-                : lightMode === 'brown'
-                ? '#F4EEE0'
-                : lightMode === 'light'
-                ? '#FFFFFF'
-                : '#343541'
-            }}
-          ></div>
-        )}
 
         {/* 输入框区域 */}
         <div className="absolute bottom-0 left-0 w-full z-20">
