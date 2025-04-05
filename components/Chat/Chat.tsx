@@ -718,23 +718,20 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
       const scrollableArea = scrollHeight - clientHeight;
       
-      // 检查是否在初始状态以及是否需要显示滚动条
+      // 检查是否是初始状态（没有消息）
       const isInitialState = messagesLength === 0;
       
-      if (scrollableArea <= 0 && !isInitialState) {
-        // 对话状态下，没有可滚动内容时，隐藏整个滚动条和指示器
+      // 在初始状态下，始终隐藏滚动条和指示器
+      if (isInitialState) {
         overlay.style.display = 'none';
         return;
-      } else if (isInitialState) {
-        // 初始状态下，无论是否有滚动内容，我们都保持滚动条样式一致
-        // 注意：这里不会立即隐藏滚动条，使其行为与对话状态一致
-        if (isInputExpanded) {
-          overlay.style.display = 'block';
-        } else {
-          overlay.style.display = 'none';
-        }
+      }
+      
+      // 对话状态下，只有在有可滚动内容时才显示滚动条
+      if (scrollableArea <= 0) {
+        overlay.style.display = 'none';
+        return;
       } else {
-        // 对话状态下有可滚动内容时显示滚动条
         overlay.style.display = 'block';
       }
       
@@ -782,7 +779,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         overlay.parentNode.removeChild(overlay);
       }
     };
-  }, [messagesLength, bottomInputHeight, isInputExpanded]); // 添加isInputExpanded作为依赖，确保在输入框扩展状态变化时更新
+  }, [messagesLength, bottomInputHeight]); // 移除isInputExpanded作为依赖，确保初始状态下不显示滚动条
 
   return (
     <div
