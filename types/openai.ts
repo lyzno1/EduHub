@@ -42,7 +42,7 @@ export enum OpenAIModelID {
 }
 
 // in case the `DEFAULT_MODEL` environment variable is not set or set to an unsupported model
-export const fallbackModelID = OpenAIModelID.GPT_3_5;
+export const fallbackModelID = OpenAIModelID.DEEPSEEK_CHAT;
 
 export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
   [OpenAIModelID.GPT_3_5]: {
@@ -51,6 +51,7 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
     maxLength: 12000,
     tokenLimit: 4000,
     key: process.env.OPENAI_API_KEY || '',
+    apiType: ModelType.OPENAI
   },
   [OpenAIModelID.写作导师]: {
     id: OpenAIModelID.写作导师,
@@ -58,6 +59,7 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
     maxLength: 12000,
     tokenLimit: 4000,
     key: keys['写作导师'] || process.env.DIFY_API_KEY || '',
+    apiType: ModelType.DIFY
   },
   [OpenAIModelID.项目分析]: {
     id: OpenAIModelID.项目分析,
@@ -65,6 +67,7 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
     maxLength: 12000,
     tokenLimit: 4000,
     key: keys['项目分析'] || process.env.DIFY_API_KEY || '',
+    apiType: ModelType.DIFY
   },
   [OpenAIModelID.同伴学习]: {
     id: OpenAIModelID.同伴学习,
@@ -72,6 +75,7 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
     maxLength: 12000,
     tokenLimit: 4000,
     key: keys['同伴学习'] || process.env.DIFY_API_KEY || '',
+    apiType: ModelType.DIFY
   },
   [OpenAIModelID.决策讨论]: {
     id: OpenAIModelID.决策讨论,
@@ -79,6 +83,7 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
     maxLength: 12000,
     tokenLimit: 4000,
     key: keys['决策讨论'] || process.env.DIFY_API_KEY || '',
+    apiType: ModelType.DIFY
   },
   [OpenAIModelID.课程规划]: {
     id: OpenAIModelID.课程规划,
@@ -86,6 +91,7 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
     maxLength: 12000,
     tokenLimit: 4000,
     key: keys['课程规划'] || process.env.DIFY_API_KEY || '',
+    apiType: ModelType.DIFY
   },
   [OpenAIModelID.挑战识别]: {
     id: OpenAIModelID.挑战识别,
@@ -93,6 +99,7 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
     maxLength: 12000,
     tokenLimit: 4000,
     key: keys['挑战识别'] || process.env.DIFY_API_KEY || '',
+    apiType: ModelType.DIFY
   },
   [OpenAIModelID.测试生成]: {
     id: OpenAIModelID.测试生成,
@@ -100,6 +107,7 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
     maxLength: 12000,
     tokenLimit: 4000,
     key: keys['测试生成'] || process.env.DIFY_API_KEY || '',
+    apiType: ModelType.DIFY
   },
   [OpenAIModelID.智能助手]: {
     id: OpenAIModelID.智能助手,
@@ -107,6 +115,7 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
     maxLength: 12000,
     tokenLimit: 4000,
     key: keys['智能助手'] || process.env.DIFY_API_KEY || '',
+    apiType: ModelType.DIFY
   },
   [OpenAIModelID.课程助教]: {
     id: OpenAIModelID.课程助教,
@@ -114,6 +123,7 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
     maxLength: 12000,
     tokenLimit: 4000,
     key: keys['课程助教'] || process.env.DIFY_API_KEY || '',
+    apiType: ModelType.DIFY
   },
   [OpenAIModelID.校园助手]: {
     id: OpenAIModelID.校园助手,
@@ -121,6 +131,7 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
     maxLength: 12000,
     tokenLimit: 4000,
     key: keys['校园助手'] || process.env.DIFY_API_KEY || '',
+    apiType: ModelType.DIFY
   },
   // 添加DeepSeek模型配置
   [OpenAIModelID.DEEPSEEK_CHAT]: {

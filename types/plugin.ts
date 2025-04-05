@@ -4,6 +4,7 @@ export interface Plugin {
   id: PluginID;
   name: PluginName;
   requiredKeys: KeyValuePair[];
+  url?: string;
 }
 
 export interface PluginKey {
@@ -23,6 +24,7 @@ export const Plugins: Record<PluginID, Plugin> = {
   [PluginID.GOOGLE_SEARCH]: {
     id: PluginID.GOOGLE_SEARCH,
     name: PluginName.GOOGLE_SEARCH,
+    url: '/api/google-search',
     requiredKeys: [
       {
         key: 'GOOGLE_API_KEY',

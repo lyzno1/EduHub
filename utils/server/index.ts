@@ -224,11 +224,13 @@ export const DifyStream = async (
     console.log('- User:', user);
     console.log('- ConversationID:', existingConversationId || 'none');
     
-    // 最简化的请求体，避免不必要的字段
+    // 完整的请求体，包含Dify需要的所有参数
     const requestBody: any = {
       query: query,
       response_mode: 'streaming',
-      user: user || 'anonymous-user'
+      user: user || 'anonymous-user',
+      inputs: {}, // Dify需要inputs参数，即使是空对象
+      auto_generate_name: true // 自动生成标题
     };
     
     // 只在会话ID有值时添加

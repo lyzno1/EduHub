@@ -24,6 +24,7 @@ import {
 import { saveFolders } from '@/utils/app/folders';
 import { savePrompts } from '@/utils/app/prompts';
 import { getSettings } from '@/utils/app/settings';
+import { getDefaultApiType, setDefaultApiType } from '@/utils/app/api';
 
 import { Conversation, KeyValuePair } from '@/types/chat';
 import { FolderInterface, FolderType } from '@/types/folder';
@@ -217,7 +218,7 @@ const Home = ({
       name: t('New Conversation'),
       originalName: '',
       messages: [],
-      model: OpenAIModels[OpenAIModelID.DEEPSEEK_CHAT] || OpenAIModels[defaultModelId],
+      model: OpenAIModels[OpenAIModelID.DEEPSEEK_CHAT],
       prompt: DEFAULT_SYSTEM_PROMPT,
       temperature: DEFAULT_TEMPERATURE,
       folderId: null,
@@ -306,6 +307,21 @@ const Home = ({
     setUser(CheckLogin());
     setReady(true);
 
+    // 确保设置默认API类型为deepseek
+    setDefaultApiType('deepseek');
+    
+    // 清理localStorage中的会话数据，确保使用新的配置
+    if (typeof window !== 'undefined') {
+      // 只有在浏览器环境中才执行
+      const cleanLocalStorage = localStorage.getItem('cleanedForDeepseek');
+      if (!cleanLocalStorage) {
+        console.log('清理localStorage中的会话数据，使用新的DeepSeek配置');
+        localStorage.removeItem('selectedConversation');
+        localStorage.removeItem('conversationHistory');
+        localStorage.setItem('cleanedForDeepseek', 'true');
+      }
+    }
+    
     // 获取并设置用户的主题设置。
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
@@ -417,7 +433,7 @@ const Home = ({
         name: t('New Conversation'),
         originalName: '',
         messages: [],
-        model: OpenAIModels[OpenAIModelID.DEEPSEEK_CHAT] || OpenAIModels[defaultModelId],
+        model: OpenAIModels[OpenAIModelID.DEEPSEEK_CHAT],
         prompt: DEFAULT_SYSTEM_PROMPT,
         temperature: DEFAULT_TEMPERATURE,
         folderId: null,
@@ -483,7 +499,7 @@ const Home = ({
           name: t('New Conversation'),
           originalName: '',
           messages: [],
-          model: OpenAIModels[OpenAIModelID.DEEPSEEK_CHAT] || OpenAIModels[defaultModelId],
+          model: OpenAIModels[OpenAIModelID.DEEPSEEK_CHAT],
           prompt: DEFAULT_SYSTEM_PROMPT,
           temperature: DEFAULT_TEMPERATURE,
           folderId: null,

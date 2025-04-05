@@ -51,6 +51,7 @@ export const ModernChatInput = ({
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [showPluginSelect, setShowPluginSelect] = useState<boolean>(false);
   const [activePlugin, setActivePlugin] = useState<Plugin | null>(null);
+  const [inputHeight, setInputHeight] = useState<number>(65); // 默认高度
 
   const inputContainerRef = useRef<HTMLDivElement>(null);
 
@@ -75,7 +76,49 @@ export const ModernChatInput = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setContent(value);
+    
+    // 调整高度
+    adjustHeight();
   };
+
+  // 创建一个辅助函数来处理调整高度
+  const adjustHeight = useCallback(() => {
+    setTimeout(() => {
+      if (textareaRef.current) {
+        // 彻底重置高度 - 使用极小值确保完全重置
+        textareaRef.current.style.height = '1px';
+        
+        // 获取内容实际需要的高度
+        const scrollHeight = textareaRef.current.scrollHeight;
+        const maxHeight = isCentered ? 170 : 120;
+        
+        // 如果内容为空，确保设置为最小高度
+        const newHeight = content.trim() === '' 
+          ? 24 
+          : Math.min(scrollHeight, maxHeight);
+        
+        // 设置新高度
+        textareaRef.current.style.height = newHeight + 'px';
+        
+        // 处理滚动条
+        textareaRef.current.style.overflow = 
+          scrollHeight > maxHeight ? 'auto' : 'hidden';
+        
+        // 更新容器高度
+        const newContainerHeight = Math.max(65, newHeight + 40);
+        setInputHeight(newContainerHeight);
+      }
+    }, 0);
+  }, [isCentered, textareaRef, content]);
+
+  // 重置输入框
+  const resetHeight = useCallback(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '24px';
+      textareaRef.current.style.overflow = 'hidden';
+      setInputHeight(65);
+    }
+  }, [textareaRef]);
 
   const handleSend = () => {
     if (messageIsStreaming) {
@@ -91,19 +134,12 @@ export const ModernChatInput = ({
     setContent('');
     setActivePlugin(null);
 
-    if (window.innerWidth < 640 && textareaRef && textareaRef.current) {
+    // 重置输入框高度
+    resetHeight();
+
+    if (window.innerWidth < 640 && textareaRef?.current) {
       textareaRef.current.blur();
     }
-    
-    // 简单直接的方式：等DOM更新后，找到最后一个用户消息气泡并滚动
-    setTimeout(() => {
-      const chatContainer = document.querySelector('.flex-1.overflow-y-auto');
-      if (chatContainer) {
-        // 强制滚动到顶部，这样用户消息就会显示在顶部
-        chatContainer.scrollTop = 0;
-        console.log('消息已发送，聊天区域已滚动到顶部');
-      }
-    }, 100);
   };
 
   const handleStopConversation = () => {
@@ -124,23 +160,24 @@ export const ModernChatInput = ({
     }
   };
 
-  useEffect(() => {
-    if (textareaRef && textareaRef.current) {
-      // 不再需要设置固定高度，因为外层div已经控制了高度
-      // 只关注光标位置
-      if (content) {
-        const len = content.length;
-        textareaRef.current.setSelectionRange(len, len);
-      }
-    }
-  }, [content, textareaRef]);
-
-  // 当selectedConversation改变时，重置输入内容
+  // 当selectedConversation改变时，重置输入内容并调整高度
   useEffect(() => {
     if (selectedConversation?.id) {
-      setContent(''); // 确保切换对话时，输入框是空的
+      setContent('');
+      resetHeight();
     }
-  }, [selectedConversation?.id]);
+  }, [selectedConversation?.id, resetHeight]);
+
+  // 初始化高度设置和调整窗口大小时重新计算高度
+  useEffect(() => {
+    adjustHeight();
+    
+    // 添加窗口大小变化监听器
+    window.addEventListener('resize', adjustHeight);
+    return () => {
+      window.removeEventListener('resize', adjustHeight);
+    };
+  }, [content, adjustHeight]);
 
   // 添加自定义样式表，处理placeholder样式
   useEffect(() => {
@@ -165,6 +202,39 @@ export const ModernChatInput = ({
         border: 1px solid rgba(55, 65, 81, 0.5) !important;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px -1px rgba(0, 0, 0, 0.3) !important;
       }
+      /* 自定义滚动条样式 */
+      .scrollbar-thin::-webkit-scrollbar {
+        width: 5px;
+      }
+      .scrollbar-thin::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .scrollbar-thin::-webkit-scrollbar-thumb {
+        background: rgba(155, 155, 155, 0.5);
+        border-radius: 5px;
+      }
+      .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+        background: rgba(155, 155, 155, 0.7);
+      }
+      /* 暗黑模式下的滚动条 */
+      .dark-mode .scrollbar-thin::-webkit-scrollbar-thumb {
+        background: rgba(200, 200, 200, 0.3);
+      }
+      .dark-mode .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+        background: rgba(200, 200, 200, 0.5);
+      }
+      /* 平滑过渡效果 - 应用于输入框高度变化 */
+      .textarea-transition {
+        transition: height 0.1s linear !important;
+      }
+      /* 输入区域容器样式 */
+      .input-container {
+        transition: all 0.1s linear !important;
+      }
+      /* 输入区域内容容器 */
+      .input-content-container {
+        transition: all 0.1s linear !important;
+      }
     `;
     
     // 更新或添加样式表
@@ -184,17 +254,25 @@ export const ModernChatInput = ({
     };
   }, [lightMode]); // 添加lightMode作为依赖项
 
+  // 更新高度时，也更新data属性
+  useEffect(() => {
+    if (inputContainerRef.current) {
+      inputContainerRef.current.setAttribute('data-input-height', inputHeight.toString());
+    }
+  }, [inputHeight]);
+
   // 根据是否有消息决定输入框容器位置
   return (
     <div
       className={isCentered 
-        ? "absolute bottom-0 left-0 w-full px-4 pb-8 z-20 transform translate-y-[-43vh]" 
-        : "absolute bottom-0 left-0 w-full px-4 pb-2 z-20 transform translate-y-[-2vh]"
+        ? "absolute top-1/2 left-0 w-full px-4 pb-8 z-20 transform -translate-y-1/2" // 居中模式继续使用绝对定位
+        : "absolute bottom-0 left-0 w-full px-4 pb-2 z-20" // 底部模式继续使用绝对定位
       }
       ref={inputContainerRef}
+      data-input-height={inputHeight}
     >
       <div
-        className={`relative flex flex-col rounded-3xl ${isDarkMode() ? 'chat-input-dark-bg chat-input-dark-mode' : ''}`}
+        className={`relative flex flex-col rounded-3xl input-container ${isDarkMode() ? 'chat-input-dark-bg chat-input-dark-mode' : ''}`}
         style={{ 
           maxWidth: '800px', 
           margin: '0 auto',
@@ -203,23 +281,26 @@ export const ModernChatInput = ({
           boxShadow: isDarkMode() ? '0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px -1px rgba(0, 0, 0, 0.3)' : '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 8px 15px -3px rgba(0, 0, 0, 0.1), 0 12px 20px -5px rgba(0, 0, 0, 0.15)',
         }}
       >
-        {/* 这里是真正的输入区，高度是固定的 */}
+        {/* 这里是真正的输入区，高度根据内容动态变化但不会影响外部布局 */}
         <div 
-          className={`h-[65px] overflow-y-auto rounded-t-3xl pt-4 px-5 ${isDarkMode() ? 'chat-input-dark-bg' : ''}`}
+          className={`min-h-[65px] overflow-y-auto rounded-t-3xl pt-4 px-5 ${isDarkMode() ? 'chat-input-dark-bg' : ''} input-content-container`}
           style={{ 
             display: 'flex', 
             flexDirection: 'column',
-            backgroundColor: isDarkMode() ? '#343541' : getBgColor()
+            backgroundColor: isDarkMode() ? '#343541' : getBgColor(),
+            maxHeight: isCentered ? '175px' : '125px', // 设置最大高度与textarea相同，加上padding
           }}
         >
           <textarea
             ref={textareaRef as MutableRefObject<HTMLTextAreaElement>}
-            className={`w-full flex-grow resize-none border-0 p-0 text-[14px] focus:outline-none focus:ring-0 ${isDarkMode() ? 'modern-input-dark' : 'modern-input-light'}`}
+            className={`w-full flex-grow resize-none border-0 p-0 text-[14px] focus:outline-none focus:ring-0 ${isDarkMode() ? 'modern-input-dark' : 'modern-input-light'} textarea-transition scrollbar-thin`}
             style={{
               backgroundColor: 'transparent',
               color: isDarkMode() ? '#FFFFFF' : '#1A1A1A',
-              minHeight: '100%', 
+              minHeight: '24px',
+              maxHeight: isCentered ? '170px' : '120px',
               paddingTop: '3px',
+              transition: 'height 0.1s linear',
             }}
             placeholder={t('有什么可以帮您的吗？') || ''}
             value={content}
@@ -228,6 +309,7 @@ export const ModernChatInput = ({
             onCompositionEnd={() => setIsTyping(false)}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
+            onInput={adjustHeight}
           />
         </div>
         
