@@ -481,6 +481,205 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     }
   }, [selectedConversation?.messages, handleScrollDown, autoScrollEnabled]);
 
+  // 更新样式内容，确保平滑过渡和一致的padding
+  useEffect(() => {
+    // 创建样式表
+    const styleEl = document.createElement('style');
+    // 确保ID唯一，避免重复添加
+    styleEl.id = 'chat-custom-scrollbar-styles';
+    
+    // 获取当前主题颜色
+    const isDarkMode = lightMode === 'dark';
+    
+    // 设置样式内容
+    styleEl.innerHTML = `
+      /* 滚动条容器样式 */
+      .chat-container-scrollbar {
+        position: relative;
+        scrollbar-width: thin;
+        scrollbar-color: transparent transparent; /* Firefox支持 */
+      }
+      
+      /* 滚动条整体样式 */
+      .chat-container-scrollbar::-webkit-scrollbar {
+        width: 8px;
+        background-color: transparent;
+      }
+      
+      /* 滚动条滑块样式 - 设置为透明 */
+      .chat-container-scrollbar::-webkit-scrollbar-thumb {
+        background-color: transparent;
+      }
+      
+      /* 滚动条轨道样式 - 设置为透明 */
+      .chat-container-scrollbar::-webkit-scrollbar-track {
+        background-color: transparent;
+      }
+      
+      /* 创建一个自定义的滚动条容器 */
+      .chat-scrollbar-custom-overlay {
+        position: fixed;
+        top: 40px;
+        right: 0;
+        width: 8px;
+        bottom: 135px;
+        z-index: 99;
+        pointer-events: none;
+      }
+      
+      /* 自定义滚动条轨道 */
+      .chat-scrollbar-custom-track {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 8px;
+        height: 100%;
+        background-color: transparent;
+      }
+      
+      /* 自定义滚动条滑块 - 会动态定位和大小 */
+      .chat-scrollbar-custom-thumb {
+        position: absolute;
+        width: 8px;
+        background-color: ${isDarkMode ? 'rgba(200, 200, 210, 0.3)' : 'rgba(156, 163, 175, 0.3)'};
+        border-radius: 10px;
+        transition: background-color 0.2s;
+      }
+      
+      .chat-scrollbar-custom-thumb:hover {
+        background-color: ${isDarkMode ? 'rgba(200, 200, 210, 0.5)' : 'rgba(156, 163, 175, 0.5)'};
+      }
+      
+      /* 上边界指示器 - 上三角形 */
+      .chat-scrollbar-custom-overlay::before {
+        content: "";
+        position: absolute;
+        top: -6px;
+        right: 0;
+        width: 0;
+        height: 0;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-bottom: 6px solid ${isDarkMode ? 'rgba(200, 200, 210, 0.4)' : 'rgba(156, 163, 175, 0.4)'};
+      }
+      
+      /* 下边界指示器 - 下三角形 */
+      .chat-scrollbar-custom-overlay::after {
+        content: "";
+        position: absolute;
+        bottom: -6px;
+        right: 0;
+        width: 0;
+        height: 0;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 6px solid ${isDarkMode ? 'rgba(200, 200, 210, 0.4)' : 'rgba(156, 163, 175, 0.4)'};
+      }
+      
+      /* 适配暗色模式 */
+      @media (prefers-color-scheme: dark) {
+        .chat-scrollbar-custom-thumb {
+          background-color: rgba(200, 200, 210, 0.3);
+        }
+        
+        .chat-scrollbar-custom-thumb:hover {
+          background-color: rgba(200, 200, 210, 0.5);
+        }
+        
+        .chat-scrollbar-custom-overlay::before {
+          border-bottom: 6px solid rgba(200, 200, 210, 0.4);
+        }
+        
+        .chat-scrollbar-custom-overlay::after {
+          border-top: 6px solid rgba(200, 200, 210, 0.4);
+        }
+      }
+    `;
+    
+    // 更新或添加样式表
+    const existingStyle = document.getElementById('chat-custom-scrollbar-styles');
+    if (existingStyle) {
+      existingStyle.innerHTML = styleEl.innerHTML;
+    } else {
+      document.head.appendChild(styleEl);
+    }
+    
+    // 组件卸载时移除样式表
+    return () => {
+      const existingStyle = document.getElementById('chat-custom-scrollbar-styles');
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+    };
+  }, [lightMode]); // 添加lightMode作为依赖，确保主题切换时更新样式
+
+  // 添加自定义滚动条逻辑
+  useEffect(() => {
+    if (!chatContainerRef.current) return;
+    
+    // 创建自定义滚动条元素
+    const overlay = document.createElement('div');
+    overlay.className = 'chat-scrollbar-custom-overlay';
+    
+    const track = document.createElement('div');
+    track.className = 'chat-scrollbar-custom-track';
+    
+    const thumb = document.createElement('div');
+    thumb.className = 'chat-scrollbar-custom-thumb';
+    
+    track.appendChild(thumb);
+    overlay.appendChild(track);
+    document.body.appendChild(overlay);
+    
+    // 更新滚动条位置和大小
+    const updateScrollbar = () => {
+      if (!chatContainerRef.current) return;
+      
+      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+      const scrollableArea = scrollHeight - clientHeight;
+      
+      if (scrollableArea <= 0) {
+        // 没有可滚动内容，隐藏滑块
+        thumb.style.display = 'none';
+        return;
+      }
+      
+      // 计算滑块高度 - 基于可视区域与总高度的比例
+      const trackHeight = overlay.clientHeight;
+      const thumbHeight = Math.max(30, (clientHeight / scrollHeight) * trackHeight);
+      
+      // 计算滑块位置
+      const thumbTop = (scrollTop / scrollableArea) * (trackHeight - thumbHeight);
+      
+      // 更新滑块样式
+      thumb.style.display = 'block';
+      thumb.style.height = `${thumbHeight}px`;
+      thumb.style.top = `${thumbTop}px`;
+    };
+    
+    // 初始更新
+    updateScrollbar();
+    
+    // 监听滚动事件
+    const handleScroll = () => {
+      updateScrollbar();
+    };
+    
+    chatContainerRef.current.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', updateScrollbar);
+    
+    // 清理
+    return () => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.removeEventListener('scroll', handleScroll);
+      }
+      window.removeEventListener('resize', updateScrollbar);
+      if (overlay && overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+    };
+  }, [messagesLength, bottomInputHeight]); // 当消息长度或输入框高度变化时重新初始化
+
   return (
     <div
       className={`relative flex-1 flex flex-col overflow-hidden bg-white dark:bg-[#343541] ${
@@ -535,7 +734,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         )}
 
         <div
-          className="flex-1 overflow-y-auto"
+          className="flex-1 overflow-y-auto chat-container-scrollbar"
           ref={chatContainerRef}
           onScroll={throttledHandleScroll}
         >
@@ -620,7 +819,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 {/* 添加底部空白区域，确保内容可见性 */}
                 <div 
                   style={{ 
-                    height: `${Math.max(200, bottomInputHeight + 130)}px`,
+                    height: `${Math.max(230, bottomInputHeight + 160)}px`, // 增加高度以与滚动条下界保持一致
                     transition: 'none' // 改为直接变化，移除平滑过渡
                   }} 
                   ref={messagesEndRef} 
@@ -629,6 +828,31 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             </>
           )}
         </div>
+
+        {/* 底部固定挡板区域 - 确保文字被遮挡，不会穿过输入框 */}
+        {messagesLength > 0 && (
+          <div 
+            className="absolute bottom-0 left-0 right-0 z-10"
+            style={{
+              height: '135px', // 与滚动条底部边界一致
+              backgroundColor: lightMode === 'red'
+                ? '#F2ECBE'
+                : lightMode === 'blue'
+                ? '#F6F4EB'
+                : lightMode === 'green'
+                ? '#FAF1E4'
+                : lightMode === 'purple'
+                ? '#C5DFF8'
+                : lightMode === 'brown'
+                ? '#F4EEE0'
+                : lightMode === 'light'
+                ? '#FFFFFF'
+                : '#343541',
+              transition: 'none',
+              pointerEvents: 'none' // 确保不阻止鼠标事件
+            }}
+          ></div>
+        )}
 
         {/* 输入框区域 */}
         <div className="absolute bottom-0 left-0 w-full z-20">
