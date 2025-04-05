@@ -86,15 +86,16 @@ export const ModernChatInput = ({
     setTimeout(() => {
       if (textareaRef.current) {
         // 使用更稳定的方式重置高度，避免闪烁
-        textareaRef.current.style.height = 'auto';
+        textareaRef.current.style.height = '1px'; // 先设置为1px确保内容能撑开高度
         
-        // 获取内容实际需要的高度，增加1px容错
-        const scrollHeight = textareaRef.current.scrollHeight + 1;
+        // 获取内容实际需要的高度
+        const scrollHeight = textareaRef.current.scrollHeight;
         const maxHeight = 220;
         
         // 如果内容为空，设置一个统一的最小高度
+        // 由于增加了字体大小，最小高度也适当增加
         const newHeight = content.trim() === '' 
-          ? 24 
+          ? 28  // 最小高度增加到28px，适应更大的字体
           : Math.min(scrollHeight, maxHeight);
         
         // 设置新高度
@@ -105,8 +106,9 @@ export const ModernChatInput = ({
           scrollHeight > maxHeight ? 'auto' : 'hidden';
         
         // 确保容器高度与内容一致，避免抖动
-        const containerPadding = 40; // 顶部和底部padding总和
-        const newContainerHeight = Math.max(65, newHeight + containerPadding);
+        // 增加容器padding以适应更大的字体
+        const containerPadding = 44; // 顶部和底部padding总和增加
+        const newContainerHeight = Math.max(69, newHeight + containerPadding); // 最小高度也相应增加
         setInputHeight(newContainerHeight);
       }
     }, 10); // 增加延迟确保DOM完全更新
@@ -115,9 +117,9 @@ export const ModernChatInput = ({
   // 重置输入框
   const resetHeight = useCallback(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = '24px';
+      textareaRef.current.style.height = '28px'; // 增加到28px
       textareaRef.current.style.overflow = 'hidden';
-      setInputHeight(65);
+      setInputHeight(69); // 增加到69px
     }
   }, [textareaRef]);
 
@@ -235,8 +237,8 @@ export const ModernChatInput = ({
       /* 输入区域内容容器 */
       .input-content-container {
         transition: all 0.15s ease-out !important;
-        padding-top: 16px !important;
-        padding-bottom: 10px !important;
+        padding-top: 14px !important;
+        padding-bottom: 12px !important;
       }
     `;
     
@@ -286,7 +288,7 @@ export const ModernChatInput = ({
       >
         {/* 这里是真正的输入区，高度根据内容动态变化但不会影响外部布局 */}
         <div 
-          className={`min-h-[65px] overflow-y-auto rounded-t-3xl px-5 ${isDarkMode() ? 'chat-input-dark-bg' : ''} input-content-container`}
+          className={`min-h-[65px] overflow-y-auto rounded-t-3xl px-6 ${isDarkMode() ? 'chat-input-dark-bg' : ''} input-content-container`}
           style={{ 
             display: 'flex', 
             flexDirection: 'column',
@@ -296,13 +298,14 @@ export const ModernChatInput = ({
         >
           <textarea
             ref={textareaRef as MutableRefObject<HTMLTextAreaElement>}
-            className={`w-full flex-grow resize-none border-0 p-0 text-[14px] focus:outline-none focus:ring-0 ${isDarkMode() ? 'modern-input-dark' : 'modern-input-light'} textarea-transition scrollbar-thin`}
+            className={`w-full flex-grow resize-none border-0 p-0 text-[16px] focus:outline-none focus:ring-0 ${isDarkMode() ? 'modern-input-dark' : 'modern-input-light'} textarea-transition scrollbar-thin`}
             style={{
               backgroundColor: 'transparent',
               color: isDarkMode() ? '#FFFFFF' : '#1A1A1A',
               minHeight: '24px',
               maxHeight: '220px', // 统一设置为输入框最大高度
               transition: 'height 0.15s ease-out', // 直接在元素上也添加过渡效果
+              lineHeight: '1.5', // 增加行高以提高可读性
             }}
             placeholder={t('有什么可以帮您的吗？') || ''}
             value={content}
