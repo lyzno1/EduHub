@@ -102,8 +102,15 @@ export const ModernChatInput = ({
       textareaRef.current.style.height = `${newHeight}px`;
       
       // 处理滚动条，确保一致的行为
-      textareaRef.current.style.overflow = 
-        scrollHeight > maxHeight ? 'auto' : 'hidden';
+      // 即使内容不足，也保持滚动条的样式一致性，只是在需要时才显示滚动功能
+      if (scrollHeight > maxHeight) {
+        textareaRef.current.style.overflow = 'auto';
+        textareaRef.current.classList.add('scrollbar-thin');
+      } else {
+        textareaRef.current.style.overflow = 'hidden';
+        // 仍然保留scrollbar-thin类，以便样式保持一致
+        textareaRef.current.classList.add('scrollbar-thin');
+      }
       
       // 确保容器高度与内容一致，避免抖动
       // 增加容器padding以适应更大的字体
@@ -118,6 +125,8 @@ export const ModernChatInput = ({
     if (textareaRef.current) {
       textareaRef.current.style.height = '28px'; // 增加到28px
       textareaRef.current.style.overflow = 'hidden';
+      // 保持滚动条样式类
+      textareaRef.current.classList.add('scrollbar-thin');
       setInputHeight(69); // 增加到69px
     }
   }, [textareaRef]);
@@ -204,26 +213,73 @@ export const ModernChatInput = ({
         border: 1px solid rgba(55, 65, 81, 0.5) !important;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px -1px rgba(0, 0, 0, 0.3) !important;
       }
-      /* 自定义滚动条样式 */
+      /* 自定义滚动条样式 - 增强版 */
       .scrollbar-thin::-webkit-scrollbar {
-        width: 5px;
+        width: 6px !important;
+        height: 6px !important;
       }
       .scrollbar-thin::-webkit-scrollbar-track {
-        background: transparent;
+        background: transparent !important;
       }
       .scrollbar-thin::-webkit-scrollbar-thumb {
-        background: rgba(155, 155, 155, 0.5);
-        border-radius: 5px;
+        background: rgba(155, 155, 155, 0.5) !important;
+        border-radius: 10px !important;
+        border: none !important;
       }
       .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-        background: rgba(155, 155, 155, 0.7);
+        background: rgba(155, 155, 155, 0.7) !important;
       }
       /* 暗黑模式下的滚动条 */
-      .dark-mode .scrollbar-thin::-webkit-scrollbar-thumb {
-        background: rgba(200, 200, 200, 0.3);
+      .dark-mode .scrollbar-thin::-webkit-scrollbar-thumb,
+      .chat-input-dark-mode .scrollbar-thin::-webkit-scrollbar-thumb {
+        background: rgba(200, 200, 200, 0.3) !important;
       }
-      .dark-mode .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-        background: rgba(200, 200, 200, 0.5);
+      .dark-mode .scrollbar-thin::-webkit-scrollbar-thumb:hover,
+      .chat-input-dark-mode .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+        background: rgba(200, 200, 200, 0.5) !important;
+      }
+      /* Firefox 支持 */
+      .scrollbar-thin {
+        scrollbar-width: thin !important;
+        scrollbar-color: rgba(155, 155, 155, 0.5) transparent !important;
+      }
+      .dark-mode .scrollbar-thin,
+      .chat-input-dark-mode .scrollbar-thin {
+        scrollbar-color: rgba(200, 200, 200, 0.3) transparent !important;
+      }
+      /* 确保输入框容器的滚动条也正确显示 */
+      .textarea-container-scrollbar::-webkit-scrollbar {
+        width: 6px !important;
+        height: 6px !important;
+      }
+      .textarea-container-scrollbar::-webkit-scrollbar-track {
+        background: transparent !important;
+      }
+      .textarea-container-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(155, 155, 155, 0.5) !important;
+        border-radius: 10px !important;
+        border: none !important;
+      }
+      .textarea-container-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(155, 155, 155, 0.7) !important;
+      }
+      /* 暗黑模式下的容器滚动条 */
+      .dark-mode .textarea-container-scrollbar::-webkit-scrollbar-thumb,
+      .chat-input-dark-mode .textarea-container-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(200, 200, 200, 0.3) !important;
+      }
+      .dark-mode .textarea-container-scrollbar::-webkit-scrollbar-thumb:hover,
+      .chat-input-dark-mode .textarea-container-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(200, 200, 200, 0.5) !important;
+      }
+      /* Firefox 支持容器滚动条 */
+      .textarea-container-scrollbar {
+        scrollbar-width: thin !important;
+        scrollbar-color: rgba(155, 155, 155, 0.5) transparent !important;
+      }
+      .dark-mode .textarea-container-scrollbar,
+      .chat-input-dark-mode .textarea-container-scrollbar {
+        scrollbar-color: rgba(200, 200, 200, 0.3) transparent !important;
       }
       /* 平滑过渡效果 - 使用更平滑的过渡 */
       .textarea-transition {
@@ -295,7 +351,7 @@ export const ModernChatInput = ({
       >
         {/* 这里是真正的输入区，高度根据内容动态变化但不会影响外部布局 */}
         <div 
-          className={`min-h-[65px] overflow-y-auto rounded-t-3xl px-6 ${isDarkMode() ? 'chat-input-dark-bg' : ''} input-content-container`}
+          className={`min-h-[65px] overflow-y-auto rounded-t-3xl px-6 ${isDarkMode() ? 'chat-input-dark-bg' : ''} input-content-container textarea-container-scrollbar`}
           style={{ 
             display: 'flex', 
             flexDirection: 'column',

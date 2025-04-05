@@ -213,28 +213,47 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     };
   }, [messagesLength, bottomInputHeight]);
 
-  // 简化滚动处理函数，减少DOM操作和计算
-  const handleScroll = useCallback(() => {
-    if (chatContainerRef.current && !scrollButtonLockRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } =
-        chatContainerRef.current;
-      const bottomTolerance = 100;
-
-      if (scrollTop + clientHeight < scrollHeight - bottomTolerance) {
+  // 监听滚动事件，根据需要显示滚动按钮
+  useEffect(() => {
+    if (!chatContainerRef.current) return;
+    
+    const handleScroll = () => {
+      if (!chatContainerRef.current) return;
+      
+      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+      const scrollPosition = scrollHeight - scrollTop - clientHeight;
+      
+      // 判断是否是初始状态（没有消息）
+      const isInitialState = !selectedConversation || selectedConversation.messages.length === 0;
+      
+      if (scrollPosition > 100 && !scrollButtonLockRef.current) {
+        // 距离底部超过阈值，禁用自动滚动
         setAutoScrollEnabled(false);
-        setShowScrollDownButton(true);
+        
+        // 只有在非初始状态(有消息)的情况下，才显示滚动按钮
+        if (!isInitialState) {
+          setShowScrollDownButton(true);
+        } else {
+          setShowScrollDownButton(false);
+        }
       } else {
+        // 距离底部在阈值内，启用自动滚动
         setAutoScrollEnabled(true);
         setShowScrollDownButton(false);
       }
-    }
-  }, []);
-
-  // 使用节流减少handleScroll的调用频率
-  const throttledHandleScroll = useCallback(
-    throttle(handleScroll, 250),
-    [handleScroll]
-  );
+    };
+    
+    chatContainerRef.current.addEventListener('scroll', handleScroll);
+    
+    // 初始检查一次状态
+    handleScroll();
+    
+    return () => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [selectedConversation, scrollButtonLockRef]);
 
   const handleSend = useCallback(
     async (message: Message, deleteCount = 0, plugin: Plugin | null = null) => {
@@ -533,25 +552,25 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     // 设置样式内容
     styleEl.innerHTML = `
       /* 滚动条容器样式 */
-      .chat-container-scrollbar {
+      .chat-container-scrollbar, .textarea-container-scrollbar {
         position: relative;
         scrollbar-width: thin;
         scrollbar-color: transparent transparent; /* Firefox支持 */
       }
       
       /* 滚动条整体样式 */
-      .chat-container-scrollbar::-webkit-scrollbar {
+      .chat-container-scrollbar::-webkit-scrollbar, .textarea-container-scrollbar::-webkit-scrollbar {
         width: 8px;
         background-color: transparent;
       }
       
       /* 滚动条滑块样式 - 设置为透明 */
-      .chat-container-scrollbar::-webkit-scrollbar-thumb {
+      .chat-container-scrollbar::-webkit-scrollbar-thumb, .textarea-container-scrollbar::-webkit-scrollbar-thumb {
         background-color: transparent;
       }
       
       /* 滚动条轨道样式 - 设置为透明 */
-      .chat-container-scrollbar::-webkit-scrollbar-track {
+      .chat-container-scrollbar::-webkit-scrollbar-track, .textarea-container-scrollbar::-webkit-scrollbar-track {
         background-color: transparent;
       }
       
@@ -616,6 +635,27 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         border-top: 6px solid ${isDarkMode ? 'rgba(200, 200, 210, 0.4)' : 'rgba(156, 163, 175, 0.4)'};
       }
       
+      /* 初始状态下的自定义滚动条 - 确保与对话状态一致 */
+      .initial-input-scrollbar-overlay {
+        position: fixed;
+        top: 40%;
+        right: 0;
+        width: 8px;
+        height: 220px;
+        z-index: 99;
+        pointer-events: none;
+        display: none; /* 默认隐藏，由JS控制显示 */
+      }
+      
+      /* 初始状态滚动条样式与主滚动条保持一致 */
+      .initial-input-scrollbar-overlay .chat-scrollbar-custom-track,
+      .initial-input-scrollbar-overlay .chat-scrollbar-custom-thumb,
+      .initial-input-scrollbar-overlay::before,
+      .initial-input-scrollbar-overlay::after {
+        /* 继承主滚动条的样式 */
+        display: inherit;
+      }
+      
       /* 适配暗色模式 */
       @media (prefers-color-scheme: dark) {
         .chat-scrollbar-custom-thumb {
@@ -678,12 +718,23 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
       const scrollableArea = scrollHeight - clientHeight;
       
-      if (scrollableArea <= 0) {
-        // 没有可滚动内容，隐藏整个滚动条和指示器
+      // 检查是否在初始状态以及是否需要显示滚动条
+      const isInitialState = messagesLength === 0;
+      
+      if (scrollableArea <= 0 && !isInitialState) {
+        // 对话状态下，没有可滚动内容时，隐藏整个滚动条和指示器
         overlay.style.display = 'none';
         return;
+      } else if (isInitialState) {
+        // 初始状态下，无论是否有滚动内容，我们都保持滚动条样式一致
+        // 注意：这里不会立即隐藏滚动条，使其行为与对话状态一致
+        if (isInputExpanded) {
+          overlay.style.display = 'block';
+        } else {
+          overlay.style.display = 'none';
+        }
       } else {
-        // 有可滚动内容时显示滚动条
+        // 对话状态下有可滚动内容时显示滚动条
         overlay.style.display = 'block';
       }
       
@@ -692,7 +743,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       const thumbHeight = Math.max(30, (clientHeight / scrollHeight) * trackHeight);
       
       // 计算滑块位置
-      const thumbTop = (scrollTop / scrollableArea) * (trackHeight - thumbHeight);
+      const thumbTop = (scrollTop / Math.max(1, scrollableArea)) * (trackHeight - thumbHeight);
       
       // 更新滑块样式
       thumb.style.display = 'block';
@@ -731,7 +782,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         overlay.parentNode.removeChild(overlay);
       }
     };
-  }, [messagesLength, bottomInputHeight]); // 当消息长度或输入框高度变化时重新初始化
+  }, [messagesLength, bottomInputHeight, isInputExpanded]); // 添加isInputExpanded作为依赖，确保在输入框扩展状态变化时更新
 
   return (
     <div
@@ -789,7 +840,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         <div
           className="flex-1 overflow-y-auto chat-container-scrollbar"
           ref={chatContainerRef}
-          onScroll={throttledHandleScroll}
         >
           {!messagesLength ? (
             <>
