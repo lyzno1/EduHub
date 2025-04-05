@@ -85,6 +85,68 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   // 获取消息数量
   const messagesLength = selectedConversation?.messages?.length || 0;
 
+  // 用于精确滚动到消息末尾的函数(使用messagesEndRef)
+  const scrollDown = () => {
+    if (chatContainerRef?.current && messagesEndRef.current) {
+      // 锁定滚动按钮状态变化，防止闪烁
+      scrollButtonLockRef.current = true;
+      // 设置按钮立即隐藏
+      setShowScrollDownButton(false);
+      
+      // 使用messagesEndRef实现精确滚动
+      messagesEndRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'end',
+      });
+      
+      setAutoScrollEnabled(true);
+      
+      // 滚动动画完成后解锁 - 延长锁定时间
+      setTimeout(() => {
+        scrollButtonLockRef.current = false;
+      }, 1000);
+    }
+  };
+  
+  // 使用节流减少scrollDown的调用频率
+  const throttledScrollDown = useCallback(
+    throttle(scrollDown, 100),
+    []
+  );
+
+  // 滚动到底部的函数
+  const handleScrollDown = useCallback(() => {
+    if (chatContainerRef?.current) {
+      // 锁定滚动按钮状态变化，防止闪烁
+      scrollButtonLockRef.current = true;
+      // 设置按钮立即隐藏
+      setShowScrollDownButton(false);
+      
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+      
+      setAutoScrollEnabled(true);
+      
+      // 滚动动画完成后解锁 - 延长锁定时间确保完全滚动结束后再允许检测
+      setTimeout(() => {
+        scrollButtonLockRef.current = false;
+      }, 1000);
+    }
+  }, []);
+
+  // 确保组件挂载和对话切换时自动滚动到底部 - 简化为直接调用滚动函数
+  useEffect(() => {
+    // 如果有消息，在组件挂载或对话切换时自动滚动到底部
+    if (messagesLength > 0) {
+      // 简单地直接调用滚动函数
+      setTimeout(() => {
+        handleScrollDown();
+      }, 100);
+    }
+  }, [selectedConversation?.id, handleScrollDown]); // 只在对话ID变化时触发
+
   // 添加一个useEffect来监听输入框高度的变化(初始界面)
   useEffect(() => {
     // 如果有消息或在流式生成中，不需要监听
@@ -153,46 +215,23 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     if (chatContainerRef.current && !scrollButtonLockRef.current) {
       const { scrollTop, scrollHeight, clientHeight } =
         chatContainerRef.current;
-      // 增加容差值，避免在底部边缘闪烁
-      const bottomTolerance = 150;
+      const bottomTolerance = 100;
 
       if (scrollTop + clientHeight < scrollHeight - bottomTolerance) {
         setAutoScrollEnabled(false);
         setShowScrollDownButton(true);
       } else {
         setAutoScrollEnabled(true);
-        // 当滚动接近底部时，立即隐藏按钮
         setShowScrollDownButton(false);
       }
     }
   }, []);
 
-  // 使用节流减少handleScroll的调用频率，增加节流时间减少闪烁
+  // 使用节流减少handleScroll的调用频率
   const throttledHandleScroll = useCallback(
-    throttle(handleScroll, 300),
+    throttle(handleScroll, 250),
     [handleScroll]
   );
-
-  // 简化滚动到底部的函数
-  const handleScrollDown = useCallback(() => {
-    if (chatContainerRef?.current) {
-      // 点击按钮后立即隐藏按钮并锁定状态变化
-      setShowScrollDownButton(false);
-      scrollButtonLockRef.current = true;
-      
-      chatContainerRef.current.scrollTo({
-        top: chatContainerRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
-      
-      setAutoScrollEnabled(true);
-      
-      // 滚动动画完成后解锁
-      setTimeout(() => {
-        scrollButtonLockRef.current = false;
-      }, 800); // 延长锁定时间，确保滚动完全结束
-    }
-  }, [chatContainerRef]);
 
   const handleSend = useCallback(
     async (message: Message, deleteCount = 0, plugin: Plugin | null = null) => {
@@ -462,36 +501,13 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     }
   };
 
-  const scrollDown = () => {
-    if (chatContainerRef?.current && messagesEndRef.current) {
-      // 点击按钮后立即隐藏按钮并锁定状态变化
-      setShowScrollDownButton(false);
-      scrollButtonLockRef.current = true;
-      
-      // 使用messagesEndRef实现精确滚动
-      messagesEndRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'end',
-      });
-      
-      setAutoScrollEnabled(true);
-      
-      // 滚动动画完成后解锁
-      setTimeout(() => {
-        scrollButtonLockRef.current = false;
-      }, 800); // 延长锁定时间，确保滚动完全结束
-    }
-  };
-  // 减小节流时间，让滚动更快响应
-  const throttledScrollDown = throttle(scrollDown, 100);
-
   // 移除可能导致频繁DOM操作的interval检查，改为更高效的方式
   useEffect(() => {
     // 仅在消息流动结束且autoscroll启用时，确保滚动到底部
     if (!messageIsStreaming && autoScrollEnabled) {
-      throttledScrollDown();
+      handleScrollDown();
     }
-  }, [messageIsStreaming, autoScrollEnabled, throttledScrollDown]);
+  }, [messageIsStreaming, autoScrollEnabled, handleScrollDown]);
 
   // 简化确保在新消息时的滚动行为
   useEffect(() => {
