@@ -548,7 +548,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                     marginTop: !isInputExpanded 
                       ? '-25vh' 
                       : `calc(-25vh - ${(inputBoxHeight - 65) / 2}px)`,
-                    transition: 'margin-top 0.15s ease-out'
+                    transition: 'none' // 移除过渡效果，确保立即变化
                   }}
                 >
                   <div className="relative">
@@ -559,12 +559,12 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 </div>
                 
                 {/* 功能卡片区域 */}
-                <div className="w-full absolute bottom-[18vh] px-4 transition-all duration-300"
+                <div className="w-full absolute bottom-[18vh] px-4"
                   style={{
                     bottom: !isInputExpanded
                       ? '18vh' 
                       : `calc(18vh - ${(inputBoxHeight - 65) / 2}px)`,
-                    transition: 'bottom 0.15s ease-out'
+                    transition: 'none' // 移除过渡效果，确保立即变化
                   }}
                 >
                   <div style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -621,7 +621,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 <div 
                   style={{ 
                     height: `${Math.max(200, bottomInputHeight + 130)}px`,
-                    transition: 'height 0.15s ease-out'
+                    transition: 'none' // 改为直接变化，移除平滑过渡
                   }} 
                   ref={messagesEndRef} 
                 />
