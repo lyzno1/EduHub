@@ -564,6 +564,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         bottom: 135px;
         z-index: 99;
         pointer-events: none;
+        display: none; /* 默认隐藏，由JS控制显示 */
       }
       
       /* 自定义滚动条轨道 */
@@ -678,9 +679,12 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       const scrollableArea = scrollHeight - clientHeight;
       
       if (scrollableArea <= 0) {
-        // 没有可滚动内容，隐藏滑块
-        thumb.style.display = 'none';
+        // 没有可滚动内容，隐藏整个滚动条和指示器
+        overlay.style.display = 'none';
         return;
+      } else {
+        // 有可滚动内容时显示滚动条
+        overlay.style.display = 'block';
       }
       
       // 计算滑块高度 - 基于可视区域与总高度的比例
@@ -704,8 +708,17 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       updateScrollbar();
     };
     
+    // 添加窗口大小变化和内容变化的监听
     chatContainerRef.current.addEventListener('scroll', handleScroll);
     window.addEventListener('resize', updateScrollbar);
+    
+    // 创建MutationObserver来监视内容变化
+    const observer = new MutationObserver(updateScrollbar);
+    observer.observe(chatContainerRef.current, { 
+      childList: true, 
+      subtree: true,
+      attributes: true
+    });
     
     // 清理
     return () => {
@@ -713,6 +726,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         chatContainerRef.current.removeEventListener('scroll', handleScroll);
       }
       window.removeEventListener('resize', updateScrollbar);
+      observer.disconnect();
       if (overlay && overlay.parentNode) {
         overlay.parentNode.removeChild(overlay);
       }
