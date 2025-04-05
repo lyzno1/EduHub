@@ -73,6 +73,46 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // 添加状态来跟踪输入框高度
+  const [inputBoxHeight, setInputBoxHeight] = useState<number>(65);
+  // 添加状态追踪输入框是否真正扩展了
+  const [isInputExpanded, setIsInputExpanded] = useState<boolean>(false);
+
+  // 获取消息数量
+  const messagesLength = selectedConversation?.messages?.length || 0;
+
+  // 添加一个useEffect来监听输入框高度的变化
+  useEffect(() => {
+    // 如果有消息或在流式生成中，不需要监听
+    if (messagesLength || messageIsStreaming) {
+      return;
+    }
+    
+    // 通过MutationObserver监听data-input-height属性的变化
+    const inputContainer = document.querySelector('[data-input-height]');
+    if (!inputContainer) return;
+    
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'data-input-height') {
+          const height = parseInt(inputContainer.getAttribute('data-input-height') || '65', 10);
+          
+          // 只有当高度显著变化时(至少5px)才更新状态
+          if (Math.abs(height - inputBoxHeight) >= 5) {
+            setInputBoxHeight(height);
+            setIsInputExpanded(height > 70); // 确保只有真正扩展时才设置为true
+          }
+        }
+      });
+    });
+    
+    observer.observe(inputContainer, { attributes: true });
+    
+    return () => {
+      observer.disconnect();
+    };
+  }, [messagesLength, messageIsStreaming, inputBoxHeight]);
+
   // 简化滚动处理函数，减少DOM操作和计算
   const handleScroll = useCallback(() => {
     if (chatContainerRef.current) {
@@ -408,9 +448,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     }
   }, [selectedConversation?.messages, handleScrollDown, autoScrollEnabled]);
 
-  // 修复lint错误，安全地访问messages数组
-  const messagesLength = selectedConversation?.messages?.length || 0;
-
   return (
     <div
       className={`relative flex-1 flex flex-col overflow-hidden bg-white dark:bg-[#343541] ${
@@ -472,7 +509,15 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           {!messagesLength ? (
             <>
               <div className="flex flex-col items-center justify-center min-h-screen">
-                <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 -mt-[25vh] animate-fade-in">
+                {/* 标题区域 */}
+                <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 -mt-[25vh] animate-fade-in"
+                  style={{
+                    marginTop: !isInputExpanded 
+                      ? '-25vh' 
+                      : `calc(-25vh - ${(inputBoxHeight - 65) / 2}px)`,
+                    transition: 'margin-top 0.15s ease-out'
+                  }}
+                >
                   <div className="relative">
                     <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/30 to-purple-600/30 rounded-lg blur-xl opacity-70 dark:opacity-50"></div>
                     <h1 className="relative text-4xl font-bold tracking-tight mb-4 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent drop-shadow-sm animate-slide-up" style={{ fontFamily: "'Poppins', sans-serif", letterSpacing: '-0.5px' }}>eduhub.chat</h1>
@@ -480,8 +525,15 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                   <p className="text-lg font-medium mb-20 bg-gradient-to-r from-gray-700 to-gray-500 dark:from-gray-300 dark:to-gray-100 bg-clip-text text-transparent animate-slide-up-delay" style={{ fontFamily: "'Inter', sans-serif", letterSpacing: '0.2px' }}>基于大语言模型的新一代知识助手</p>
                 </div>
                 
-                {/* 功能卡片区域 - 只在新建页面显示 */}
-                <div className="w-full absolute bottom-[18vh] px-4 transition-all duration-300">
+                {/* 功能卡片区域 */}
+                <div className="w-full absolute bottom-[18vh] px-4 transition-all duration-300"
+                  style={{
+                    bottom: !isInputExpanded
+                      ? '18vh' 
+                      : `calc(18vh - ${(inputBoxHeight - 65) / 2}px)`,
+                    transition: 'bottom 0.15s ease-out'
+                  }}
+                >
                   <div style={{ maxWidth: '800px', margin: '0 auto' }}>
                     <FunctionCards />
                   </div>
