@@ -226,7 +226,10 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       // 判断是否是初始状态（没有消息）
       const isInitialState = !selectedConversation || selectedConversation.messages.length === 0;
       
-      if (scrollPosition > 100 && !scrollButtonLockRef.current) {
+      // 添加一个标记，表示用户是否正在拖动滚动条
+      const isUserDragging = document.body.classList.contains('user-is-dragging-scrollbar');
+      
+      if (scrollPosition > 100 && !scrollButtonLockRef.current && !isUserDragging) {
         // 距离底部超过阈值，禁用自动滚动
         setAutoScrollEnabled(false);
         
@@ -236,14 +239,31 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         } else {
           setShowScrollDownButton(false);
         }
-      } else {
+      } else if (scrollPosition <= 100 && !isUserDragging) {
         // 距离底部在阈值内，启用自动滚动
         setAutoScrollEnabled(true);
         setShowScrollDownButton(false);
       }
     };
     
+    // 监听鼠标按下事件，检测用户是否开始拖动滚动条
+    const handleMouseDown = (e: MouseEvent) => {
+      // 检查鼠标点击是否在滚动条区域
+      if (e.target instanceof Element && 
+          (e.target.classList.contains('chat-scrollbar-custom-thumb') || 
+           e.target.closest('.chat-scrollbar-custom-overlay'))) {
+        document.body.classList.add('user-is-dragging-scrollbar');
+      }
+    };
+    
+    // 监听鼠标释放事件，检测用户是否停止拖动滚动条
+    const handleMouseUp = () => {
+      document.body.classList.remove('user-is-dragging-scrollbar');
+    };
+    
     chatContainerRef.current.addEventListener('scroll', handleScroll);
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mouseup', handleMouseUp);
     
     // 初始检查一次状态
     handleScroll();
@@ -252,6 +272,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       if (chatContainerRef.current) {
         chatContainerRef.current.removeEventListener('scroll', handleScroll);
       }
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [selectedConversation, scrollButtonLockRef]);
 
@@ -533,11 +555,11 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
   // 简化确保在新消息时的滚动行为
   useEffect(() => {
-    // 只有当新消息到达且autoscroll启用时才滚动
-    if (selectedConversation?.messages && autoScrollEnabled) {
+    // 只有当新消息到达且autoscroll启用时才滚动，但在模型生成过程中不滚动
+    if (selectedConversation?.messages && autoScrollEnabled && !messageIsStreaming) {
       setTimeout(handleScrollDown, 100);
     }
-  }, [selectedConversation?.messages, handleScrollDown, autoScrollEnabled]);
+  }, [selectedConversation?.messages, handleScrollDown, autoScrollEnabled, messageIsStreaming]);
 
   // 更新样式内容，确保平滑过渡和一致的padding
   useEffect(() => {
@@ -582,7 +604,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         width: 8px;
         bottom: 135px;
         z-index: 99;
-        pointer-events: none;
+        pointer-events: auto; /* 允许鼠标事件 */
         display: none; /* 默认隐藏，由JS控制显示 */
       }
       
@@ -605,6 +627,11 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         transition: background-color 0.2s;
       }
       
+      /* 正在拖动的滑块样式 */
+      .user-is-dragging-scrollbar .chat-scrollbar-custom-thumb {
+        background-color: ${isDarkMode ? 'rgba(200, 200, 210, 0.6)' : 'rgba(156, 163, 175, 0.6)'};
+      }
+      
       .chat-scrollbar-custom-thumb:hover {
         background-color: ${isDarkMode ? 'rgba(200, 200, 210, 0.5)' : 'rgba(156, 163, 175, 0.5)'};
       }
@@ -620,6 +647,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         border-left: 4px solid transparent;
         border-right: 4px solid transparent;
         border-bottom: 6px solid ${isDarkMode ? 'rgba(200, 200, 210, 0.4)' : 'rgba(156, 163, 175, 0.4)'};
+        pointer-events: none; /* 防止干扰鼠标事件 */
       }
       
       /* 下边界指示器 - 下三角形 */
@@ -633,6 +661,12 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         border-left: 4px solid transparent;
         border-right: 4px solid transparent;
         border-top: 6px solid ${isDarkMode ? 'rgba(200, 200, 210, 0.4)' : 'rgba(156, 163, 175, 0.4)'};
+        pointer-events: none; /* 防止干扰鼠标事件 */
+      }
+      
+      /* 防止文本选择，避免拖动滚动条时选择文本 */
+      .user-is-dragging-scrollbar {
+        user-select: none;
       }
       
       /* 初始状态下的自定义滚动条 - 确保与对话状态一致 */
@@ -756,7 +790,77 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       updateScrollbar();
     };
     
-    // 添加窗口大小变化和内容变化的监听
+    // 添加滚动条拖动功能
+    let isDragging = false;
+    let startY = 0;
+    let startScrollTop = 0;
+    
+    const onThumbMouseDown = (e: MouseEvent) => {
+      e.preventDefault();
+      isDragging = true;
+      startY = e.clientY;
+      document.body.classList.add('user-is-dragging-scrollbar');
+      
+      if (chatContainerRef.current) {
+        startScrollTop = chatContainerRef.current.scrollTop;
+      }
+      
+      document.addEventListener('mousemove', onDocumentMouseMove);
+      document.addEventListener('mouseup', onDocumentMouseUp);
+    };
+    
+    const onTrackMouseDown = (e: MouseEvent) => {
+      // 检查点击是否在轨道上而不是滑块上
+      if (e.target === track) {
+        e.preventDefault();
+        
+        if (!chatContainerRef.current) return;
+        
+        const { scrollHeight, clientHeight } = chatContainerRef.current;
+        const trackRect = track.getBoundingClientRect();
+        const clickRatio = (e.clientY - trackRect.top) / trackRect.height;
+        
+        // 设置新的滚动位置
+        chatContainerRef.current.scrollTop = clickRatio * (scrollHeight - clientHeight);
+        
+        // 更新滚动条位置
+        updateScrollbar();
+      }
+    };
+    
+    const onDocumentMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !chatContainerRef.current) return;
+      
+      e.preventDefault();
+      
+      const { scrollHeight, clientHeight } = chatContainerRef.current;
+      const scrollableDistance = scrollHeight - clientHeight;
+      const trackRect = track.getBoundingClientRect();
+      
+      // 计算鼠标移动距离相对于轨道的比例
+      const deltaY = e.clientY - startY;
+      const deltaRatio = deltaY / trackRect.height;
+      
+      // 应用新的滚动位置
+      chatContainerRef.current.scrollTop = Math.max(
+        0,
+        Math.min(startScrollTop + deltaRatio * scrollableDistance, scrollableDistance)
+      );
+      
+      // 更新滚动条
+      updateScrollbar();
+    };
+    
+    const onDocumentMouseUp = () => {
+      isDragging = false;
+      document.body.classList.remove('user-is-dragging-scrollbar');
+      document.removeEventListener('mousemove', onDocumentMouseMove);
+      document.removeEventListener('mouseup', onDocumentMouseUp);
+    };
+    
+    // 添加事件监听器
+    thumb.addEventListener('mousedown', onThumbMouseDown);
+    track.addEventListener('mousedown', onTrackMouseDown);
     chatContainerRef.current.addEventListener('scroll', handleScroll);
     window.addEventListener('resize', updateScrollbar);
     
@@ -775,11 +879,17 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       }
       window.removeEventListener('resize', updateScrollbar);
       observer.disconnect();
+      
+      thumb.removeEventListener('mousedown', onThumbMouseDown);
+      track.removeEventListener('mousedown', onTrackMouseDown);
+      document.removeEventListener('mousemove', onDocumentMouseMove);
+      document.removeEventListener('mouseup', onDocumentMouseUp);
+      
       if (overlay && overlay.parentNode) {
         overlay.parentNode.removeChild(overlay);
       }
     };
-  }, [messagesLength, bottomInputHeight]); // 移除isInputExpanded作为依赖，确保初始状态下不显示滚动条
+  }, [messagesLength, bottomInputHeight]);
 
   return (
     <div
