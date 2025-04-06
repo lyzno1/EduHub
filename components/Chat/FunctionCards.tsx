@@ -120,11 +120,13 @@ export const FunctionCards: React.FC = () => {
             </div>
             <h3 className={`function-card-title text-lg font-medium ${
               isDarkMode ? 'text-white' : 'text-gray-800'
-            }`}>
+            }`}
+            style={{ fontFamily: "'PingFang SC', Arial, sans-serif" }}>
               {category.name}
             </h3>
           </div>
-          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+             style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '0.1px' }}>
             {category.description}
           </p>
           <div className="grid grid-cols-2 gap-2 mt-4">
@@ -137,7 +139,9 @@ export const FunctionCards: React.FC = () => {
                     : 'bg-gray-50 text-gray-700 hover:bg-blue-50 hover:text-blue-600 hover:shadow-blue-500/20'
                 }`}
                 style={{
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  fontFamily: "'PingFang SC', Arial, sans-serif",
+                  fontSize: '13px'
                 }}
                 onClick={() => handleFunctionClick(category.id, func.id)}
               >

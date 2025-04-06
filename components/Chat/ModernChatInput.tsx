@@ -364,13 +364,15 @@ export const ModernChatInput = ({
             className={`w-full flex-grow resize-none border-0 p-0 text-[16px] focus:outline-none focus:ring-0 ${isDarkMode() ? 'modern-input-dark' : 'modern-input-light'} textarea-transition scrollbar-thin`}
             style={{
               backgroundColor: 'transparent',
-              color: isDarkMode() ? '#FFFFFF' : '#1A1A1A',
+              color: isDarkMode() ? 'hsl(205deg, 16%, 77%)' : '#333333',
               minHeight: '28px',
               maxHeight: '220px', // 统一设置为输入框最大高度
               transition: 'none', // 改为直接变化，无过渡
               lineHeight: '1.5', // 增加行高以提高可读性
+              fontFamily: "'PingFang SC', Arial, sans-serif", // 添加字体样式
+              letterSpacing: '0.2px', // 轻微调整字母间距
             }}
-            placeholder={t('有什么可以帮您的吗？') || ''}
+            placeholder={t('你想了解什么？') || ''}
             value={content}
             rows={1}
             onCompositionStart={() => setIsTyping(true)}
