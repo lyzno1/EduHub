@@ -5,6 +5,146 @@
 /* 导入深色模式样式 */
 @import 'dark-mode.css';
 
+/* Tooltip 样式定义 */
+[data-tooltip] {
+  position: relative;
+  cursor: pointer;
+}
+
+[data-tooltip]::after,
+[data-tooltip]::before {
+  position: absolute;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  z-index: 999;
+}
+
+/* 提示文本 */
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  background-color: #333333;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-family: 'PingFang SC', Arial, sans-serif;
+  white-space: nowrap;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* 提示箭头 */
+[data-tooltip]::before {
+  content: '';
+  border: 5px solid transparent;
+}
+
+/* 悬停时显示 */
+[data-tooltip]:hover::after,
+[data-tooltip]:hover::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 顶部提示 */
+[data-tooltip]:not([data-placement])::after,
+[data-tooltip][data-placement="top"]::after {
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+}
+
+[data-tooltip]:not([data-placement])::before,
+[data-tooltip][data-placement="top"]::before {
+  border-top-color: #333333;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+[data-tooltip]:not([data-placement]):hover::after,
+[data-tooltip][data-placement="top"]:hover::after {
+  transform: translateX(-50%) translateY(-3px);
+}
+
+/* 底部提示 */
+[data-tooltip][data-placement="bottom"]::after {
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+}
+
+[data-tooltip][data-placement="bottom"]::before {
+  border-bottom-color: #333333;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+[data-tooltip][data-placement="bottom"]:hover::after {
+  transform: translateX(-50%) translateY(3px);
+}
+
+/* 左侧提示 */
+[data-tooltip][data-placement="left"]::after {
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%) translateX(-8px);
+}
+
+[data-tooltip][data-placement="left"]::before {
+  border-left-color: #333333;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+[data-tooltip][data-placement="left"]:hover::after {
+  transform: translateY(-50%) translateX(-3px);
+}
+
+/* 右侧提示 */
+[data-tooltip][data-placement="right"]::after {
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%) translateX(8px);
+}
+
+[data-tooltip][data-placement="right"]::before {
+  border-right-color: #333333;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+[data-tooltip][data-placement="right"]:hover::after {
+  transform: translateY(-50%) translateX(3px);
+}
+
+/* 深色模式下调整提示颜色 */
+.dark [data-tooltip]::after {
+  background-color: #11191f;
+  color: hsl(205deg, 16%, 77%);
+}
+
+.dark [data-tooltip]:not([data-placement])::before,
+.dark [data-tooltip][data-placement="top"]::before {
+  border-top-color: #11191f;
+}
+
+.dark [data-tooltip][data-placement="bottom"]::before {
+  border-bottom-color: #11191f;
+}
+
+.dark [data-tooltip][data-placement="left"]::before {
+  border-left-color: #11191f;
+}
+
+.dark [data-tooltip][data-placement="right"]::before {
+  border-right-color: #11191f;
+}
+
 ::-webkit-scrollbar-track {
   background-color: transparent;
 }

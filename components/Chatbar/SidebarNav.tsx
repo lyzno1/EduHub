@@ -68,8 +68,9 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
         <button 
           className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
           onClick={handleCreateNewChat}
-          title={t('新建聊天')}
           onMouseDown={(e) => e.preventDefault()}
+          data-tooltip="新建聊天"
+          data-placement="bottom"
         >
           <IconMessagePlus size={20} />
         </button>
@@ -90,8 +91,9 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
               <button
                 className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300"
                 onClick={handleClearSearch}
-                aria-label="清除搜索"
                 onMouseDown={(e) => e.preventDefault()}
+                data-tooltip="清除搜索"
+                data-placement="left"
               >
                 <IconX size={14} />
               </button>

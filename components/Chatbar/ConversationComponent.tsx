@@ -148,8 +148,9 @@ export const ConversationComponent = ({ conversation }: Props) => {
             <button
               className="opacity-0 rounded-md p-1 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 group-hover:opacity-100 transition-opacity"
               onClick={handleStartEditing}
-              aria-label="编辑对话名称"
               onMouseDown={(e) => e.preventDefault()}
+              data-tooltip="编辑对话名称"
+              data-placement="top"
             >
               <IconPencil size={16} />
             </button>
@@ -158,8 +159,9 @@ export const ConversationComponent = ({ conversation }: Props) => {
               ref={deleteButtonRef}
               className={`relative rounded-md p-1 text-gray-500 hover:bg-gray-200 hover:text-red-500 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-red-400 transition-all ${showDeleteConfirm ? 'text-red-500 dark:text-red-400 bg-gray-200 dark:bg-gray-700' : 'opacity-0 group-hover:opacity-100'}`}
               onClick={handleDelete}
-              aria-label="删除对话"
               onMouseDown={(e) => e.preventDefault()}
+              data-tooltip="删除对话"
+              data-placement="top"
             >
               <IconTrash size={16} />
             </button>

@@ -82,6 +82,8 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
             onToggle();
           }}
           onMouseDown={(e) => e.preventDefault()}
+          data-tooltip={isSidebarOpen ? "收起侧边栏" : "展开侧边栏"}
+          data-placement="right"
         >
           {isSidebarOpen ? (
             // 左箭头图标（关闭侧边栏）
@@ -128,6 +130,8 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
             // 主页按钮功能
           }}
           onMouseDown={(e) => e.preventDefault()}
+          data-tooltip="首页"
+          data-placement="right"
         >
           <IconHome className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
@@ -137,8 +141,9 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
         <div 
           className="flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10"
           onClick={handleThemeChange}
-          title={lightMode === 'light' ? '切换到深色模式' : '切换到浅色模式'}
           onMouseDown={(e) => e.preventDefault()}
+          data-tooltip={lightMode === 'light' ? '切换到深色模式' : '切换到浅色模式'}
+          data-placement="right"
         >
           {lightMode === 'light' ? (
             <IconMoon className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
@@ -155,6 +160,8 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
             // 设置按钮功能
           }}
           onMouseDown={(e) => e.preventDefault()}
+          data-tooltip="设置"
+          data-placement="right"
         >
           <IconAdjustments className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
@@ -167,6 +174,8 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
             // 帮助按钮功能
           }}
           onMouseDown={(e) => e.preventDefault()}
+          data-tooltip="帮助"
+          data-placement="right"
         >
           <IconHelp className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
@@ -178,6 +187,8 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
           className="flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.preventDefault()}
+          data-tooltip="GitHub仓库"
+          data-placement="right"
         >
           <IconBrandGithub className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </a>
