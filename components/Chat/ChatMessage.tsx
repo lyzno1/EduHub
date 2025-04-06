@@ -2,7 +2,6 @@ import {
   IconCheck,
   IconCopy,
   IconEdit,
-  IconTrash,
 } from '@tabler/icons-react';
 
 import React from 'react';
@@ -41,6 +40,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [messageContent, setMessageContent] = useState(message.content);
   const [messagedCopied, setMessageCopied] = useState(false);
+  const [userMessageCopied, setUserMessageCopied] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -101,6 +101,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
     }
   };
 
+  // 复制模型输出内容
   const copyOnClick = () => {
     if (!navigator.clipboard) return;
 
@@ -108,6 +109,18 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
       setMessageCopied(true);
       setTimeout(() => {
         setMessageCopied(false);
+      }, 2000);
+    });
+  };
+
+  // 复制用户输入内容
+  const copyUserMessage = () => {
+    if (!navigator.clipboard) return;
+
+    navigator.clipboard.writeText(message.content).then(() => {
+      setUserMessageCopied(true);
+      setTimeout(() => {
+        setUserMessageCopied(false);
       }, 2000);
     });
   };
@@ -134,7 +147,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
           // 用户消息
           <div className="flex justify-end">
             <div className="max-w-[80%]">
-              <div className="group">
+              <div className="group relative">
                 {isEditing ? (
                   <div className="flex w-full flex-col">
                     <textarea
@@ -173,23 +186,33 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-end gap-2">
-                    <div className="invisible group-hover:visible flex flex-row items-center space-x-1">
-                      <button
-                        className="text-gray-500 hover:text-gray-700"
-                        onClick={toggleEditing}
-                      >
-                        <IconEdit size={16} />
-                      </button>
-                      <button
-                        className="text-gray-500 hover:text-gray-700"
-                        onClick={handleDeleteMessage}
-                      >
-                        <IconTrash size={16} />
-                      </button>
-                    </div>
-                    <div className="bg-blue-50 text-gray-900 dark:bg-blue-900 dark:text-white px-4 py-3 rounded-2xl rounded-tr-none text-sm leading-relaxed border border-blue-100 dark:border-blue-800 shadow-sm font-medium">
+                  <div className="relative pb-8">
+                    <div className="bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-gray-100 px-4 py-3 rounded-[20px] text-sm leading-relaxed border border-gray-200 dark:border-gray-600 shadow-sm font-medium">
                       {message.content}
+                    </div>
+                    
+                    {/* 用户消息的操作按钮，位于气泡下方，悬停显示 */}
+                    <div className="absolute bottom-2 right-0 flex items-center gap-1.5 invisible group-hover:visible">
+                      <button
+                        className={`flex items-center justify-center rounded-md p-1 px-1.5 text-xs
+                        text-gray-500 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700
+                        transition-colors duration-200 shadow-sm`}
+                        onClick={copyUserMessage}
+                        data-tooltip={userMessageCopied ? "已复制到剪贴板" : "复制消息内容"}
+                        data-placement="bottom"
+                      >
+                        {userMessageCopied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                      </button>
+                      <button
+                        className={`flex items-center justify-center rounded-md p-1 px-1.5 text-xs
+                        text-gray-500 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700
+                        transition-colors duration-200 shadow-sm`}
+                        onClick={toggleEditing}
+                        data-tooltip="编辑消息"
+                        data-placement="bottom"
+                      >
+                        <IconEdit size={14} />
+                      </button>
                     </div>
                   </div>
                 )}
@@ -264,17 +287,18 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
                 }`}
               </MemoizedReactMarkdown>
             </div>
-            {/* 复制按钮移到左下角，默认隐藏，悬停显示 */}
-            <div className="absolute bottom-0 left-0 invisible group-hover:visible z-10">
+            {/* 模型输出的复制按钮始终可见，无文字版本 */}
+            <div className="absolute bottom-0 left-0 z-10">
               <button
-                className={`flex items-center justify-center rounded-md px-2 py-1 text-xs ${
-                  messagedCopied ? 'text-green-500 bg-green-50' : 'text-gray-500 bg-gray-50 hover:bg-gray-100'
+                className={`flex items-center justify-center rounded-md p-1.5 text-xs ${
+                  messagedCopied ? 'text-green-500 bg-green-50 dark:bg-gray-800' : 'text-gray-500 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700'
                 } transition-colors duration-200 shadow-sm`}
                 onClick={copyOnClick}
                 onMouseDown={(e) => e.preventDefault()}
+                data-tooltip={messagedCopied ? "已复制到剪贴板" : "复制全部内容"}
+                data-placement="right"
               >
-                {messagedCopied ? <IconCheck size={16} className="mr-1" /> : <IconCopy size={16} className="mr-1" />}
-                <span>{messagedCopied ? "已复制" : "复制"}</span>
+                {messagedCopied ? <IconCheck size={15} /> : <IconCopy size={15} />}
               </button>
             </div>
           </div>
