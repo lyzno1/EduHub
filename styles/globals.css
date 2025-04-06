@@ -198,14 +198,98 @@ html.dark {
   background: #202123;
 }
 
+/* 行内代码样式 */
+:not(pre) > code {
+  display: inline;
+  vertical-align: baseline;
+  line-height: normal;
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-size: 0.875em;
+  background-color: #f1f3f5;
+  padding: 0.15rem 0.3rem;
+  border-radius: 4px;
+  color: var(--code-color, #4b5563);
+  white-space: break-spaces;
+  word-break: break-word;
+  margin: 0 0.15rem;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  border: 1px solid #e9ecef;
+  letter-spacing: -0.025em;
+}
+
+/* 代码块样式 - Manus UI 风格 */
+pre {
+  border-radius: 10px;
+  overflow-x: auto;
+  background-color: #f1f3f5;
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-size: 0.875em;
+  line-height: 1.6;
+  margin: 1rem 0;
+}
+
+/* 代码块中的代码 */
+pre > code {
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-size: 0.875em;
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: inherit;
+  display: block;
+  letter-spacing: -0.025em;
+}
+
+/* 代码块容器 */
+.codeblock {
+  border-radius: 10px;
+  overflow: hidden;
+  background-color: #f1f3f5;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* 代码块头部 */
+.codeblock > div:first-child {
+  background-color: #f1f3f5;
+  border-bottom: 1px solid #e9ecef;
+  color: #4b5563;
+  font-size: 0.75rem;
+  padding: 0.5rem 1rem;
+}
+
+/* 代码块头部按钮 */
+.codeblock button {
+  color: #4b5563;
+  background-color: transparent;
+  transition: all 0.2s ease;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.codeblock button:hover {
+  color: #1f2937;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* 消除pre内的padding，由codeblock自己控制 */
+pre:has(div.codeblock) {
+  padding: 0;
+  background-color: transparent;
+}
+
+/* 修复代码高亮容器的样式 */
+.codeblock pre {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  background-color: inherit !important;
+}
+
 @media (max-width: 720px) {
   pre {
     width: calc(100vw - 110px);
   }
-}
-
-pre:has(div.codeblock) {
-  padding: 0;
 }
 
 input::-webkit-input-placeholder {

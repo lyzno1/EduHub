@@ -215,6 +215,8 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
                       }
 
                       children[0] = (children[0] as string).replace('`▍`', '▍');
+                      
+                      // 不需要对行内代码做特殊处理，React Markdown已经处理掉了反引号
                     }
 
                     const match = /language-(\w+)/.exec(className || '');

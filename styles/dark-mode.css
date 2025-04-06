@@ -11,7 +11,12 @@
   --highlight-bg: #3b4252;
   --scrollbar-thumb: #4b5563;
   --scrollbar-track: transparent;
-  --code-bg: #282c34;
+  --code-bg: #212529;
+  --code-color: #e9ecef;
+  --code-block-bg: #212529;
+  --code-block-border: #343a40;
+  --code-block-header-bg: #2b3035;
+  --code-block-header-color: #ced4da;
   --sidebar-bg: #202123;
   --sidebar-border: #4b5563;
   --dropdown-bg: #2e3440;
@@ -84,10 +89,40 @@
 }
 
 /* 深色模式下的代码块 */
-.dark pre,
-.dark code {
+.dark pre {
   background-color: var(--code-bg);
-  color: #e5e7eb;
+  color: var(--code-color);
+}
+
+/* 深色模式下的行内代码 */
+.dark :not(pre) > code {
+  background-color: var(--code-bg);
+  color: var(--code-color);
+  border: 1px solid var(--code-block-border);
+}
+
+/* 深色模式下的代码块容器 */
+.dark .codeblock {
+  background-color: var(--code-block-bg);
+  border-color: var(--code-block-border);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* 深色模式下的代码块头部 */
+.dark .codeblock > div:first-child {
+  background-color: var(--code-block-header-bg);
+  border-bottom-color: var(--code-block-border);
+  color: var(--code-block-header-color);
+}
+
+/* 深色模式下的代码块按钮 */
+.dark .codeblock button {
+  color: var(--code-block-header-color);
+}
+
+.dark .codeblock button:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* 深色模式下的侧边栏 */
