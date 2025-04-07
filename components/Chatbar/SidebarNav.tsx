@@ -1,5 +1,5 @@
 import { IconMessagePlus, IconSearch, IconX } from '@tabler/icons-react';
-import { FC, useContext, useEffect, useState } from 'react';
+import { FC, useContext, useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'next-i18next';
 
 import HomeContext from '@/pages/api/home/home.context';
@@ -18,6 +18,9 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  
+  // 用于跟踪上一次选中的对话，以便检测实际的对话切换
+  const prevSelectedConversationRef = useRef<string | null>(null);
 
   const {
     state: { conversations, selectedConversation },
@@ -25,7 +28,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     handleSelectConversation,
   } = useContext(HomeContext);
 
-  // 检测设备类型
+  // 检测是否为移动设备
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 640);
@@ -61,10 +64,47 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     setIsSearching(false);
   };
 
+  // 修改创建新聊天的处理函数，在移动端自动关闭侧边栏
   const handleCreateNewChat = (e: React.MouseEvent) => {
     e.stopPropagation();
     handleNewConversation();
+    
+    // 在移动端自动关闭侧边栏
+    if (isMobile) {
+      setTimeout(() => {
+        onToggle(); // 调用父组件传入的切换函数关闭侧边栏
+      }, 100); // 短暂延迟确保新对话创建后再关闭侧边栏
+    }
   };
+
+  // 监听选中对话的变化，仅在实际切换对话时关闭侧边栏
+  useEffect(() => {
+    // 仅在移动端处理此逻辑
+    if (!isMobile || !isOpen) return;
+    
+    // 如果有选中的对话，且不是首次加载（避免导航栏打开就自动关闭）
+    if (selectedConversation && prevSelectedConversationRef.current !== null) {
+      // 检查是否真的切换了对话（ID不同）
+      if (prevSelectedConversationRef.current !== selectedConversation.id) {
+        // 确实切换了对话，关闭侧边栏
+        setTimeout(() => {
+          onToggle();
+        }, 150);
+      }
+    }
+    
+    // 更新记录的上一次选中对话ID
+    if (selectedConversation) {
+      prevSelectedConversationRef.current = selectedConversation.id;
+    }
+  }, [selectedConversation, isMobile, isOpen, onToggle]);
+
+  // 初始化上一次选中的对话ID
+  useEffect(() => {
+    if (selectedConversation) {
+      prevSelectedConversationRef.current = selectedConversation.id;
+    }
+  }, []);
 
   // 阻止事件冒泡到外部容器
   const stopPropagation = (e: React.MouseEvent) => {
@@ -108,6 +148,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
 
   return (
     <div 
+      id="mobile-sidebar-container"
       className={`fixed top-0 flex h-full w-[260px] max-w-[85vw] flex-col border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out dark:border-gray-800 dark:bg-[#202123] ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       } left-0 sm:left-[60px]`}
