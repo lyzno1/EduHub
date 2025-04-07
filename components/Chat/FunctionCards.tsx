@@ -1,5 +1,5 @@
 import { IconBook, IconSchool, IconUser } from '@tabler/icons-react';
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import HomeContext from '@/pages/api/home/home.context';
 
 // 定义类型
@@ -20,12 +20,34 @@ interface FunctionCardProps {
   category: CategoryItem;
   isDarkMode: boolean;
   handleFunctionClick: (categoryId: string, functionId: string) => void;
+  isMobile: boolean;
 }
 
-export const FunctionCards: React.FC = () => {
+// 添加可选的scrollToBottom属性
+interface FunctionCardsProps {
+  scrollToBottom?: () => void;
+}
+
+export const FunctionCards: React.FC<FunctionCardsProps> = ({ scrollToBottom }) => {
   const {
     state: { lightMode },
   } = useContext(HomeContext);
+  
+  // 添加移动端检测
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   // 判断是否为深色模式
   const isDarkMode = lightMode === 'dark';
@@ -35,7 +57,7 @@ export const FunctionCards: React.FC = () => {
     {
       id: 'teacher',
       name: '教师助手',
-      icon: <IconUser size={24} />,
+      icon: <IconUser size={isMobile ? 18 : 20} className="sm:w-6 sm:h-6" />,
       description: '面向教师的智能教学辅助工具',
       children: [
         { id: 'teacher-1', name: '课程规划' },
@@ -46,7 +68,7 @@ export const FunctionCards: React.FC = () => {
     {
       id: 'student',
       name: '学生助手',
-      icon: <IconSchool size={24} />,
+      icon: <IconSchool size={isMobile ? 18 : 20} className="sm:w-6 sm:h-6" />,
       description: '提供学习与交流的智能服务',
       children: [
         { id: 'student-1', name: '写作导师' },
@@ -58,7 +80,7 @@ export const FunctionCards: React.FC = () => {
     {
       id: 'knowledge',
       name: '校园服务',
-      icon: <IconBook size={24} />,
+      icon: <IconBook size={isMobile ? 18 : 20} className="sm:w-6 sm:h-6" />,
       description: '面向校园的一站式信息服务',
       children: [
         { id: 'knowledge-1', name: '智能助手' },
@@ -69,14 +91,76 @@ export const FunctionCards: React.FC = () => {
   ];
 
   const handleFunctionClick = (categoryId: string, functionId: string) => {
-    console.log(`功能点击：${categoryId} - ${functionId}`);
-    // TODO: 实现具体功能的业务逻辑
+    const selectedCategory = functionCategories.find(c => c.id === categoryId);
+    const selectedFunction = selectedCategory?.children.find(f => f.id === functionId);
+    
+    if (selectedFunction) {
+      // 找到对应的功能文本
+      const promptText = `作为${selectedCategory?.name}中的${selectedFunction.name}，请帮我：`;
+      
+      // 如果有文本框引用，可以直接设置文本
+      const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+      if (textarea) {
+        textarea.value = promptText;
+        textarea.focus();
+        
+        // 触发input事件让组件知道文本已更改
+        const event = new Event('input', { bubbles: true });
+        textarea.dispatchEvent(event);
+        
+        // 如果有提供滚动函数，调用它
+        if (scrollToBottom) {
+          setTimeout(() => {
+            scrollToBottom();
+          }, 100);
+        }
+      }
+    }
+  };
+
+  // 移动端简约版按钮组件
+  const MobileButtons = () => {
+    // 将所有功能扁平化为一个列表
+    const allFunctions = functionCategories.flatMap(category => 
+      category.children.map(func => ({
+        categoryId: category.id,
+        categoryName: category.name,
+        functionId: func.id,
+        functionName: func.name
+      }))
+    );
+    
+    return (
+      <div className="w-full">
+        <div className="flex flex-wrap justify-center gap-2 mt-1">
+          {allFunctions.map((func) => (
+            <button
+              key={func.functionId}
+              className={`text-xs px-3 py-1.5 rounded-full transition-all duration-200 border ${
+                isDarkMode 
+                  ? 'bg-gray-800 text-gray-200 border-gray-700 active:bg-gray-700' 
+                  : 'bg-white text-gray-700 border-gray-200 active:bg-gray-50'
+              }`}
+              style={{
+                boxShadow: isDarkMode 
+                  ? '0 1px 2px rgba(0, 0, 0, 0.2)' 
+                  : '0 1px 3px rgba(0, 0, 0, 0.1)',
+              }}
+              onClick={() => handleFunctionClick(func.categoryId, func.functionId)}
+            >
+              {func.functionName}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   const FunctionCard = ({ 
     category, 
     isDarkMode, 
-    handleFunctionClick 
+    handleFunctionClick,
+    isMobile 
   }: FunctionCardProps) => {
     const getDefaultShadow = () => {
       return isDarkMode 
@@ -109,31 +193,31 @@ export const FunctionCards: React.FC = () => {
           e.currentTarget.style.transform = 'translateY(0)';
         }}
       >
-        <div className={`p-4 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-          <div className="flex items-center mb-2">
-            <div className={`function-card-icon p-2 rounded-lg mr-3 ${
+        <div className={`p-3 sm:p-4 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+          <div className="flex items-center mb-1 sm:mb-2">
+            <div className={`function-card-icon p-1.5 sm:p-2 rounded-lg mr-2 sm:mr-3 ${
               isDarkMode ? 'bg-gray-700' : 'bg-blue-50'
             }`}>
               <div className={isDarkMode ? 'text-blue-400' : 'text-blue-500'}>
                 {category.icon}
               </div>
             </div>
-            <h3 className={`function-card-title text-lg font-medium ${
+            <h3 className={`function-card-title text-base sm:text-lg font-medium ${
               isDarkMode ? 'text-white' : 'text-gray-800'
             }`}
             style={{ fontFamily: "'PingFang SC', Arial, sans-serif" }}>
               {category.name}
             </h3>
           </div>
-          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+          <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-2 sm:mb-3`}
              style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '0.1px' }}>
             {category.description}
           </p>
-          <div className="grid grid-cols-2 gap-2 mt-4">
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mt-2 sm:mt-4">
             {category.children.map((func) => (
               <button
                 key={func.id}
-                className={`function-card-button text-sm px-3 py-2 rounded-lg transition-all duration-200 hover:shadow-md transform hover:scale-105 ${
+                className={`function-card-button text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-all duration-200 hover:shadow-md transform hover:scale-105 ${
                   isDarkMode 
                     ? 'bg-gray-700 text-gray-200 hover:bg-gray-600 hover:shadow-gray-900/30' 
                     : 'bg-gray-50 text-gray-700 hover:bg-blue-50 hover:text-blue-600 hover:shadow-blue-500/20'
@@ -141,7 +225,6 @@ export const FunctionCards: React.FC = () => {
                 style={{
                   transition: 'all 0.2s ease',
                   fontFamily: "'PingFang SC', Arial, sans-serif",
-                  fontSize: '13px'
                 }}
                 onClick={() => handleFunctionClick(category.id, func.id)}
               >
@@ -154,18 +237,24 @@ export const FunctionCards: React.FC = () => {
     );
   };
 
+  // 根据设备类型返回不同的UI
   return (
     <div className="function-cards-container w-full">
-      <div className="function-cards-grid grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {functionCategories.map((category) => (
-          <FunctionCard
-            key={category.id}
-            category={category}
-            isDarkMode={isDarkMode}
-            handleFunctionClick={handleFunctionClick}
-          />
-        ))}
-      </div>
+      {isMobile ? (
+        <MobileButtons />
+      ) : (
+        <div className="function-cards-grid grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
+          {functionCategories.map((category) => (
+            <FunctionCard
+              key={category.id}
+              category={category}
+              isDarkMode={isDarkMode}
+              handleFunctionClick={handleFunctionClick}
+              isMobile={isMobile}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }; 

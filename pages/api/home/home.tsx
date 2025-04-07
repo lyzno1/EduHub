@@ -48,6 +48,7 @@ import teacherChat from '@/teacherChat.json';
 import whitelist from '@/whitelist.json';
 import Cookie from 'js-cookie';
 import { v4 as uuidv4 } from 'uuid';
+import { IconMenu2 } from '@tabler/icons-react';
 
 interface Props {
   serverSideApiKeyIsSet: boolean;
@@ -566,32 +567,46 @@ const Home = ({
         <meta name="description" content="ChatGPT but better." />
         <meta
           name="viewport"
-          content="height=device-height ,width=device-width, initial-scale=1, user-scalable=no"
+          content="height=device-height, width=device-width, initial-scale=1, user-scalable=no"
         />
       </Head>
       {ready ? (
         selectedConversation && whitelist.includes(user) ? (
           <main className="flex h-screen w-screen flex-col text-sm text-black bg-white dark:text-white dark:bg-[#343541]">
-            <div className="fixed top-0 w-full sm:hidden">
-              <Navbar
-                selectedConversation={selectedConversation}
-                onNewConversation={handleNewConversation}
-              />
+            {/* 移动端顶部导航栏 - 只在小屏幕显示 */}
+            <div className="fixed top-0 w-full sm:hidden z-40">
+              <div className="flex items-center h-12 px-4 bg-white dark:bg-[#202123] border-b border-neutral-200 dark:border-neutral-600">
+                <button
+                  className="h-9 w-9 flex items-center justify-center rounded-md text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                  onClick={toggleSidebar}
+                  aria-label="打开菜单"
+                >
+                  <IconMenu2 size={24} />
+                </button>
+                <div className="ml-auto"></div>
+              </div>
             </div>
 
             <div className="flex h-full w-full pt-[48px] sm:pt-0">
-              {/* 侧边栏和导航栏放在不同的z-index层上，防止事件冒泡影响 */}
-              {/* 侧边栏按钮层 */}
-              <div className="relative z-30">
+              {/* 侧边栏按钮层 - 在移动端隐藏 */}
+              <div className="relative z-30 hidden sm:block">
                 <SidebarSlim onToggle={toggleSidebar} isSidebarOpen={showSidebar} />
               </div>
               
-              {/* 导航栏层 */}
-              <div className="relative z-20" onClick={e => e.stopPropagation()}>
-                <SidebarNav onToggle={toggleSidebar} isOpen={showSidebar} />
+              {/* 侧边导航层 - 在移动端全宽显示 */}
+              <div 
+                className={`fixed sm:relative inset-0 bg-black/50 z-20 transition-opacity duration-300 ${
+                  showSidebar ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                } sm:opacity-100 sm:pointer-events-auto`} 
+                onClick={toggleSidebar}
+              >
+                <div onClick={e => e.stopPropagation()} className="h-full">
+                  <SidebarNav onToggle={toggleSidebar} isOpen={showSidebar} />
+                </div>
               </div>
 
-              <div className={`flex flex-1 transition-all duration-300 ${showSidebar ? 'ml-[320px]' : 'ml-[60px]'}`}>
+              {/* 聊天区域 - 移动端全宽，桌面端条件宽度 */}
+              <div className={`flex flex-1 transition-all duration-300 ${showSidebar ? 'sm:ml-[320px]' : 'sm:ml-[60px]'} ml-0`}>
                 <Chat stopConversationRef={stopConversationRef} showSidebar={showSidebar} />
               </div>
             </div>

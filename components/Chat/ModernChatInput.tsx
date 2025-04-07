@@ -25,6 +25,7 @@ interface Props {
   showScrollDownButton: boolean;
   isCentered?: boolean;
   showSidebar?: boolean;
+  isMobile?: boolean;
 }
 
 export const ModernChatInput = ({
@@ -36,6 +37,7 @@ export const ModernChatInput = ({
   showScrollDownButton,
   isCentered,
   showSidebar,
+  isMobile = false,
 }: Props) => {
   const { t } = useTranslation('chat');
 
@@ -90,7 +92,8 @@ export const ModernChatInput = ({
       
       // 获取内容实际需要的高度
       const scrollHeight = textareaRef.current.scrollHeight;
-      const maxHeight = 220;
+      // 移动端时使用更小的最大高度限制
+      const maxHeight = isMobile ? 150 : 220;
       
       // 如果内容为空，设置一个统一的最小高度
       // 由于增加了字体大小，最小高度也适当增加
@@ -114,11 +117,12 @@ export const ModernChatInput = ({
       
       // 确保容器高度与内容一致，避免抖动
       // 增加容器padding以适应更大的字体
-      const containerPadding = 44; // 顶部和底部padding总和增加
-      const newContainerHeight = Math.max(69, newHeight + containerPadding); // 最小高度也相应增加
+      // 移动端时使用更小的padding
+      const containerPadding = isMobile ? 38 : 44; 
+      const newContainerHeight = Math.max(isMobile ? 60 : 69, newHeight + containerPadding); 
       setInputHeight(newContainerHeight);
     }
-  }, [textareaRef, content]);
+  }, [textareaRef, content, isMobile]);
 
   // 重置输入框
   const resetHeight = useCallback(() => {
@@ -127,9 +131,9 @@ export const ModernChatInput = ({
       textareaRef.current.style.overflow = 'hidden';
       // 保持滚动条样式类
       textareaRef.current.classList.add('scrollbar-thin');
-      setInputHeight(69); // 增加到69px
+      setInputHeight(isMobile ? 60 : 69); // 根据设备调整高度
     }
-  }, [textareaRef]);
+  }, [textareaRef, isMobile]);
 
   const handleSend = () => {
     if (messageIsStreaming) {
@@ -295,6 +299,11 @@ export const ModernChatInput = ({
         padding-top: 14px !important;
         padding-bottom: 12px !important;
       }
+      /* 移动端样式优化 */
+      .mobile-input-container {
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
+      }
       /* 添加滚动按钮动画 */
       @keyframes fadeIn {
         from { opacity: 0; }
@@ -329,48 +338,60 @@ export const ModernChatInput = ({
     }
   }, [inputHeight]);
 
-  // 根据是否有消息决定输入框容器位置
+  // 在返回部分之前添加一个移动端检测的hooks
+  const isDeviceMobile = isMobile || (typeof window !== 'undefined' && window.innerWidth < 640);
+
+  // 在返回部分调整样式以适应移动端
   return (
     <div
       className={isCentered 
         ? "absolute top-1/2 left-0 w-full px-4 pb-8 z-20 transform -translate-y-1/2" // 居中模式继续使用绝对定位
-        : "absolute bottom-0 left-0 w-full px-4 pb-2 z-20" // 底部模式继续使用绝对定位
+        : isDeviceMobile 
+          ? "w-full px-2 pb-1 z-20" // 移动端底部模式，更少内边距
+          : "absolute bottom-0 left-0 w-full px-2 sm:px-4 pb-2 z-20" // 桌面底部模式
       }
       ref={inputContainerRef}
       data-input-height={inputHeight}
     >
       <div
-        className={`relative flex flex-col rounded-3xl input-container ${isDarkMode() ? 'chat-input-dark-bg chat-input-dark-mode' : ''}`}
+        className={`relative flex flex-col ${isDeviceMobile ? 'rounded-xl' : 'rounded-xl sm:rounded-3xl'} input-container ${isDarkMode() ? 'chat-input-dark-bg chat-input-dark-mode' : ''}`}
         style={{ 
           maxWidth: '800px', 
           margin: '0 auto',
           backgroundColor: isDarkMode() ? '#343541' : getBgColor(),
           border: isDarkMode() ? '1px solid rgba(55, 65, 81, 0.5)' : '1px solid transparent',
-          boxShadow: isDarkMode() ? '0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px -1px rgba(0, 0, 0, 0.3)' : '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 8px 15px -3px rgba(0, 0, 0, 0.1), 0 12px 20px -5px rgba(0, 0, 0, 0.15)',
+          boxShadow: isDarkMode() 
+            ? '0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px -1px rgba(0, 0, 0, 0.3)' 
+            : isDeviceMobile 
+              ? '0 -2px 8px rgba(0, 0, 0, 0.05)' // 移动端较轻微的阴影
+              : '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 8px 15px -3px rgba(0, 0, 0, 0.1), 0 12px 20px -5px rgba(0, 0, 0, 0.15)',
         }}
       >
         {/* 这里是真正的输入区，高度根据内容动态变化但不会影响外部布局 */}
         <div 
-          className={`min-h-[65px] overflow-y-auto rounded-t-3xl px-6 ${isDarkMode() ? 'chat-input-dark-bg' : ''} input-content-container textarea-container-scrollbar`}
+          className={`${isDeviceMobile ? 'min-h-[45px]' : 'min-h-[50px] sm:min-h-[65px]'} overflow-y-auto ${isDeviceMobile ? 'rounded-t-xl' : 'rounded-t-xl sm:rounded-t-3xl'} ${isDeviceMobile ? 'px-3' : 'px-3 sm:px-6'} ${isDarkMode() ? 'chat-input-dark-bg' : ''} input-content-container textarea-container-scrollbar ${isDeviceMobile ? 'mobile-input-container' : ''}`}
           style={{ 
             display: 'flex', 
             flexDirection: 'column',
             backgroundColor: isDarkMode() ? '#343541' : getBgColor(),
-            maxHeight: '260px', // 统一设置为容器最大高度
+            maxHeight: isDeviceMobile ? '180px' : '260px', // 根据设备类型调整最大高度
           }}
         >
           <textarea
             ref={textareaRef as MutableRefObject<HTMLTextAreaElement>}
-            className={`w-full flex-grow resize-none border-0 p-0 text-[16px] focus:outline-none focus:ring-0 ${isDarkMode() ? 'modern-input-dark' : 'modern-input-light'} textarea-transition scrollbar-thin`}
+            className={`w-full flex-grow resize-none border-0 p-0 ${isDeviceMobile ? 'text-[14px]' : 'text-[15px] sm:text-[16px]'} focus:outline-none focus:ring-0 ${isDarkMode() ? 'modern-input-dark' : 'modern-input-light'} textarea-transition scrollbar-thin`}
             style={{
               backgroundColor: 'transparent',
               color: isDarkMode() ? 'hsl(205deg, 16%, 77%)' : '#333333',
-              minHeight: '28px',
-              maxHeight: '220px', // 统一设置为输入框最大高度
+              minHeight: isDeviceMobile ? '20px' : '24px',
+              maxHeight: isDeviceMobile ? '150px' : '220px', // 根据设备类型调整最大高度
               transition: 'none', // 改为直接变化，无过渡
               lineHeight: '1.5', // 增加行高以提高可读性
               fontFamily: "'PingFang SC', Arial, sans-serif", // 添加字体样式
               letterSpacing: '0.2px', // 轻微调整字母间距
+              // 在移动端上确保可以选择和复制文本
+              WebkitUserSelect: 'text',
+              userSelect: 'text',
             }}
             placeholder={t('你想了解什么？') || ''}
             value={content}
@@ -385,13 +406,13 @@ export const ModernChatInput = ({
         
         {/* 按钮区域，高度固定 */}
         <div 
-          className="h-[42px] relative rounded-b-3xl"
+          className={`${isDeviceMobile ? 'h-[32px]' : 'h-[36px] sm:h-[42px]'} relative ${isDeviceMobile ? 'rounded-b-xl' : 'rounded-b-xl sm:rounded-b-3xl'}`}
           style={{ 
             backgroundColor: isDarkMode() ? '#343541' : getBgColor()
           }}
         >
           <button
-            className="absolute top-[45%] -translate-y-1/2 left-2.5 flex h-9 w-9 items-center justify-center rounded-full z-10"
+            className={`absolute top-[45%] -translate-y-1/2 left-2.5 flex ${isDeviceMobile ? 'h-7 w-7' : 'h-8 w-8 sm:h-9 sm:w-9'} items-center justify-center rounded-full z-10`}
             style={{
               backgroundColor: isDarkMode() ? '#4b5563' : '#f3f4f6',
               color: isDarkMode() ? '#d1d5db' : '#6b7280',
@@ -400,11 +421,11 @@ export const ModernChatInput = ({
             onClick={() => setShowPluginSelect(!showPluginSelect)}
             aria-label="更多选项"
           >
-            <IconPlus size={18} />
+            <IconPlus size={isDeviceMobile ? 14 : 16} className={isDeviceMobile ? '' : 'sm:text-[18px]'} />
           </button>
 
           <button
-            className="absolute top-[45%] -translate-y-1/2 right-2.5 flex h-9 w-9 items-center justify-center rounded-full z-10"
+            className={`absolute top-[45%] -translate-y-1/2 right-2.5 flex ${isDeviceMobile ? 'h-7 w-7' : 'h-8 w-8 sm:h-9 sm:w-9'} items-center justify-center rounded-full z-10`}
             style={{
               backgroundColor: isDarkMode() ? '#1f2937' : '#000000',
               color: '#FFFFFF',
@@ -415,16 +436,16 @@ export const ModernChatInput = ({
             disabled={!messageIsStreaming && (!content || messageIsStreaming)}
           >
             {messageIsStreaming ? (
-              <IconX size={18} />
+              <IconX size={isDeviceMobile ? 14 : 16} className={isDeviceMobile ? '' : 'sm:text-[18px]'} />
             ) : (
-              <IconArrowUp size={18} />
+              <IconArrowUp size={isDeviceMobile ? 14 : 16} className={isDeviceMobile ? '' : 'sm:text-[18px]'} />
             )}
           </button>
         </div>
         
         {activePlugin && (
           <div 
-            className="flex items-center border-t px-3 py-2 text-xs"
+            className={`flex items-center border-t px-3 py-2 ${isDeviceMobile ? 'text-[10px]' : 'text-xs'}`}
             style={{ 
               backgroundColor: isDarkMode() ? '#343541' : getBgColor(),
               borderColor: isDarkMode() ? '#4b5563' : '#e5e7eb',
@@ -447,12 +468,12 @@ export const ModernChatInput = ({
       </div>
       
       {showScrollDownButton && (
-        <div className="fixed bottom-[120px] right-8 z-50 animate-fade-in" style={{ 
+        <div className={`fixed ${isDeviceMobile ? 'bottom-[90px]' : 'bottom-[120px]'} right-4 sm:right-8 z-50 animate-fade-in`} style={{ 
           transition: "opacity 0.3s ease",
           animation: "fadeIn 0.3s ease-in-out"
         }}>
           <button
-            className="flex h-12 w-12 items-center justify-center rounded-full transition-all duration-300 hover:scale-105"
+            className={`flex ${isDeviceMobile ? 'h-9 w-9' : 'h-10 w-10 sm:h-12 sm:w-12'} items-center justify-center rounded-full transition-all duration-300 hover:scale-105`}
             style={{
               backgroundColor: isDarkMode() ? 'rgba(75, 85, 99, 0.9)' : 'rgba(255, 255, 255, 0.9)',
               color: isDarkMode() ? '#d1d5db' : '#6b7280',
@@ -463,7 +484,7 @@ export const ModernChatInput = ({
             }}
             onClick={onScrollDownClick}
           >
-            <IconArrowUp size={20} className="rotate-180" />
+            <IconArrowUp size={isDeviceMobile ? 16 : 18} className="rotate-180" />
           </button>
         </div>
       )}
