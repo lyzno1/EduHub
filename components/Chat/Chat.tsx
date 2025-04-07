@@ -85,6 +85,63 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   // 获取消息数量
   const messagesLength = selectedConversation?.messages?.length || 0;
 
+  // 添加欢迎界面动画CSS
+  useEffect(() => {
+    // 创建样式表
+    const styleEl = document.createElement('style');
+    styleEl.id = 'welcome-animations-styles';
+    
+    // 设置动画样式
+    styleEl.innerHTML = `
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      
+      @keyframes slideUp {
+        from { 
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to { 
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      .animate-fade-in {
+        opacity: 0;
+        animation: fadeIn 0.8s ease-in-out forwards;
+      }
+      
+      .animate-slide-up {
+        opacity: 0;
+        animation: slideUp 0.6s ease-out forwards;
+      }
+      
+      .animate-slide-up-delay {
+        opacity: 0;
+        animation: slideUp 0.6s ease-out 0.2s forwards;
+      }
+    `;
+    
+    // 更新或添加样式表
+    const existingStyle = document.getElementById('welcome-animations-styles');
+    if (existingStyle) {
+      existingStyle.innerHTML = styleEl.innerHTML;
+    } else {
+      document.head.appendChild(styleEl);
+    }
+    
+    // 组件卸载时移除
+    return () => {
+      const styleToRemove = document.getElementById('welcome-animations-styles');
+      if (styleToRemove) {
+        styleToRemove.remove();
+      }
+    };
+  }, []);
+
   // 滚动到底部的函数
   const handleScrollDown = useCallback(() => {
     if (chatContainerRef?.current) {
@@ -952,32 +1009,42 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             <>
               <div className="flex flex-col items-center justify-center min-h-screen">
                 {/* 标题区域 */}
-                <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 -mt-[25vh] animate-fade-in"
+                <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 animate-fade-in"
                   style={{
-                    marginTop: !isInputExpanded 
-                      ? '-25vh' 
-                      : `calc(-25vh - ${(inputBoxHeight - 65) / 2}px)`,
+                    marginTop: !isInputExpanded
+                      ? window.innerWidth < 768 ? '-35vh' : '-25vh'
+                      : window.innerWidth < 768
+                        ? `calc(-35vh - ${(inputBoxHeight - 65) / 2}px)`
+                        : `calc(-25vh - ${(inputBoxHeight - 65) / 2}px)`,
                     transition: 'none' // 移除过渡效果，确保立即变化
                   }}
                 >
                   <div className="relative">
                     <div className="absolute -inset-1 bg-gradient-to-r from-[#CEFBFA] to-[#FCCD5E] rounded-lg blur-xl opacity-75 dark:opacity-60"></div>
-                    <h1 className="relative text-4xl font-bold tracking-tight mb-4 bg-gradient-to-r from-[#272727] to-[#696969] dark:from-[#CEFBFA] dark:to-[#FCCD5E] bg-clip-text text-transparent drop-shadow-sm animate-slide-up" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '-0.5px' }}>eduhub.chat</h1>
+                    <h1 className="relative text-4xl font-bold tracking-tight mb-4 md:mb-4 bg-gradient-to-r from-[#272727] to-[#696969] dark:from-[#CEFBFA] dark:to-[#FCCD5E] bg-clip-text text-transparent drop-shadow-sm animate-slide-up" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '-0.5px' }}>eduhub.chat</h1>
                   </div>
-                  <p className="text-lg font-medium mb-20 text-[#333333] dark:text-[hsl(205deg,16%,77%)] animate-slide-up-delay" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '0.2px' }}>基于大语言模型的智能知识助手</p>
+                  <p className="text-lg font-medium md:mb-20 mb-0 md:block hidden text-[#333333] dark:text-[hsl(205deg,16%,77%)] animate-slide-up-delay" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '0.2px' }}>基于大语言模型的智能知识助手</p>
                 </div>
                 
-                {/* 功能卡片区域 */}
-                <div className="w-full absolute bottom-[18vh] md:bottom-[18vh] md:px-4 px-0"
-                  style={{
-                    bottom: !isInputExpanded
-                      ? window.innerWidth < 768 ? '30vh' : '18vh'
-                      : window.innerWidth < 768 
-                        ? `calc(30vh - ${(inputBoxHeight - 65) / 2}px)`
-                        : `calc(18vh - ${(inputBoxHeight - 65) / 2}px)`,
-                    transition: 'none' // 移除过渡效果，确保立即变化
-                  }}
-                >
+                {/* 移动端内容容器 - 只在移动端显示 */}
+                <div className="md:hidden flex flex-col items-center justify-center mt-16">
+                  {/* 引导文字 */}
+                  <div className="max-w-md mx-auto px-4 text-center mb-8">
+                    <p className="text-lg text-[#666666] dark:text-[#A0AEC0] font-medium animate-fade-in" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '0.1px', animationDelay: '0.4s' }}>
+                      有什么可以帮到你？
+                    </p>
+                  </div>
+                  
+                  {/* 功能卡片 - 移动端版本 */}
+                  <div className="w-full px-0">
+                    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+                      <FunctionCards />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 桌面端功能卡片区域 - 只在桌面端显示 */}
+                <div className="w-full absolute bottom-[18vh] px-4 hidden md:block">
                   <div style={{ maxWidth: '800px', margin: '0 auto' }}>
                     <FunctionCards />
                   </div>
