@@ -18,7 +18,7 @@
   visibility: hidden;
   pointer-events: none;
   transition: all 0.2s ease;
-  z-index: 999;
+  z-index: 1000;
 }
 
 /* 提示文本 */
@@ -288,7 +288,7 @@ pre:has(div.codeblock) {
 
 @media (max-width: 720px) {
   pre {
-    width: calc(100vw - 110px);
+    width: calc(100vw - 40px);
   }
 }
 
