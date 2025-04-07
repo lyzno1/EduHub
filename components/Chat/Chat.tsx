@@ -85,21 +85,33 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   // 获取消息数量
   const messagesLength = selectedConversation?.messages?.length || 0;
 
-  // 添加欢迎界面动画CSS
+  // 添加欢迎界面相关样式
   useEffect(() => {
     // 创建样式表
     const styleEl = document.createElement('style');
-    styleEl.id = 'welcome-animations-styles';
+    styleEl.id = 'welcome-styles';
     
-    // 设置动画样式 - 已删除动画，仅保留必要的样式
+    // 设置欢迎文字样式
     styleEl.innerHTML = `
       .welcome-text {
         opacity: 1;
       }
+      
+      /* 移动端键盘弹出时的样式 */
+      @media (max-width: 767px) {
+        html.keyboard-open .flex-col.items-center.justify-center.min-h-screen {
+          min-height: auto !important;
+        }
+        
+        html.keyboard-open .welcome-text-container {
+          position: static !important;
+          margin-top: 1rem !important;
+        }
+      }
     `;
     
     // 更新或添加样式表
-    const existingStyle = document.getElementById('welcome-animations-styles');
+    const existingStyle = document.getElementById('welcome-styles');
     if (existingStyle) {
       existingStyle.innerHTML = styleEl.innerHTML;
     } else {
@@ -108,7 +120,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     
     // 组件卸载时移除
     return () => {
-      const styleToRemove = document.getElementById('welcome-animations-styles');
+      const styleToRemove = document.getElementById('welcome-styles');
       if (styleToRemove) {
         styleToRemove.remove();
       }
@@ -982,7 +994,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             <>
               <div className="flex flex-col items-center justify-center min-h-screen">
                 {/* 标题区域 */}
-                <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 welcome-text"
+                <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 welcome-text welcome-text-container"
                   style={{
                     marginTop: !isInputExpanded
                       ? window.innerWidth < 768 ? '-35vh' : '-25vh'

@@ -54,6 +54,8 @@ export const ModernChatInput = ({
   const [showPluginSelect, setShowPluginSelect] = useState<boolean>(false);
   const [activePlugin, setActivePlugin] = useState<Plugin | null>(null);
   const [inputHeight, setInputHeight] = useState<number>(65); // 默认高度
+  // 只在移动端添加键盘状态跟踪
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
 
   const inputContainerRef = useRef<HTMLDivElement>(null);
   
@@ -226,6 +228,23 @@ export const ModernChatInput = ({
     }
   }, []);
 
+  // 添加移动端焦点处理
+  const handleFocus = useCallback(() => {
+    if (isDeviceMobile) {
+      setIsKeyboardOpen(true);
+      // 仅在移动端添加键盘弹出标记
+      document.documentElement.classList.add('keyboard-open');
+    }
+  }, [isDeviceMobile]);
+
+  const handleBlur = useCallback(() => {
+    if (isDeviceMobile) {
+      setIsKeyboardOpen(false);
+      // 移除键盘弹出标记
+      document.documentElement.classList.remove('keyboard-open');
+    }
+  }, [isDeviceMobile]);
+
   // 更新样式内容，确保平滑过渡和一致的padding
   useEffect(() => {
     // 创建样式表
@@ -363,6 +382,16 @@ export const ModernChatInput = ({
         textarea.scrollbar-thin {
           -webkit-overflow-scrolling: touch !important;
         }
+        
+        /* 键盘弹出时的样式 - 仅限移动端 */
+        html.keyboard-open .min-h-screen {
+          height: auto !important;
+        }
+        
+        html.keyboard-open .welcome-text {
+          visibility: visible !important;
+          opacity: 1 !important;
+        }
       }
     `;
     
@@ -454,6 +483,8 @@ export const ModernChatInput = ({
             onInput={adjustHeight}
             onWheel={handleWheel}
             onTouchMove={handleTextareaTouchMove}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
           />
         </div>
 
