@@ -595,12 +595,19 @@ const Home = ({
               
               {/* 侧边导航层 - 在移动端全宽显示 */}
               <div 
-                className={`fixed sm:relative inset-0 bg-black/50 z-20 transition-opacity duration-300 ${
+                className={`fixed sm:relative inset-0 bg-black/50 transition-opacity duration-300 ${
                   showSidebar ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 } sm:opacity-100 sm:pointer-events-auto`} 
                 onClick={toggleSidebar}
+                style={{
+                  // 使用内联样式，确保移动端和桌面端使用不同的z-index
+                  zIndex: typeof window !== 'undefined' && window.innerWidth < 640 ? 9998 : 20
+                }}
               >
-                <div onClick={e => e.stopPropagation()} className="h-full">
+                <div 
+                  onClick={e => e.stopPropagation()} 
+                  className="h-full"
+                >
                   <SidebarNav onToggle={toggleSidebar} isOpen={showSidebar} />
                 </div>
               </div>

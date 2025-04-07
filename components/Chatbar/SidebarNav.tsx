@@ -17,12 +17,27 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
 
   const {
     state: { conversations, selectedConversation },
     handleNewConversation,
     handleSelectConversation,
   } = useContext(HomeContext);
+
+  // 检测设备类型
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   useEffect(() => {
     if (searchTerm) {
@@ -56,15 +71,61 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     e.stopPropagation();
   };
 
+  // 注入移动端专用的样式
+  useEffect(() => {
+    // 只在浏览器环境执行
+    if (typeof window === 'undefined') return;
+    
+    // 创建样式表
+    const styleEl = document.createElement('style');
+    styleEl.id = 'mobile-sidebar-styles';
+    
+    // 设置样式内容 - 只针对移动设备的z-index增强
+    styleEl.innerHTML = `
+      @media (max-width: 640px) {
+        #mobile-sidebar-container {
+          z-index: 9999 !important;
+        }
+        
+        /* 确保移动端背景蒙版也有足够高的z-index */
+        .mobile-sidebar-backdrop {
+          z-index: 9998 !important;
+        }
+      }
+    `;
+    
+    // 添加到头部
+    document.head.appendChild(styleEl);
+    
+    // 清理函数
+    return () => {
+      const existingStyle = document.getElementById('mobile-sidebar-styles');
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+    };
+  }, []);
+
   return (
     <div 
-      className={`fixed left-[60px] top-0 z-10 flex h-full w-[260px] flex-col border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out dark:border-gray-800 dark:bg-[#202123] ${
+      className={`fixed top-0 flex h-full w-[260px] max-w-[85vw] flex-col border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out dark:border-gray-800 dark:bg-[#202123] ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}
+      } left-0 sm:left-[60px]`}
       onClick={stopPropagation}
+      style={{ 
+        // 移动端和桌面端使用不同的z-index
+        zIndex: isMobile ? 9999 : 40
+      }}
     >
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
-        <div className="flex-1">
+        <div className="flex items-center">
+          <button 
+            className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 sm:hidden"
+            onClick={onToggle}
+          >
+            <IconX size={18} />
+          </button>
+          <div className="text-lg font-medium ml-2 sm:ml-0 sm:hidden">对话列表</div>
         </div>
         <button 
           className="flex h-8 w-8 items-center justify-center rounded-[8px] text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors duration-200 border border-transparent hover:border-gray-200 dark:hover:border-gray-600"
