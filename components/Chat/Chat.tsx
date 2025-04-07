@@ -1028,7 +1028,14 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 </div>
                 
                 {/* 桌面端功能卡片区域 - 只在桌面端显示 */}
-                <div className="w-full absolute bottom-[18vh] px-4 hidden md:block">
+                <div className="w-full absolute bottom-[18vh] px-4 hidden md:block"
+                  style={{
+                    bottom: !isInputExpanded
+                      ? '18vh'
+                      : `calc(18vh - ${(inputBoxHeight - 65) / 2}px)`,
+                    transition: 'none' // 确保直接变化，无过渡效果
+                  }}
+                >
                   <div style={{ maxWidth: '800px', margin: '0 auto' }}>
                     <FunctionCards />
                   </div>
