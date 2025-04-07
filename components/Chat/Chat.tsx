@@ -644,7 +644,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         top: 40px;
         right: 0;
         width: 8px;
-        bottom: 135px;
+        bottom: 85px; /* 减少底部距离，与底部遮挡层一致 */
         z-index: 99;
         pointer-events: auto; /* 允许鼠标事件 */
         display: none; /* 默认隐藏，由JS控制显示 */
@@ -967,7 +967,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         {/* 顶部遮罩层，确保内容有足够的padding，只在有聊天记录时显示 */}
         {messagesLength > 0 && (
           <div 
-            className="absolute top-0 left-0 right-[17px] z-10 h-[30px] bg-white dark:bg-[#343541]"
+            className="absolute top-0 left-0 right-[17px] z-10 h-[30px] md:block hidden bg-white dark:bg-[#343541]"
             style={{
               backgroundColor: lightMode === 'red'
                 ? '#F2ECBE'
@@ -1061,7 +1061,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             </>
           ) : (
             <>
-              <div className="pt-6">
+              <div className="md:pt-6 pt-2">
                 {showSettings && (
                   <div className="flex flex-col space-y-10 md:mx-auto md:max-w-xl md:gap-6 md:py-3 md:pt-6 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
                     <div className="flex h-full flex-col space-y-4 border-b border-neutral-200 p-4 dark:border-neutral-600 md:rounded-lg md:border">
@@ -1087,7 +1087,9 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 {/* 添加底部空白区域，确保内容可见性 */}
                 <div 
                   style={{ 
-                    height: `${Math.max(230, bottomInputHeight + 160)}px`, // 增加高度以与滚动条下界保持一致
+                    height: window.innerWidth < 768 
+                      ? `${Math.max(100, bottomInputHeight + 50)}px` // 移动端使用更小的底部空间
+                      : `${Math.max(120, bottomInputHeight + 60)}px`, // 桌面端减小底部空间，与输入框上方基本平齐
                     transition: 'none' // 改为直接变化，移除平滑过渡
                   }} 
                   ref={messagesEndRef} 
@@ -1100,9 +1102,9 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         {/* 底部固定挡板区域 - 确保文字被遮挡，不会穿过输入框 */}
         {messagesLength > 0 && (
           <div 
-            className="absolute bottom-0 left-0 right-0 z-10"
+            className="absolute bottom-0 left-0 right-0 z-10 md:block hidden"
             style={{
-              height: '135px', // 与滚动条底部边界一致
+              height: '85px', // 减少遮挡高度，与底部空白区域匹配
               backgroundColor: lightMode === 'red'
                 ? '#F2ECBE'
                 : lightMode === 'blue'
