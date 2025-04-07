@@ -56,6 +56,9 @@ export const ModernChatInput = ({
   const [inputHeight, setInputHeight] = useState<number>(65); // 默认高度
 
   const inputContainerRef = useRef<HTMLDivElement>(null);
+  
+  // 检测是否为移动设备
+  const isDeviceMobile = isMobile || (typeof window !== 'undefined' && window.innerWidth < 640);
 
   // getBgColor实现为记忆化函数，避免不必要的重新计算
   const getBgColor = useCallback(() => {
@@ -312,6 +315,19 @@ export const ModernChatInput = ({
       .animate-fade-in {
         animation: fadeIn 0.3s ease-in-out;
       }
+      
+      /* 移动端样式 - 仅在小屏幕上应用 */
+      @media (max-width: 767px) {
+        .mobile-input-rounded {
+          border-radius: 8px 8px 0 0 !important;
+        }
+        .mobile-input-shadow {
+          box-shadow: 0 -3px 8px rgba(0, 0, 0, 0.08) !important;
+        }
+        .mobile-input-padding {
+          padding-top: 3px !important;
+        }
+      }
     `;
     
     // 更新或添加样式表
@@ -338,38 +354,36 @@ export const ModernChatInput = ({
     }
   }, [inputHeight]);
 
-  // 在返回部分之前添加一个移动端检测的hooks
-  const isDeviceMobile = isMobile || (typeof window !== 'undefined' && window.innerWidth < 640);
-
   // 在返回部分调整样式以适应移动端
   return (
-    <div
+    <div 
       className={isCentered 
         ? "absolute top-1/2 left-0 w-full px-4 pb-8 z-20 transform -translate-y-1/2" // 居中模式继续使用绝对定位
         : isDeviceMobile 
-          ? "w-full px-2 pb-1 z-20" // 移动端底部模式，更少内边距
+          ? "w-full px-0 pb-0 z-20 absolute bottom-0 left-0 right-0" // 移动端底部模式，移除内边距
           : "absolute bottom-0 left-0 w-full px-2 sm:px-4 pb-2 z-20" // 桌面底部模式
       }
       ref={inputContainerRef}
       data-input-height={inputHeight}
     >
       <div
-        className={`relative flex flex-col ${isDeviceMobile ? 'rounded-xl' : 'rounded-xl sm:rounded-3xl'} input-container ${isDarkMode() ? 'chat-input-dark-bg chat-input-dark-mode' : ''}`}
+        className={`relative flex flex-col rounded-xl sm:rounded-3xl input-container ${isDarkMode() ? 'chat-input-dark-bg chat-input-dark-mode' : ''} ${!isCentered && isDeviceMobile ? 'mobile-input-rounded' : ''}`}
         style={{ 
-          maxWidth: '800px', 
-          margin: '0 auto',
+          maxWidth: !isCentered && isDeviceMobile ? '100%' : '800px', 
+          width: !isCentered && isDeviceMobile ? '100%' : 'auto',
+          margin: !isCentered && isDeviceMobile ? '0' : '0 auto',
           backgroundColor: isDarkMode() ? '#343541' : getBgColor(),
           border: isDarkMode() ? '1px solid rgba(55, 65, 81, 0.5)' : '1px solid transparent',
           boxShadow: isDarkMode() 
             ? '0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px -1px rgba(0, 0, 0, 0.3)' 
-            : isDeviceMobile 
-              ? '0 -2px 8px rgba(0, 0, 0, 0.05)' // 移动端较轻微的阴影
+            : isDeviceMobile && !isCentered
+              ? '0 -2px 8px rgba(0, 0, 0, 0.05)' 
               : '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 8px 15px -3px rgba(0, 0, 0, 0.1), 0 12px 20px -5px rgba(0, 0, 0, 0.15)',
         }}
       >
         {/* 这里是真正的输入区，高度根据内容动态变化但不会影响外部布局 */}
         <div 
-          className={`${isDeviceMobile ? 'min-h-[45px]' : 'min-h-[50px] sm:min-h-[65px]'} overflow-y-auto ${isDeviceMobile ? 'rounded-t-xl' : 'rounded-t-xl sm:rounded-t-3xl'} ${isDeviceMobile ? 'px-3' : 'px-3 sm:px-6'} ${isDarkMode() ? 'chat-input-dark-bg' : ''} input-content-container textarea-container-scrollbar ${isDeviceMobile ? 'mobile-input-container' : ''}`}
+          className={`${isDeviceMobile ? 'min-h-[45px]' : 'min-h-[50px] sm:min-h-[65px]'} overflow-y-auto ${isDeviceMobile ? 'rounded-t-xl' : 'rounded-t-xl sm:rounded-t-3xl'} ${isDeviceMobile ? 'px-3' : 'px-3 sm:px-6'} ${isDarkMode() ? 'chat-input-dark-bg' : ''} input-content-container textarea-container-scrollbar ${isDeviceMobile ? 'mobile-input-container' : ''} ${!isCentered && isDeviceMobile ? 'mobile-input-rounded' : ''}`}
           style={{ 
             display: 'flex', 
             flexDirection: 'column',
@@ -379,16 +393,17 @@ export const ModernChatInput = ({
         >
           <textarea
             ref={textareaRef as MutableRefObject<HTMLTextAreaElement>}
-            className={`w-full flex-grow resize-none border-0 p-0 ${isDeviceMobile ? 'text-[14px]' : 'text-[15px] sm:text-[16px]'} focus:outline-none focus:ring-0 ${isDarkMode() ? 'modern-input-dark' : 'modern-input-light'} textarea-transition scrollbar-thin`}
+            className={`w-full flex-grow resize-none border-0 ${isDeviceMobile ? 'pt-3 mobile-input-padding' : 'p-0'} ${isDeviceMobile ? 'text-[14px]' : 'text-[15px] sm:text-[16px]'} focus:outline-none focus:ring-0 ${isDarkMode() ? 'modern-input-dark' : 'modern-input-light'} textarea-transition scrollbar-thin`}
             style={{
               backgroundColor: 'transparent',
               color: isDarkMode() ? 'hsl(205deg, 16%, 77%)' : '#333333',
               minHeight: isDeviceMobile ? '20px' : '24px',
               maxHeight: isDeviceMobile ? '150px' : '220px', // 根据设备类型调整最大高度
               transition: 'none', // 改为直接变化，无过渡
-              lineHeight: '1.5', // 增加行高以提高可读性
+              lineHeight: isDeviceMobile ? '1.3' : '1.5', // 移动端使用更紧凑的行高
               fontFamily: "'PingFang SC', Arial, sans-serif", // 添加字体样式
               letterSpacing: '0.2px', // 轻微调整字母间距
+              paddingLeft: isDeviceMobile ? '2px' : '0',
               // 在移动端上确保可以选择和复制文本
               WebkitUserSelect: 'text',
               userSelect: 'text',
@@ -403,7 +418,7 @@ export const ModernChatInput = ({
             onInput={adjustHeight}
           />
         </div>
-        
+
         {/* 按钮区域，高度固定 */}
         <div 
           className={`${isDeviceMobile ? 'h-[32px]' : 'h-[36px] sm:h-[42px]'} relative ${isDeviceMobile ? 'rounded-b-xl' : 'rounded-b-xl sm:rounded-b-3xl'}`}
@@ -466,9 +481,9 @@ export const ModernChatInput = ({
           </div>
         )}
       </div>
-      
+
       {showScrollDownButton && (
-        <div className={`fixed ${isDeviceMobile ? 'bottom-[90px]' : 'bottom-[120px]'} right-4 sm:right-8 z-50 animate-fade-in`} style={{ 
+        <div className={`fixed ${isDeviceMobile ? 'bottom-[80px]' : 'bottom-[120px]'} right-4 sm:right-8 z-50 animate-fade-in`} style={{ 
           transition: "opacity 0.3s ease",
           animation: "fadeIn 0.3s ease-in-out"
         }}>

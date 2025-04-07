@@ -968,11 +968,13 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 </div>
                 
                 {/* 功能卡片区域 */}
-                <div className="w-full absolute bottom-[18vh] px-4"
+                <div className="w-full absolute bottom-[18vh] md:bottom-[18vh] md:px-4 px-0"
                   style={{
                     bottom: !isInputExpanded
-                      ? '18vh' 
-                      : `calc(18vh - ${(inputBoxHeight - 65) / 2}px)`,
+                      ? window.innerWidth < 768 ? '30vh' : '18vh'
+                      : window.innerWidth < 768 
+                        ? `calc(30vh - ${(inputBoxHeight - 65) / 2}px)`
+                        : `calc(18vh - ${(inputBoxHeight - 65) / 2}px)`,
                     transition: 'none' // 移除过渡效果，确保立即变化
                   }}
                 >
@@ -981,23 +983,28 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                   </div>
                 </div>
                 
-                <div className="w-full mt-8">
-                  <ModernChatInput
-                    stopConversationRef={stopConversationRef}
-                    textareaRef={textareaRef}
-                    onSend={(message, plugin) => {
-                      handleSend(message, 0, plugin);
-                    }}
-                    onScrollDownClick={handleScrollDown}
-                    onRegenerate={() => {
-                      if (currentMessage) {
-                        handleSend(currentMessage, 2);
-                      }
-                    }}
-                    showScrollDownButton={showScrollDownButton}
-                    isCentered={true}
-                    showSidebar={showSidebar}
-                  />
+                <div className="w-full mt-8 md:static md:bottom-auto md:left-auto md:right-auto md:mt-8 fixed bottom-0 left-0 right-0">
+                  <div className="w-full md:max-w-[800px] md:mx-auto px-0 mx-0">
+                    <div className="md:block">
+                      <ModernChatInput
+                        stopConversationRef={stopConversationRef}
+                        textareaRef={textareaRef}
+                        onSend={(message, plugin) => {
+                          handleSend(message, 0, plugin);
+                        }}
+                        onScrollDownClick={handleScrollDown}
+                        onRegenerate={() => {
+                          if (currentMessage) {
+                            handleSend(currentMessage, 2);
+                          }
+                        }}
+                        showScrollDownButton={showScrollDownButton}
+                        isCentered={window.innerWidth >= 768}
+                        showSidebar={showSidebar}
+                        isMobile={window.innerWidth < 768}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </>
@@ -1068,22 +1075,27 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         <div className="absolute bottom-0 left-0 w-full z-20">
           {/* 只在有消息时显示底部输入框 */}
           {messagesLength > 0 && (
-            <ModernChatInput
-              stopConversationRef={stopConversationRef}
-              textareaRef={textareaRef}
-              onSend={(message, plugin) => {
-                handleSend(message, 0, plugin);
-              }}
-              onScrollDownClick={handleScrollDown}
-              onRegenerate={() => {
-                if (currentMessage) {
-                  handleSend(currentMessage, 2);
-                }
-              }}
-              showScrollDownButton={showScrollDownButton}
-              isCentered={false} // 底部输入框永远不是中心状态
-              showSidebar={showSidebar}
-            />
+            <div className="w-full md:absolute md:bottom-0 md:left-0 md:right-auto fixed bottom-0 left-0 right-0">
+              <div className="w-full md:max-w-full px-0">
+                <ModernChatInput
+                  stopConversationRef={stopConversationRef}
+                  textareaRef={textareaRef}
+                  onSend={(message, plugin) => {
+                    handleSend(message, 0, plugin);
+                  }}
+                  onScrollDownClick={handleScrollDown}
+                  onRegenerate={() => {
+                    if (currentMessage) {
+                      handleSend(currentMessage, 2);
+                    }
+                  }}
+                  showScrollDownButton={showScrollDownButton}
+                  isCentered={false} // 底部输入框永远不是中心状态
+                  showSidebar={showSidebar}
+                  isMobile={window.innerWidth < 768}
+                />
+              </div>
+            </div>
           )}
         </div>
       </>
