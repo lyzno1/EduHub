@@ -412,6 +412,48 @@ export const ModernChatInput = ({
     };
   }, [lightMode]);
 
+  // 添加媒体查询样式
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // 创建样式表
+    const styleEl = document.createElement('style');
+    styleEl.id = 'chat-welcome-mobile-styles';
+    
+    // 设置样式内容
+    styleEl.innerHTML = `
+      @media (max-width: 640px) {
+        .welcome-text-container {
+          position: static !important;
+        }
+        
+        /* 防止欢迎页面滚动 */
+        .chat-container-scrollbar:not(.flex-1) {
+          overflow: hidden !important;
+        }
+        
+        /* 确保输入框在欢迎页面定位正确 */
+        .chat-welcome-input {
+          position: fixed !important;
+          bottom: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+        }
+      }
+    `;
+    
+    // 添加到头部
+    document.head.appendChild(styleEl);
+    
+    // 清理函数
+    return () => {
+      const existingStyle = document.getElementById('chat-welcome-mobile-styles');
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+    };
+  }, []);
+
   // 更新高度时，也更新data属性
   useEffect(() => {
     if (inputContainerRef.current) {
@@ -423,10 +465,10 @@ export const ModernChatInput = ({
   return (
     <div 
       className={isCentered 
-        ? "absolute top-1/2 left-0 w-full px-4 pb-8 z-20 transform -translate-y-1/2" // 居中模式继续使用绝对定位
+        ? "absolute top-1/2 left-0 w-full px-4 pb-8 z-10 transform -translate-y-1/2 chat-welcome-input" // 居中模式继续使用绝对定位
         : isDeviceMobile 
-          ? "w-full px-0 pb-0 z-20 absolute bottom-0 left-0 right-0" // 移动端底部模式，移除内边距
-          : "absolute bottom-0 left-0 w-full px-2 sm:px-4 pb-2 z-20" // 桌面底部模式
+          ? "w-full px-0 pb-0 z-10 absolute bottom-0 left-0 right-0 chat-welcome-input" // 移动端底部模式，移除内边距
+          : "absolute bottom-0 left-0 w-full px-2 sm:px-4 pb-2 z-10 chat-welcome-input" // 桌面底部模式
       }
       ref={inputContainerRef}
       data-input-height={inputHeight}

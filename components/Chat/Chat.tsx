@@ -987,19 +987,19 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         )}
 
         <div
-          className={`${!messagesLength ? 'overflow-y-auto' : 'flex-1 overflow-y-auto'} chat-container-scrollbar`}
+          className={`${!messagesLength ? 'h-full' : 'flex-1 overflow-y-auto'} chat-container-scrollbar`}
           ref={chatContainerRef}
         >
           {!messagesLength ? (
             <>
-              <div className="flex flex-col items-center justify-center min-h-screen">
+              <div className="flex flex-col items-center justify-center h-full md:min-h-screen sm:overflow-hidden">
                 {/* 标题区域 */}
                 <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 welcome-text welcome-text-container"
                   style={{
                     marginTop: !isInputExpanded
-                      ? window.innerWidth < 768 ? '-35vh' : '-25vh'
+                      ? window.innerWidth < 768 ? '-20vh' : '-25vh'
                       : window.innerWidth < 768
-                        ? `calc(-35vh - ${(inputBoxHeight - 65) / 2}px)`
+                        ? `calc(-20vh - ${(inputBoxHeight - 65) / 2}px)`
                         : `calc(-25vh - ${(inputBoxHeight - 65) / 2}px)`
                   }}
                 >
@@ -1011,9 +1011,9 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 </div>
                 
                 {/* 移动端内容容器 - 只在移动端显示 */}
-                <div className="md:hidden flex flex-col items-center justify-center mt-16">
+                <div className="md:hidden flex flex-col items-center justify-center mt-12 static">
                   {/* 引导文字 */}
-                  <div className="max-w-md mx-auto px-4 text-center mb-8">
+                  <div className="max-w-md mx-auto px-4 text-center mb-6">
                     <p className="text-lg text-[#666666] dark:text-[#A0AEC0] font-medium welcome-text" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '0.1px' }}>
                       有什么可以帮到你？
                     </p>
