@@ -59,7 +59,7 @@ export const ModernChatInput = ({
   
   // 检测是否为移动设备
   const isDeviceMobile = isMobile || (typeof window !== 'undefined' && window.innerWidth < 640);
-
+  
   // getBgColor实现为记忆化函数，避免不必要的重新计算
   const getBgColor = useCallback(() => {
     if (lightMode === 'red') return '#F2ECBE';
@@ -197,6 +197,35 @@ export const ModernChatInput = ({
     };
   }, [content, adjustHeight]);
 
+  // 在组件内添加一个处理滚动事件的函数
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLTextAreaElement>) => {
+    // 检查文本区域是否需要滚动
+    const textarea = e.currentTarget;
+    const isScrollable = textarea.scrollHeight > textarea.clientHeight;
+    
+    if (isScrollable) {
+      // 检查是否到达边界
+      const isAtTop = textarea.scrollTop === 0;
+      const isAtBottom = textarea.scrollTop + textarea.clientHeight >= textarea.scrollHeight;
+      
+      // 根据滚动方向和是否在边界决定是否阻止冒泡
+      if ((e.deltaY < 0 && !isAtTop) || (e.deltaY > 0 && !isAtBottom)) {
+        e.stopPropagation();
+      }
+    }
+  }, []);
+
+  // 处理触摸事件，防止必要时的滚动冒泡
+  const handleTextareaTouchMove = useCallback((e: React.TouchEvent<HTMLTextAreaElement>) => {
+    const textarea = e.currentTarget;
+    const isScrollable = textarea.scrollHeight > textarea.clientHeight;
+    
+    if (isScrollable) {
+      // 确保文本区域可以独立滚动
+      e.stopPropagation();
+    }
+  }, []);
+
   // 更新样式内容，确保平滑过渡和一致的padding
   useEffect(() => {
     // 创建样式表
@@ -327,6 +356,13 @@ export const ModernChatInput = ({
         .mobile-input-padding {
           padding-top: 3px !important;
         }
+        /* 优化移动端滚动 */
+        .input-content-container {
+          -webkit-overflow-scrolling: touch !important; /* 增强iOS滚动体验 */
+        }
+        textarea.scrollbar-thin {
+          -webkit-overflow-scrolling: touch !important;
+        }
       }
     `;
     
@@ -416,6 +452,8 @@ export const ModernChatInput = ({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             onInput={adjustHeight}
+            onWheel={handleWheel}
+            onTouchMove={handleTextareaTouchMove}
           />
         </div>
 
