@@ -95,25 +95,51 @@ export const FunctionCards: React.FC<FunctionCardsProps> = ({ scrollToBottom }) 
     const selectedFunction = selectedCategory?.children.find(f => f.id === functionId);
     
     if (selectedFunction) {
-      // 找到对应的功能文本
+      // 准备要插入的文本
       const promptText = `作为${selectedCategory?.name}中的${selectedFunction.name}，请帮我：`;
       
-      // 如果有文本框引用，可以直接设置文本
-      const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
-      if (textarea) {
-        textarea.value = promptText;
-        textarea.focus();
-        
-        // 触发input事件让组件知道文本已更改
-        const event = new Event('input', { bubbles: true });
-        textarea.dispatchEvent(event);
-        
-        // 如果有提供滚动函数，调用它
-        if (scrollToBottom) {
-          setTimeout(() => {
-            scrollToBottom();
-          }, 100);
+      // 获取输入框
+      const textarea = document.querySelector('textarea');
+      if (!textarea) return;
+      
+      // 检查是否在移动设备上
+      const isMobileDevice = window.innerWidth < 640;
+      
+      if (isMobileDevice) {
+        // 移动端只使用一种方法设置值
+        try {
+          // 先清空文本框避免重复
+          textarea.value = '';
+          
+          // 尝试使用 execCommand 插入文本（这种方法不会关闭键盘）
+          textarea.focus();
+          document.execCommand('insertText', false, promptText);
+          
+          // 确保textarea获得了文本，如果没有，使用value属性
+          if (textarea.value !== promptText) {
+            textarea.value = promptText;
+            // 触发React的onChange事件
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        } catch (e) {
+          console.error("移动端设置文本失败", e);
+          // 回退方案
+          textarea.value = promptText;
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+          textarea.focus();
         }
+      } else {
+        // 桌面端保持简单逻辑
+        textarea.value = promptText;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        textarea.focus();
+      }
+      
+      // 滚动到底部
+      if (scrollToBottom) {
+        setTimeout(() => {
+          scrollToBottom();
+        }, 100);
       }
     }
   };
@@ -244,16 +270,16 @@ export const FunctionCards: React.FC<FunctionCardsProps> = ({ scrollToBottom }) 
         <MobileButtons />
       ) : (
         <div className="function-cards-grid grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
-          {functionCategories.map((category) => (
-            <FunctionCard
-              key={category.id}
-              category={category}
-              isDarkMode={isDarkMode}
-              handleFunctionClick={handleFunctionClick}
+        {functionCategories.map((category) => (
+          <FunctionCard
+            key={category.id}
+            category={category}
+            isDarkMode={isDarkMode}
+            handleFunctionClick={handleFunctionClick}
               isMobile={isMobile}
-            />
-          ))}
-        </div>
+          />
+        ))}
+      </div>
       )}
     </div>
   );
