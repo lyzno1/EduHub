@@ -1002,7 +1002,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         )}
 
         <div
-          className="flex-1 overflow-y-auto chat-container-scrollbar"
+          className={`${!messagesLength ? 'overflow-hidden' : 'flex-1 overflow-y-auto'} chat-container-scrollbar`}
           ref={chatContainerRef}
         >
           {!messagesLength ? (
