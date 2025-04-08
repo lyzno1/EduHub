@@ -24,11 +24,9 @@ import {
 import { saveFolders } from '@/utils/app/folders';
 import { savePrompts } from '@/utils/app/prompts';
 import { getSettings } from '@/utils/app/settings';
-import { getDefaultApiType, setDefaultApiType } from '@/utils/app/api';
 
-import { Conversation, KeyValuePair } from '@/types/chat';
+import { Conversation } from '@/types/chat';
 import { FolderInterface, FolderType } from '@/types/folder';
-import { OpenAIModelID, OpenAIModels, fallbackModelID } from '@/types/openai';
 import { Prompt } from '@/types/prompt';
 
 import { Chat } from '@/components/Chat/Chat';
@@ -50,16 +48,32 @@ import Cookie from 'js-cookie';
 import { v4 as uuidv4 } from 'uuid';
 import { IconMenu2 } from '@tabler/icons-react';
 
+// 定义 Dify 相关的类型
+interface DifyConfig {
+  apiUrl: string;
+  apiKey: string;
+}
+
 interface Props {
   serverSideApiKeyIsSet: boolean;
   serverSidePluginKeysSet: boolean;
-  defaultModelId: OpenAIModelID;
 }
+
+// 定义更新对话的类型
+interface UpdateConversationData {
+  key: string;
+  value: any;
+}
+
+// 定义 Dify 配置
+const DIFY_CONFIG: DifyConfig = {
+  apiUrl: 'http://localhost/v1/chat-messages',
+  apiKey: process.env.DIFY_API_KEY || '',
+};
 
 const Home = ({
   serverSideApiKeyIsSet,
   serverSidePluginKeysSet,
-  defaultModelId,
 }: Props) => {
   function CheckLogin() {
     const user = Cookie.get('user');
@@ -68,8 +82,6 @@ const Home = ({
   }
 
   const { t } = useTranslation('chat');
-  // const { getModels } = useApiService();
-  // const { getModelsError } = useErrorService();
   const [initialRender, setInitialRender] = useState<boolean>(true);
   const [user, setUser] = useState<string>('');
   const [ready, setReady] = useState<boolean>(false);
@@ -85,37 +97,11 @@ const Home = ({
       conversations,
       selectedConversation,
       prompts,
-      temperature,
     },
     dispatch,
   } = contextValue;
 
   const stopConversationRef = useRef<boolean>(false);
-
-  // const { data, error, refetch } = useQuery(
-  //   ['GetModels', apiKey, serverSideApiKeyIsSet],
-  //   ({ signal }) => {
-  //     if (!apiKey && !serverSideApiKeyIsSet) return null;
-
-  //     return getModels(
-  //       {
-  //         key: apiKey,
-  //       },
-  //       signal,
-  //     );
-  //   },
-  //   { enabled: true, refetchOnMount: false },
-  // );
-
-  // useEffect(() => {
-  //   if (data) dispatch({ field: 'models', value: data });
-  // }, [data, dispatch]);
-
-  // useEffect(() => {
-  //   dispatch({ field: 'modelError', value: getModelsError(error) });
-  // }, [dispatch, error, getModelsError]);
-
-  // FETCH MODELS ----------------------------------------------
 
   const handleSelectConversation = (conversation: Conversation) => {
     dispatch({
@@ -219,7 +205,6 @@ const Home = ({
       name: t('New Conversation'),
       originalName: '',
       messages: [],
-      model: OpenAIModels[OpenAIModelID.DEEPSEEK_CHAT],
       prompt: DEFAULT_SYSTEM_PROMPT,
       temperature: DEFAULT_TEMPERATURE,
       folderId: null,
@@ -239,7 +224,7 @@ const Home = ({
 
   const handleUpdateConversation = (
     conversation: Conversation,
-    data: KeyValuePair,
+    data: UpdateConversationData,
   ) => {
     const updatedConversation = {
       ...conversation,
@@ -288,42 +273,10 @@ const Home = ({
   }, [selectedConversation]);
 
   useEffect(() => {
-    defaultModelId &&
-      dispatch({ field: 'defaultModelId', value: defaultModelId });
-    serverSideApiKeyIsSet &&
-      dispatch({
-        field: 'serverSideApiKeyIsSet',
-        value: serverSideApiKeyIsSet,
-      });
-    serverSidePluginKeysSet &&
-      dispatch({
-        field: 'serverSidePluginKeysSet',
-        value: serverSidePluginKeysSet,
-      });
-  }, [defaultModelId, serverSideApiKeyIsSet, serverSidePluginKeysSet]);
-
-  // ON LOAD --------------------------------------------
-
-  useEffect(() => {
     setUser(CheckLogin());
     setReady(true);
 
-    // 确保设置默认API类型为deepseek
-    setDefaultApiType('deepseek');
-    
-    // 清理localStorage中的会话数据，确保使用新的配置
-    if (typeof window !== 'undefined') {
-      // 只有在浏览器环境中才执行
-      const cleanLocalStorage = localStorage.getItem('cleanedForDeepseek');
-      if (!cleanLocalStorage) {
-        console.log('清理localStorage中的会话数据，使用新的DeepSeek配置');
-        localStorage.removeItem('selectedConversation');
-        localStorage.removeItem('conversationHistory');
-        localStorage.setItem('cleanedForDeepseek', 'true');
-      }
-    }
-    
-    // 获取并设置用户的主题设置。
+    // 获取并设置用户的主题设置
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
       dispatch({
@@ -350,18 +303,14 @@ const Home = ({
       document.documentElement.classList.add('light');
     }
 
-    // 获取并设置存储在本地的API密钥。
-    // const apiKey = localStorage.getItem('apiKey');
-
     if (serverSideApiKeyIsSet) {
       dispatch({ field: 'apiKey', value: '' });
-
       localStorage.removeItem('apiKey');
     } else if (apiKey) {
       dispatch({ field: 'apiKey', value: apiKey });
     }
 
-    // 获取并设置存储在本地的插件密钥。
+    // 获取并设置存储在本地的插件密钥
     const pluginKeys = localStorage.getItem('pluginKeys');
     if (serverSidePluginKeysSet) {
       dispatch({ field: 'pluginKeys', value: [] });
@@ -370,7 +319,7 @@ const Home = ({
       dispatch({ field: 'pluginKeys', value: pluginKeys });
     }
 
-    // 根据窗口大小决定是否显示聊天栏和提示栏。
+    // 根据窗口大小决定是否显示聊天栏和提示栏
     if (window.innerWidth < 640) {
       dispatch({ field: 'showChatbar', value: false });
       dispatch({ field: 'showPromptbar', value: false });
@@ -386,7 +335,7 @@ const Home = ({
       dispatch({ field: 'showPromptbar', value: showPromptbar === 'true' });
     }
 
-    // 获取并设置存储在本地的文件夹数据。
+    // 获取并设置存储在本地的文件夹数据
     const folders = localStorage.getItem('folders');
     if (folders) {
       dispatch({ field: 'folders', value: JSON.parse(folders) });
@@ -434,7 +383,6 @@ const Home = ({
         name: t('New Conversation'),
         originalName: '',
         messages: [],
-        model: OpenAIModels[OpenAIModelID.DEEPSEEK_CHAT],
         prompt: DEFAULT_SYSTEM_PROMPT,
         temperature: DEFAULT_TEMPERATURE,
         folderId: null,
@@ -450,7 +398,7 @@ const Home = ({
       saveConversation(newConversation);
       saveConversations(updatedConversations);
     }
-  }, [defaultModelId, dispatch, serverSideApiKeyIsSet, serverSidePluginKeysSet]);
+  }, [dispatch, serverSideApiKeyIsSet, serverSidePluginKeysSet]);
 
   useEffect(() => {
     if (user) {
@@ -484,7 +432,6 @@ const Home = ({
           conversationID: '',
           originalName: chat.name,
           messages: [],
-          model: OpenAIModels[chat.name as keyof typeof OpenAIModels],
           prompt: DEFAULT_SYSTEM_PROMPT,
           temperature: DEFAULT_TEMPERATURE,
           deletable: false,
@@ -500,7 +447,6 @@ const Home = ({
           name: t('New Conversation'),
           originalName: '',
           messages: [],
-          model: OpenAIModels[OpenAIModelID.DEEPSEEK_CHAT],
           prompt: DEFAULT_SYSTEM_PROMPT,
           temperature: DEFAULT_TEMPERATURE,
           folderId: null,
@@ -522,7 +468,6 @@ const Home = ({
 
       const loadedPrompt: Prompt[] = defaultPrompt.Prompts.map((prompt) => ({
         ...prompt,
-        model: OpenAIModels['gpt-3.5-turbo'],
         deletable: false,
       }));
       dispatch({ field: 'prompts', value: loadedPrompt });
@@ -627,18 +572,10 @@ const Home = ({
     </HomeContext.Provider>
   );
 };
+
 export default Home;
 
-// 获取服务器端的一些配置数据，并将这些数据作为组件的props传递给页面。
 export const getServerSideProps: GetServerSideProps = async ({ locale }) => {
-  const defaultModelId =
-    (process.env.DEFAULT_MODEL &&
-      Object.values(OpenAIModelID).includes(
-        process.env.DEFAULT_MODEL as OpenAIModelID,
-      ) &&
-      process.env.DEFAULT_MODEL) ||
-    fallbackModelID;
-
   let serverSidePluginKeysSet = false;
 
   const googleApiKey = process.env.GOOGLE_API_KEY;
@@ -650,8 +587,7 @@ export const getServerSideProps: GetServerSideProps = async ({ locale }) => {
 
   return {
     props: {
-      serverSideApiKeyIsSet: !!process.env.OPENAI_API_KEY,
-      defaultModelId,
+      serverSideApiKeyIsSet: !!process.env.DIFY_API_KEY,
       serverSidePluginKeysSet,
       ...(await serverSideTranslations(locale ?? 'en', [
         'common',

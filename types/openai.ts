@@ -5,7 +5,6 @@ import keys from '@/dify_keys.json';
 export enum ModelType {
   OPENAI = 'openai',
   DIFY = 'dify',
-  DEEPSEEK = 'deepseek',
   CLAUDE = 'claude',
   GEMINI = 'gemini',
   BAIDU = 'baidu',
@@ -34,15 +33,13 @@ export enum OpenAIModelID {
   智能助手 = '智能助手',
   课程助教 = '课程助教',
   校园助手 = '校园助手',
-  // 添加DeepSeek模型
-  DEEPSEEK_CHAT = 'deepseek-chat',
   // 为未来的模型预留位置
   CLAUDE = 'claude',
   GEMINI = 'gemini',
 }
 
-// in case the `DEFAULT_MODEL` environment variable is not set or set to an unsupported model
-export const fallbackModelID = OpenAIModelID.DEEPSEEK_CHAT;
+// 修改默认模型
+export const fallbackModelID = OpenAIModelID.智能助手;
 
 export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
   [OpenAIModelID.GPT_3_5]: {
@@ -132,15 +129,6 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
     tokenLimit: 4000,
     key: keys['校园助手'] || process.env.DIFY_API_KEY || '',
     apiType: ModelType.DIFY
-  },
-  // 添加DeepSeek模型配置
-  [OpenAIModelID.DEEPSEEK_CHAT]: {
-    id: OpenAIModelID.DEEPSEEK_CHAT,
-    name: 'DeepSeek',
-    maxLength: 16000,
-    tokenLimit: 8000,
-    key: process.env.DEEPSEEK_API_KEY || 'sk-ab2a2211867043e495918a0147bb620e',
-    apiType: ModelType.DEEPSEEK // 使用ModelType枚举
   },
   
   // 添加Claude模型配置

@@ -55,7 +55,7 @@ export const initialState: HomeInitialState = {
   currentFolder: undefined,
   messageError: false,
   searchTerm: '',
-  defaultModelId: OpenAIModelID.DEEPSEEK_CHAT,
+  defaultModelId: OpenAIModelID.智能助手,
   serverSideApiKeyIsSet: true,
   serverSidePluginKeysSet: false,
   user: 'unknown',

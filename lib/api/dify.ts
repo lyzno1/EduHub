@@ -1,7 +1,11 @@
 import { DifyResponse, DifyEvent, DifyMessageEvent } from '@/types/dify';
 
-const DIFY_API_BASE = 'http://localhost:8080';
-const DIFY_API_KEY = 'app-AomSdWL5wAUjnhBc1VyGo8RG';
+const DIFY_API_BASE = process.env.DIFY_API_URL || 'http://localhost:8080';
+const DIFY_API_KEY = process.env.DIFY_API_KEY;
+
+if (!DIFY_API_KEY) {
+  console.warn('警告: DIFY_API_KEY 未在环境变量中设置');
+}
 
 export interface StreamOptions {
   query: string;

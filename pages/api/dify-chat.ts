@@ -24,40 +24,34 @@ const handler = async (req: Request): Promise<Response> => {
     let query = messages[messages.length - 1].content;
     
     // 记录请求信息
-    console.log('API request received for dify-chat');
-    console.log('Model:', model.id);
-    console.log('Model key from model object:', model.key);
+    console.log('Dify API request received');
+    console.log('Model:', model.name);
     console.log('Message count:', messages.length);
     
     // 尝试从多个来源获取API密钥
     // 1. 首先从模型ID查找keys文件
     let apiKey = keys[model.id] || '';
-    console.log('API key from keys file:', apiKey ? '(found)' : '(not found)');
     
     // 2. 如果没有找到，使用model.key
     if (!apiKey && model.key) {
       apiKey = model.key;
-      console.log('Using API key from model.key');
     }
     
     // 3. 如果仍然没有，使用传入的key参数
     if (!apiKey && key) {
       apiKey = key;
-      console.log('Using API key from request key parameter');
     }
     
     // 4. 最后尝试环境变量
     if (!apiKey) {
       apiKey = process.env.DIFY_API_KEY || '';
-      console.log('Using API key from environment:', apiKey ? '(found)' : '(not found)');
     }
     
     if (!apiKey) {
-      console.error('No Dify API key available from any source');
+      console.error('No Dify API key available');
       return new Response('Dify API key is required', { status: 400 });
     }
     
-    console.log('Final API key status:', apiKey ? '(available)' : '(not available)');
     console.log('Conversation ID:', Dify_ConversationId || '(new conversation)');
     
     try {

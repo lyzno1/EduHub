@@ -1,81 +1,46 @@
 import { Plugin } from '@/types/plugin';
 import { ModelType } from '@/types/openai';
 
-export const getEndpoint = (plugin: Plugin | null) => {
-  if (plugin) {
-    return plugin.url;
-  }
-
-  // 动态选择默认API端点，不硬编码
-  return getModelEndpoint();
+// Dify API 配置
+export const DIFY_CONFIG = {
+  API_URL: process.env.NEXT_PUBLIC_DIFY_API_URL || 'http://localhost/v1/chat-messages',
+  API_KEY: process.env.NEXT_PUBLIC_DIFY_API_KEY || '',
 };
 
-// 设置默认API类型
-export const setDefaultApiType = (apiType: string) => {
+// 获取当前使用的API类型
+export const getApiType = () => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('defaultApiType', apiType);
-    console.log(`Default API type set to: ${apiType}`);
+    // 客户端渲染时从localStorage获取
+    const savedType = localStorage.getItem('apiType');
+    return savedType || 'dify'; // 默认为 dify
   }
+  return 'dify'; // 服务器端渲染时默认返回
 };
 
-// 获取默认API类型
-export const getDefaultApiType = (): string => {
-  if (typeof window !== 'undefined') {
-    const savedType = localStorage.getItem('defaultApiType');
-    return savedType || 'deepseek'; // 默认为deepseek
-  }
-  return 'deepseek'; // 服务器端渲染时默认返回
+// 根据插件获取API端点
+export const getEndpoint = (plugin: Plugin) => {
+  return `/api/${plugin.id}`;
 };
 
-// 统一的API端点路由函数
-export const getModelEndpoint = (modelType?: string) => {
-  console.log("Model type for API endpoint:", modelType);
-  
-  switch(modelType) {
-    case ModelType.DIFY:
-      console.log("Using Dify API endpoint");
-      return '/api/chat';
-    
-    case ModelType.DEEPSEEK:
-      console.log("Using DeepSeek API endpoint");
-      return '/api/deepseek-chat';
-      
-    case ModelType.CLAUDE:
-      console.log("Using Claude API endpoint");
-      return '/api/claude-chat';
-    
-    case ModelType.GEMINI:
-      console.log("Using Gemini API endpoint");
-      return '/api/gemini-chat';
-    
-    case ModelType.OPENAI:
-      console.log("Using OpenAI API endpoint");
-      return '/api/openai-chat';
-    
-    default:
-      // 使用getDefaultApiType获取默认API类型
-      const defaultApiType = getDefaultApiType();
-      console.log(`Using default API endpoint (${defaultApiType})`);
-      
-      if (defaultApiType === 'dify') {
-        return '/api/chat';
-      } else {
-        return '/api/deepseek-chat';
-      }
-  }
+// 根据模型类型获取API端点
+export const getModelEndpoint = () => {
+  return DIFY_CONFIG.API_URL;
 };
 
-// API错误处理统一函数
+// 获取 API Key
+export const getApiKey = () => {
+  return DIFY_CONFIG.API_KEY;
+};
+
+// 处理API错误
 export const handleApiError = (error: any) => {
-  console.error('API request failed:', error);
-  
-  // 标准化错误响应格式
+  console.error('API Error:', error);
   return {
     error: {
-      message: error instanceof Error ? error.message : 'An unknown error occurred',
-      type: 'server_error',
-      param: null,
+      message: error.message || 'An error occurred while processing your request.',
+      type: error.type || 'api_error',
+      param: error.param || null,
       code: error.code || null,
-    }
+    },
   };
 };

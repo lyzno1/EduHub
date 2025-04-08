@@ -1,4 +1,5 @@
 import { OpenAIModel } from './openai';
+import { Message } from './message';
 
 export interface Message {
   role: Role;
@@ -8,13 +9,23 @@ export interface Message {
 export type Role = 'assistant' | 'user';
 
 export interface ChatBody {
-  model: OpenAIModel;
-  messages: Message[];
-  key: string;
-  prompt: string;
-  temperature: number;
-  conversationID: string;
+  query: string;
+  inputs: Record<string, any>;
+  response_mode: 'streaming';
   user: string;
+  conversation_id?: string;
+  auto_generate_name?: boolean;
+}
+
+export interface ChatResponse {
+  event: 'message' | 'message_end' | 'error' | 'ping';
+  answer?: string;
+  conversation_id?: string;
+  message_id?: string;
+  created_at?: number;
+  usage?: {
+    total_tokens: number;
+  };
 }
 
 export interface Conversation {
@@ -22,11 +33,10 @@ export interface Conversation {
   name: string;
   originalName: string;
   messages: Message[];
-  model: OpenAIModel;
   prompt: string;
   temperature: number;
   folderId: string | null;
-  conversationID: string; // Dify Conversation ID
+  conversationID: string;
   deletable: boolean;
 }
 
