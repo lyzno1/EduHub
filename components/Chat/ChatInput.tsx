@@ -17,6 +17,7 @@ import {
 } from 'react';
 
 import { useTranslation } from 'next-i18next';
+import { cn } from '@/lib/utils';
 
 import { Message } from '@/types/chat';
 import { Plugin } from '@/types/plugin';
@@ -35,6 +36,8 @@ interface Props {
   stopConversationRef: MutableRefObject<boolean>;
   textareaRef: MutableRefObject<HTMLTextAreaElement | null>;
   showScrollDownButton: boolean;
+  disabled?: boolean;
+  isMobile?: boolean;
 }
 
 export const ChatInput = ({
@@ -44,6 +47,8 @@ export const ChatInput = ({
   stopConversationRef,
   textareaRef,
   showScrollDownButton,
+  disabled,
+  isMobile,
 }: Props) => {
   const { t } = useTranslation('chat');
 
@@ -119,14 +124,6 @@ export const ChatInput = ({
     }, 1000);
   };
 
-  const isMobile = () => {
-    const userAgent =
-      typeof window.navigator === 'undefined' ? '' : navigator.userAgent;
-    const mobileRegex =
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i;
-    return mobileRegex.test(userAgent);
-  };
-
   const handleInitModal = () => {
     const selectedPrompt = filteredPrompts[activePromptIndex];
     if (selectedPrompt) {
@@ -141,9 +138,8 @@ export const ChatInput = ({
     }
     setShowPromptList(false);
   };
-  // id => index
+
   useEffect(() => {
-    
     if (activePromptID) {
       const index = prompts.findIndex((prompt) => prompt.id === activePromptID);
       console.log('Found index:', index);
@@ -155,9 +151,7 @@ export const ChatInput = ({
     }
   }, [activePromptID]);
   
-  // index=>id
   useEffect(() => {
-    // 根据index获取id
     if (activePromptIndex >= 0) {
       const id = prompts[activePromptIndex].id;
       if (id !== activePromptID) {
@@ -192,7 +186,7 @@ export const ChatInput = ({
       } else {
         setActivePromptIndex(0);
       }
-    } else if (e.key === 'Enter' && !isTyping && !isMobile() && !e.shiftKey) {
+    } else if (e.key === 'Enter' && !isTyping && !isMobile && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     } else if (e.key === '/' && e.metaKey) {
@@ -287,196 +281,36 @@ export const ChatInput = ({
   }, []);
 
   return (
-    // <div className={`absolute bottom-0 left-0 w-full border-transparent bg-gradient-to-b from-transparent via-white to-white pt-6 dark:border-white/20 dark:via-[#343541] dark:to-[#343541] md:pt-2`}>
-    // 输入框附件的渐变色
-    <div
-      className={`absolute bottom-0 left-0 w-full border-transparent bg-gradient-to-b from-transparent pt-6 dark:border-white/20 ${
-        lightMode === 'red'
-          ? 'via-[#F2ECBE] to-[#F2ECBE]'
-          : lightMode === 'blue'
-          ? 'via-[#F6F4EB] to-[#F6F4EB]'
-          : lightMode === 'green'
-          ? 'via-[#FAF1E4] to-[#FAF1E4]'
-          : lightMode === 'purple'
-          ? 'via-[#C5DFF8] to-[#C5DFF8]'
-          : lightMode === 'brown'
-          ? 'via-[#F4EEE0] to-[#F4EEE0]'
-          : 'via-white to-white dark:via-[#343541] dark:to-[#343541]'
-      } md:pt-2`}
-    >
-      <div className="stretch mx-2 mt-4 flex flex-row gap-3 last:mb-2 md:mx-4 md:mt-[52px] md:last:mb-6 lg:mx-auto lg:max-w-3xl">
-        {messageIsStreaming && (
-          <button
-            className={`absolute top-0 left-0 right-0 mx-auto mb-3 flex w-fit items-center gap-3 rounded border border-neutral-200 py-2 px-4 text-black hover:opacity-50 dark:border-neutral-600 ${
-              lightMode === 'red'
-                ? 'bg-[#F2ECBE]'
-                : lightMode === 'blue'
-                ? 'bg-[#F6F4EB]'
-                : lightMode === 'green'
-                ? 'bg-[#FAF1E4]'
-                : lightMode === 'purple'
-                ? 'bg-[#C5DFF8]'
-                : lightMode === 'brown'
-                ? 'bg-[#F4EEE0]'
-                : 'bg-[#F6F6F6] dark:bg-[#343541]'
-            } dark:text-white md:mb-0 md:mt-2`}
-            onClick={handleStopConversation}
-          >
-            <IconPlayerStop size={16} /> {t('Stop Generating')}
-          </button>
+    <div className={cn(
+      'flex items-end gap-2 w-full bg-white rounded-lg border border-gray-200',
+      isMobile ? 'p-2' : 'p-4'
+    )}>
+      <textarea
+        className={cn(
+          'flex-1 min-h-[40px] max-h-[200px] p-2 resize-none bg-transparent border-0 focus:ring-0',
+          isMobile ? 'text-sm' : 'text-base'
         )}
-
-        {!messageIsStreaming &&
-          selectedConversation &&
-          selectedConversation.messages.length > 0 && (
-            <button
-              className={`absolute top-0 left-0 right-0 mx-auto mb-3 flex w-fit items-center gap-3 rounded border border-neutral-200 py-2 px-4 text-black hover:opacity-50 dark:border-neutral-600 ${
-                lightMode === 'red'
-                  ? 'bg-[#F2ECBE]'
-                  : lightMode === 'blue'
-                  ? 'bg-[#F6F4EB]'
-                  : lightMode === 'green'
-                  ? 'bg-[#FAF1E4]'
-                  : lightMode === 'purple'
-                  ? 'bg-[#C5DFF8]'
-                  : lightMode === 'brown'
-                  ? 'bg-[#F4EEE0]'
-                  : 'bg-[#F6F6F6] dark:bg-[#343541]'
-              } dark:text-white md:mb-0 md:mt-2`}
-              onClick={onRegenerate}
-            >
-              <IconRepeat size={16} /> {t('Regenerate response')}
-            </button>
-          )}
-
-        <div
-          className={`relative mx-2 flex w-full flex-grow flex-col rounded-md border border-black/10 shadow-[0_0_10px_rgba(0,0,0,0.10)] dark:border-gray-900/50 ${
-            lightMode === 'red'
-              ? 'bg-[#F2ECBE]'
-              : lightMode === 'blue'
-              ? 'bg-[#F6F4EB]'
-              : lightMode === 'green'
-              ? 'bg-[#FAF1E4]'
-              : lightMode === 'purple'
-              ? 'bg-[#C5DFF8]'
-              : lightMode === 'brown'
-              ? 'bg-[#F4EEE0]'
-              : 'bg-[#F6F6F6] dark:bg-[#343541]'
-          } dark:text-white dark:shadow-[0_0_15px_rgba(0,0,0,0.10)] sm:mx-4`}
-        >
-          <button
-            className="absolute left-2 top-2 rounded-sm p-1 text-neutral-800 opacity-60 hover:bg-neutral-200 hover:text-neutral-900 dark:bg-opacity-50 dark:text-neutral-100 dark:hover:text-neutral-200"
-            // onClick={() => setShowPluginSelect(!showPluginSelect)}
-            onKeyDown={(e) => {}}
-          >
-            {plugin ? <IconBrandGoogle size={20} /> : <IconBolt size={20} />}
-          </button>
-
-          {showPluginSelect && (
-            <div className="absolute left-0 bottom-14 rounded bg-white dark:bg-[#343541]">
-              <PluginSelect
-                plugin={plugin}
-                onKeyDown={(e: any) => {
-                  if (e.key === 'Escape') {
-                    e.preventDefault();
-                    setShowPluginSelect(false);
-                    textareaRef.current?.focus();
-                  }
-                }}
-                onPluginChange={(plugin: Plugin) => {
-                  setPlugin(plugin);
-                  setShowPluginSelect(false);
-
-                  if (textareaRef && textareaRef.current) {
-                    textareaRef.current.focus();
-                  }
-                }}
-              />
-            </div>
-          )}
-
-          <textarea
-            ref={textareaRef}
-            className="m-0 w-full resize-none border-0 bg-transparent p-0 py-2 pr-8 pl-10 text-black dark:bg-transparent dark:text-white md:py-3 md:pl-10"
-            style={{
-              resize: 'none',
-              bottom: `${textareaRef?.current?.scrollHeight}px`,
-              maxHeight: '400px',
-              overflow: `${
-                textareaRef.current && textareaRef.current.scrollHeight > 400
-                  ? 'auto'
-                  : 'hidden'
-              }`,
-            }}
-            placeholder={
-              t('Type a message or type "/" to select a prompt...') || ''
-            }
-            value={content}
-            rows={1}
-            onCompositionStart={() => setIsTyping(true)}
-            onCompositionEnd={() => setIsTyping(false)}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-          />
-
-          <button
-            className="absolute right-2 top-2 rounded-sm p-1 text-neutral-800 opacity-60 hover:bg-neutral-200 hover:text-neutral-900 dark:bg-opacity-50 dark:text-neutral-100 dark:hover:text-neutral-200"
-            onClick={handleSend}
-          >
-            {messageIsStreaming ? (
-              <div className="h-4 w-4 animate-spin rounded-full border-t-2 border-neutral-800 opacity-60 dark:border-neutral-100"></div>
-            ) : (
-              <IconSend size={18} />
-            )}
-          </button>
-
-          {showScrollDownButton && (
-            <div className="absolute bottom-12 right-0 lg:bottom-0 lg:-right-10">
-              <button
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-300 text-gray-800 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-neutral-200"
-                onClick={onScrollDownClick}
-              >
-                <IconArrowDown size={18} />
-              </button>
-            </div>
-          )}
-
-          {showPromptList && filteredPrompts.length > 0 && (
-            <div className="absolute bottom-12 w-full">
-              <PromptList
-                activePromptIndex={activePromptIndex}
-                prompts={filteredPrompts}
-                onSelect={handleInitModal}
-                onMouseOver={setActivePromptIndex}
-                promptListRef={promptListRef}
-              />
-            </div>
-          )}
-
-          {isModalVisible && (
-            <VariableModal
-              prompt={filteredPrompts[activePromptIndex]}
-              variables={variables}
-              onSubmit={handleSubmit}
-              onClose={() => setIsModalVisible(false)}
-            />
-          )}
-        </div>
-      </div>
-      {/* <div className="px-3 pt-2 pb-3 text-center text-[12px] text-black/50 dark:text-white/50 md:px-4 md:pt-3 md:pb-6">
-        <a
-          href="https://github.com/Sunny2567/chatbot-ui"
-          target="_blank"
-          rel="noreferrer"
-          className="underline"
-        >
-          Eduhub Copilot
-        </a>
-        .{' '}
-        {t(
-          "Eduhub Copilot is an advanced chatbot kit for OpenAI's chat models aiming to mimic ChatGPT's interface and functionality.",
+        placeholder="输入消息..."
+        value={content}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        disabled={disabled}
+        rows={1}
+      />
+      <button
+        className={cn(
+          'flex items-center justify-center rounded-lg bg-primary text-white',
+          isMobile ? 'w-8 h-8' : 'w-10 h-10',
+          disabled && 'opacity-50 cursor-not-allowed'
         )}
-      </div> */}
+        onClick={handleSend}
+        disabled={disabled}
+      >
+        <IconSend className={cn(
+          'text-white',
+          isMobile ? 'w-4 h-4' : 'w-5 h-5'
+        )} />
+      </button>
     </div>
   );
 };

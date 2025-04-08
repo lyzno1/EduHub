@@ -96,7 +96,20 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   // 获取消息数量
   const messagesLength = selectedConversation?.messages?.length || 0;
 
-  // 添加欢迎界面相关样式
+  // 添加移动端检测
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // 获取欢迎界面相关样式
   useEffect(() => {
     // 创建样式表
     const styleEl = document.createElement('style');
@@ -266,7 +279,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     };
   }, [messagesLength, bottomInputHeight]);
 
-  // 监听滚动事件，根据需要显示滚动按钮
+  // 优化事件监听，同时支持触摸和鼠标事件
   useEffect(() => {
     if (!chatContainerRef.current) return;
     
@@ -276,59 +289,75 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
       const scrollPosition = scrollHeight - scrollTop - clientHeight;
       
-      // 判断是否是初始状态（没有消息）
       const isInitialState = !selectedConversation || selectedConversation.messages.length === 0;
+      const isUserInteracting = document.body.classList.contains('user-is-interacting');
       
-      // 添加一个标记，表示用户是否正在拖动滚动条
-      const isUserDragging = document.body.classList.contains('user-is-dragging-scrollbar');
-      
-      if (scrollPosition > 100 && !scrollButtonLockRef.current && !isUserDragging) {
-        // 距离底部超过阈值，禁用自动滚动
+      if (scrollPosition > 100 && !scrollButtonLockRef.current && !isUserInteracting) {
         setAutoScrollEnabled(false);
-        
-        // 只有在非初始状态(有消息)的情况下，才显示滚动按钮
         if (!isInitialState) {
           setShowScrollDownButton(true);
         } else {
           setShowScrollDownButton(false);
         }
-      } else if (scrollPosition <= 100 && !isUserDragging) {
-        // 距离底部在阈值内，启用自动滚动
+      } else if (scrollPosition <= 100 && !isUserInteracting) {
         setAutoScrollEnabled(true);
         setShowScrollDownButton(false);
       }
     };
     
-    // 监听鼠标按下事件，检测用户是否开始拖动滚动条
-    const handleMouseDown = (e: MouseEvent) => {
-      // 检查鼠标点击是否在滚动条区域
-      if (e.target instanceof Element && 
-          (e.target.classList.contains('chat-scrollbar-custom-thumb') || 
-           e.target.closest('.chat-scrollbar-custom-overlay'))) {
-        document.body.classList.add('user-is-dragging-scrollbar');
-      }
+    // 统一处理用户交互事件
+    const handleInteractionStart = () => {
+      document.body.classList.add('user-is-interacting');
     };
     
-    // 监听鼠标释放事件，检测用户是否停止拖动滚动条
-    const handleMouseUp = () => {
-      document.body.classList.remove('user-is-dragging-scrollbar');
+    const handleInteractionEnd = () => {
+      document.body.classList.remove('user-is-interacting');
+      handleScroll();
     };
     
-    chatContainerRef.current.addEventListener('scroll', handleScroll);
-    document.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('mouseup', handleMouseUp);
+    const container = chatContainerRef.current;
     
-    // 初始检查一次状态
-    handleScroll();
+    // 移动端触摸事件
+    container.addEventListener('touchstart', handleInteractionStart, { passive: true });
+    container.addEventListener('touchend', handleInteractionEnd, { passive: true });
+    
+    // 桌面端鼠标事件
+    container.addEventListener('mousedown', handleInteractionStart);
+    container.addEventListener('mouseup', handleInteractionEnd);
+    
+    // 滚动事件
+    container.addEventListener('scroll', handleScroll, { passive: true });
     
     return () => {
-      if (chatContainerRef.current) {
-        chatContainerRef.current.removeEventListener('scroll', handleScroll);
-      }
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('mouseup', handleMouseUp);
+      container.removeEventListener('touchstart', handleInteractionStart);
+      container.removeEventListener('touchend', handleInteractionEnd);
+      container.removeEventListener('mousedown', handleInteractionStart);
+      container.removeEventListener('mouseup', handleInteractionEnd);
+      container.removeEventListener('scroll', handleScroll);
     };
-  }, [selectedConversation, scrollButtonLockRef]);
+  }, [selectedConversation]);
+
+  // 优化消息流更新
+  useEffect(() => {
+    if (!selectedConversation?.messages || !autoScrollEnabled) return;
+    
+    const lastMessage = selectedConversation.messages[selectedConversation.messages.length - 1];
+    if (!lastMessage) return;
+    
+    const updateScroll = () => {
+      if (!chatContainerRef.current || !autoScrollEnabled) return;
+      
+      const shouldScroll = !document.body.classList.contains('user-is-interacting');
+      if (shouldScroll) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      }
+    };
+    
+    // 使用 requestAnimationFrame 优化滚动性能
+    if (lastMessage.content) {
+      requestAnimationFrame(updateScroll);
+    }
+  }, [selectedConversation?.messages, autoScrollEnabled]);
 
   const handleSend = useCallback(
     async (message: Message, deleteCount = 0, plugin: Plugin | null = null) => {
@@ -362,7 +391,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         setTimeout(() => {
           handleScrollDown();
         }, 50);
-
+        
         try {
           const difyClient = getDifyClient();
           // 创建聊天流
@@ -391,28 +420,28 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             
             // 如果是第一个数据块，添加助手消息到对话中
             if (!assistantMessage.content) {
-              updatedConversation = {
-                ...updatedConversation,
+                                updatedConversation = {
+                                  ...updatedConversation,
                 messages: [...updatedConversation.messages, assistantMessage],
-              };
-              homeDispatch({
-                field: 'selectedConversation',
-                value: updatedConversation,
-              });
+                                };
+                                homeDispatch({
+                                  field: 'selectedConversation',
+                                  value: updatedConversation,
+                                });
             }
             
             // 更新助手消息内容
             assistantMessage.content += chunk;
             
-            updatedConversation = {
-              ...updatedConversation,
+                                updatedConversation = {
+                                  ...updatedConversation,
               messages: [...updatedConversation.messages],
-            };
+                                };
             
-            homeDispatch({
-              field: 'selectedConversation',
-              value: updatedConversation,
-            });
+                                homeDispatch({
+                                  field: 'selectedConversation',
+                                  value: updatedConversation,
+                                });
             
             // 确保滚动到底部
             handleScrollDown();
@@ -430,14 +459,14 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             homeDispatch({ field: 'messageIsStreaming', value: false });
             
             // 保存对话
-            saveConversation(updatedConversation);
+                saveConversation(updatedConversation);
           });
 
-        } catch (error: unknown) {
+            } catch (error: unknown) {
           console.error('Error in handleSend:', error);
           const errorMessage = error instanceof Error ? error.message : '未知错误';
           toast.error(errorMessage);
-          homeDispatch({ field: 'messageIsStreaming', value: false });
+                homeDispatch({ field: 'messageIsStreaming', value: false });
         }
       }
     },
