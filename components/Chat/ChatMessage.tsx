@@ -139,6 +139,13 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
 
   // 判断是否为用户消息
   const isUser = message.role === 'user';
+  // 判断是否为空的助手消息（等待流式输出）
+  const isEmptyAssistantMessage = !isUser && message.content === '';
+
+  // 如果是空的助手消息，直接返回 null
+  if (isEmptyAssistantMessage) {
+    return null;
+  }
 
   return (
     <div className={`flex justify-center py-3 w-full`}>
@@ -220,86 +227,67 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
             </div>
           </div>
         ) : (
-          // AI助手消息 - 移除气泡样式，让它占据全宽
-          <div className="w-full group relative pb-8">
-            <div className="flex items-center text-xs text-gray-500 mb-1">
-              <span>AI助手</span>
-            </div>
-            <div className="w-full text-gray-800 dark:text-gray-200 text-sm leading-relaxed">
-              <MemoizedReactMarkdown
-                className="prose dark:prose-invert prose-p:my-1 prose-pre:my-2 max-w-none"
-                remarkPlugins={[remarkGfm, remarkMath]}
-                rehypePlugins={[rehypeMathjax]}
-                components={{
-                  code({ node, inline, className, children, ...props }) {
-                    if (children.length) {
-                      if (children[0] == '▍') {
-                        return <span className="animate-pulse cursor-default mt-1">▍</span>;
+          // 助手消息
+          <div className="flex flex-row">
+            <div className="pl-12 relative flex-1">
+              <div className="prose dark:prose-invert mt-[-2px] w-full break-words">
+                <MemoizedReactMarkdown
+                  className="prose break-words dark:prose-invert flex-1"
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeMathjax]}
+                  components={{
+                    code({ node, inline, className, children, ...props }) {
+                      if (children.length) {
+                        if (children[0] == '▍') {
+                          return <span className="animate-pulse cursor-default mt-1">▍</span>;
+                        }
+
+                        children[0] = (children[0] as string).replace('`▍`', '▍');
                       }
 
-                      children[0] = (children[0] as string).replace('`▍`', '▍');
-                      
-                      // 不需要对行内代码做特殊处理，React Markdown已经处理掉了反引号
-                    }
+                      const match = /language-(\w+)/.exec(className || '');
 
-                    const match = /language-(\w+)/.exec(className || '');
-
-                    return !inline ? (
-                      <CodeBlock
-                        key={Math.random()}
-                        language={(match && match[1]) || ''}
-                        value={String(children).replace(/\n$/, '')}
-                        {...props}
-                      />
-                    ) : (
-                      <code className={className} {...props}>
-                        {children}
-                      </code>
-                    );
-                  },
-                  table({ children }) {
-                    return (
-                      <div className="overflow-x-auto my-2">
-                        <table className="border-collapse border border-black px-3 py-1 dark:border-white">
+                      return !inline ? (
+                        <CodeBlock
+                          key={Math.random()}
+                          language={(match && match[1]) || ''}
+                          value={String(children).replace(/\n$/, '')}
+                          {...props}
+                        />
+                      ) : (
+                        <code className={className} {...props}>
                           {children}
-                        </table>
-                      </div>
-                    );
-                  },
-                  th({ children }) {
-                    return (
-                      <th className="break-words border border-black bg-gray-500 px-3 py-1 text-white dark:border-white">
-                        {children}
-                      </th>
-                    );
-                  },
-                  td({ children }) {
-                    return (
-                      <td className="break-words border border-black px-3 py-1 dark:border-white">
-                        {children}
-                      </td>
-                    );
-                  },
-                }}
-              >
-                {`${message.content}${
-                  messageIsStreaming && messageIndex == (selectedConversation?.messages.length ?? 0) - 1 ? '`▍`' : ''
-                }`}
-              </MemoizedReactMarkdown>
-            </div>
-            {/* 模型输出的复制按钮始终可见，无文字版本 */}
-            <div className="absolute bottom-0 left-0 z-10">
-              <button
-                className={`flex items-center justify-center rounded-md p-1.5 text-xs ${
-                  messagedCopied ? 'text-green-500 bg-green-50 dark:bg-gray-800' : 'text-gray-500 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700'
-                } transition-colors duration-200 shadow-sm`}
-                onClick={copyOnClick}
-                onMouseDown={(e) => e.preventDefault()}
-                data-tooltip={messagedCopied ? "已复制到剪贴板" : "复制全部内容"}
-                data-placement="right"
-              >
-                {messagedCopied ? <IconCheck size={15} /> : <IconCopy size={15} />}
-              </button>
+                        </code>
+                      );
+                    },
+                    table({ children }) {
+                      return (
+                        <div className="overflow-x-auto my-2">
+                          <table className="border-collapse border border-black px-3 py-1 dark:border-white">
+                            {children}
+                          </table>
+                        </div>
+                      );
+                    },
+                    th({ children }) {
+                      return (
+                        <th className="break-words border border-black bg-gray-500 px-3 py-1 text-white dark:border-white">
+                          {children}
+                        </th>
+                      );
+                    },
+                    td({ children }) {
+                      return (
+                        <td className="break-words border border-black px-3 py-1 dark:border-white">
+                          {children}
+                        </td>
+                      );
+                    },
+                  }}
+                >
+                  {message.content}
+                </MemoizedReactMarkdown>
+              </div>
             </div>
           </div>
         )}

@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 
 import { useTranslation } from 'next-i18next';
 
-import { getEndpoint, getModelEndpoint } from '@/utils/app/api';
+import { getEndpoint, getDifyClient } from '@/utils/app/api';
 import {
   saveConversation,
   saveConversations,
@@ -20,8 +20,9 @@ import {
 } from '@/utils/app/conversation';
 import { throttle } from '@/utils/data/throttle';
 
-import { ChatBody, Conversation, Message } from '@/types/chat';
+import { ChatBody, Conversation } from '@/types/chat';
 import { Plugin } from '@/types/plugin';
+import { Message } from '@/services/dify/types';
 
 import HomeContext from '@/pages/api/home/home.context';
 
@@ -38,6 +39,7 @@ import { FunctionCards } from './FunctionCards';
 import { ChatInput } from './ChatInput';
 import { ChatMessage } from './ChatMessage';
 import { streamDifyChat } from '@/services/useApiService';
+import { DifyClient } from '../../services/dify/client';
 
 // 添加主题类型定义
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
@@ -330,11 +332,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
   const handleSend = useCallback(
     async (message: Message, deleteCount = 0, plugin: Plugin | null = null) => {
-      // 是否存在选定的会话
       if (selectedConversation) {
         let updatedConversation: Conversation;
-        // 如果deleteCount大于0，则从当前会话的消息数组中删除最后deleteCount条消息，
-        // 并创建一个新的更新后的会话对象updatedConversation，将新的消息添加到其中。
         if (deleteCount) {
           const updatedMessages = [...selectedConversation.messages];
           for (let i = 0; i < deleteCount; i++) {
@@ -345,263 +344,104 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             messages: [...updatedMessages, message],
           };
         } else {
-          // 如果deleteCount等于0，则直接创建一个新的更新后的会话对象updatedConversation，
-          // 将新的消息添加到当前会话的消息数组中。
           updatedConversation = {
             ...selectedConversation,
             messages: [...selectedConversation.messages, message],
           };
         }
         
-        // 更新状态
         homeDispatch({
           field: 'selectedConversation',
           value: updatedConversation,
         });
-        homeDispatch({ field: 'loading', value: true });
+        
+        // 设置消息流状态
         homeDispatch({ field: 'messageIsStreaming', value: true });
         
         // 确保在发送消息时，视图滚动到底部
         setTimeout(() => {
           handleScrollDown();
         }, 50);
-        
-        const chatBody = {
-          inputs: {},
-          query: message.content,
-          response_mode: 'streaming',
-          conversation_id: updatedConversation.conversationID || '',
-          user: user || 'default-user'
-        };
 
-        const endpoint = getModelEndpoint();
-        
-        if (!endpoint) {
-          homeDispatch({ field: 'loading', value: false });
-          homeDispatch({ field: 'messageIsStreaming', value: false });
-          toast.error(t('无法确定API端点，请检查配置'));
-          return;
-        }
+        try {
+          const difyClient = getDifyClient();
+          // 创建聊天流
+          const stream = await difyClient.createChatStream({
+            query: message.content,
+            key: apiKey || process.env.NEXT_PUBLIC_DIFY_API_KEY || '',
+            user: user || 'anonymous',
+            conversationId: updatedConversation.conversationID || '',
+            autoGenerateName: true,
+            inputs: {},
+          });
 
-        // 添加重试机制
-        const maxRetries = 3;
-        let retryCount = 0;
-        let lastError = null;
+          // 设置消息流状态
+          homeDispatch({ field: 'messageIsStreaming', value: true });
 
-        while (retryCount < maxRetries) {
-          try {
-            const body = JSON.stringify(chatBody);
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
+          // 创建初始的助手消息
+          const assistantMessage: Message = {
+            role: 'assistant',
+            content: '',
+            id: Date.now().toString(),
+          };
 
-            try {
-              const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${apiKey || process.env.NEXT_PUBLIC_DIFY_API_KEY}`,
-                },
-                signal: controller.signal,
-                body,
+          // 处理流式响应
+          stream.onMessage((chunk: string) => {
+            console.log('Received chunk:', chunk);
+            
+            // 如果是第一个数据块，添加助手消息到对话中
+            if (!assistantMessage.content) {
+              updatedConversation = {
+                ...updatedConversation,
+                messages: [...updatedConversation.messages, assistantMessage],
+              };
+              homeDispatch({
+                field: 'selectedConversation',
+                value: updatedConversation,
               });
-
-              clearTimeout(timeoutId);
-
-              if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-              }
-
-              const data = response.body;
-              if (!data) {
-                throw new Error('No data received from the server');
-              }
-
-              // 成功获取响应，处理流式数据
-              if (updatedConversation.messages.length === 1) {
-                const { content } = message;
-                const customName =
-                  content.length > 30 ? content.substring(0, 30) + '...' : content;
-                updatedConversation = {
-                  ...updatedConversation,
-                  name: customName,
-                };
-              }
-              homeDispatch({ field: 'loading', value: false });
-              const reader = data.getReader();
-              const decoder = new TextDecoder();
-              let done = false;
-              let isFirst = true;
-              let accumulatedText = '';
-              let text = '';
-
-              while (!done) {
-                if (stopConversationRef.current === true) {
-                  controller.abort();
-                  done = true;
-                  break;
-                }
-
-                try {
-                  const { value, done: doneReading } = await reader.read();
-                  done = doneReading;
-
-                  if (done) break;
-
-                  accumulatedText += decoder.decode(value);
-
-                  while (accumulatedText.includes('\n')) {
-                    const splitIndex = accumulatedText.indexOf('\n');
-                    const line = accumulatedText.slice(0, splitIndex).trim();
-                    
-                    if (line.startsWith('data: ')) {
-                      try {
-                        const jsonData = JSON.parse(line.slice(5));
-                        
-                        switch(jsonData.event) {
-                          case 'message':
-                            const chunkValue = jsonData.answer || '';
-                            if (chunkValue) {
-                              text += chunkValue;
-                              
-                              if (isFirst) {
-                                isFirst = false;
-                                const updatedMessages: Message[] = [
-                                  ...updatedConversation.messages,
-                                  { role: 'assistant', content: chunkValue },
-                                ];
-                                updatedConversation = {
-                                  ...updatedConversation,
-                                  messages: updatedMessages,
-                                };
-                                homeDispatch({
-                                  field: 'selectedConversation',
-                                  value: updatedConversation,
-                                });
-                              } else {
-                                const updatedMessages: Message[] = updatedConversation.messages.map(
-                                  (message, index) => {
-                                    if (index === updatedConversation.messages.length - 1) {
-                                      return {
-                                        ...message,
-                                        content: text,
-                                      };
-                                    }
-                                    return message;
-                                  }
-                                );
-                                updatedConversation = {
-                                  ...updatedConversation,
-                                  messages: updatedMessages,
-                                };
-                                homeDispatch({
-                                  field: 'selectedConversation',
-                                  value: updatedConversation,
-                                });
-                              }
-                            }
-                            
-                            if (jsonData.conversation_id) {
-                              updatedConversation = {
-                                ...updatedConversation,
-                                conversationID: jsonData.conversation_id,
-                              };
-                            }
-                            break;
-                            
-                          case 'message_end':
-                            if (jsonData.metadata?.usage) {
-                              console.log('Chat completed. Usage:', jsonData.metadata.usage);
-                            }
-                            break;
-                            
-                          case 'error':
-                            console.error('Error from API:', jsonData.message);
-                            toast.error(jsonData.message || '发生错误');
-                            break;
-                        }
-                      } catch (e: unknown) {
-                        console.error('Error parsing SSE message:', e);
-                        continue;
-                      }
-                    }
-                    
-                    accumulatedText = accumulatedText.slice(splitIndex + 1);
-                  }
-                } catch (e: unknown) {
-                  if (e instanceof Error && e.name === 'AbortError') {
-                    console.log('Fetch aborted');
-                    break;
-                  }
-                  console.error('Error reading stream:', e);
-                  throw e;
-                }
-              }
-
-              // 保存会话状态
-              try {
-                saveConversation(updatedConversation);
-                const updatedConversations: Conversation[] = conversations.map(
-                  (conversation) => {
-                    if (conversation.id === selectedConversation.id) {
-                      return updatedConversation;
-                    }
-                    return conversation;
-                  },
-                );
-                if (updatedConversations.length === 0) {
-                  updatedConversations.push(updatedConversation);
-                }
-                homeDispatch({ field: 'conversations', value: updatedConversations });
-                saveConversations(updatedConversations);
-              } catch (e: unknown) {
-                console.error('Error saving conversation:', e);
-                toast.error(t('保存会话失败'));
-              }
-
-              homeDispatch({ field: 'messageIsStreaming', value: false });
-              break; // 成功完成，跳出重试循环
-
-            } catch (error: unknown) {
-              clearTimeout(timeoutId);
-              lastError = error;
-              console.error(`Attempt ${retryCount + 1} failed:`, error);
-              
-              if (error instanceof Error && error.name === 'AbortError') {
-                break;
-              }
-              
-              if (retryCount === maxRetries - 1) {
-                homeDispatch({ field: 'loading', value: false });
-                homeDispatch({ field: 'messageIsStreaming', value: false });
-                toast.error(t('请求失败，请稍后重试'));
-                throw error;
-              }
-              
-              await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-              retryCount++;
             }
-          } catch (error: unknown) {
-            lastError = error;
-            if (retryCount === maxRetries - 1) {
-              console.error('All retry attempts failed:', error);
-              homeDispatch({ field: 'loading', value: false });
-              homeDispatch({ field: 'messageIsStreaming', value: false });
-              toast.error(t('发送消息失败，请稍后重试'));
-              break;
-            }
-            retryCount++;
-          }
+            
+            // 更新助手消息内容
+            assistantMessage.content += chunk;
+            
+            updatedConversation = {
+              ...updatedConversation,
+              messages: [...updatedConversation.messages],
+            };
+            
+            homeDispatch({
+              field: 'selectedConversation',
+              value: updatedConversation,
+            });
+            
+            // 确保滚动到底部
+            handleScrollDown();
+          });
+
+          stream.onError((error: unknown) => {
+            console.error('Stream error:', error);
+            const errorMessage = error instanceof Error ? error.message : '未知错误';
+            toast.error(errorMessage);
+            homeDispatch({ field: 'messageIsStreaming', value: false });
+          });
+
+          stream.onComplete(() => {
+            console.log('Stream completed');
+            homeDispatch({ field: 'messageIsStreaming', value: false });
+            
+            // 保存对话
+            saveConversation(updatedConversation);
+          });
+
+        } catch (error: unknown) {
+          console.error('Error in handleSend:', error);
+          const errorMessage = error instanceof Error ? error.message : '未知错误';
+          toast.error(errorMessage);
+          homeDispatch({ field: 'messageIsStreaming', value: false });
         }
       }
     },
-    [
-      apiKey,
-      conversations,
-      selectedConversation,
-      stopConversationRef,
-      handleScrollDown,
-    ],
+    [apiKey, selectedConversation, homeDispatch, handleScrollDown],
   );
 
   const handleSettings = () => {
@@ -1122,7 +962,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                   />
                 ))}
 
-                {loading && <ChatLoader />}
+                {messageIsStreaming && <ChatLoader messageIsStreaming={messageIsStreaming} />}
 
                 {/* 添加底部空白区域，确保内容可见性 */}
                 <div 

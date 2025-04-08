@@ -1,11 +1,17 @@
 import { Plugin } from '@/types/plugin';
 import { ModelType } from '@/types/openai';
+import { DifyClient } from '@/services/dify';
+import { getDifyConfig, difyAppConfig } from '@/config/dify';
 
-// Dify API 配置
-export const DIFY_CONFIG = {
-  API_URL: process.env.NEXT_PUBLIC_DIFY_API_URL || 'http://localhost/v1/chat-messages',
-  API_KEY: process.env.NEXT_PUBLIC_DIFY_API_KEY || '',
-};
+// 创建默认的 DifyClient 实例
+const defaultClient = new DifyClient(getDifyConfig());
+
+// 注册默认应用配置
+difyAppConfig.registerApp({
+  appId: process.env.NEXT_PUBLIC_DIFY_APP_ID || 'default',
+  apiKey: process.env.NEXT_PUBLIC_DIFY_API_KEY || '',
+  model: process.env.NEXT_PUBLIC_DIFY_MODEL,
+});
 
 // 获取当前使用的API类型
 export const getApiType = () => {
@@ -22,14 +28,31 @@ export const getEndpoint = (plugin: Plugin) => {
   return `/api/${plugin.id}`;
 };
 
-// 根据模型类型获取API端点
-export const getModelEndpoint = () => {
-  return DIFY_CONFIG.API_URL;
+// 获取 DifyClient 实例
+export const getDifyClient = () => {
+  return defaultClient;
 };
 
 // 获取 API Key
 export const getApiKey = () => {
-  return DIFY_CONFIG.API_KEY;
+  return difyAppConfig.getCurrentConfig().apiKey;
+};
+
+// 切换 Dify 应用
+export const switchDifyApp = (appId: string) => {
+  difyAppConfig.switchApp(appId);
+  const config = difyAppConfig.getCurrentConfig();
+  defaultClient.setAppId(appId);
+  if (config.model) {
+    defaultClient.setModel(config.model);
+  }
+};
+
+// 切换 Dify 模型
+export const switchDifyModel = (model: string) => {
+  const config = difyAppConfig.getCurrentConfig();
+  difyAppConfig.updateAppConfig(config.appId, { model });
+  defaultClient.setModel(model);
 };
 
 // 处理API错误
