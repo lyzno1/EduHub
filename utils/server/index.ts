@@ -37,9 +37,15 @@ export const DifyStream = async (
         response_mode: 'streaming',
         user: user || 'anonymous-user',
         inputs: {},
-        conversation_id: existingConversationId || '',
+        ...(existingConversationId ? { conversation_id: existingConversationId } : {}),
         auto_generate_name: true
       };
+      
+      console.log('DifyStream请求参数:', {
+        url,
+        conversationId: existingConversationId || '未设置',
+        isMobile
+      });
       
       const controller = new AbortController();
       const timeoutDuration = Number(process.env.DIFY_API_TIMEOUT || (isMobile ? 60000 : 30000)); // 移动端延长超时时间

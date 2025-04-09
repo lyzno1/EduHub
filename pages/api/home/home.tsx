@@ -182,26 +182,21 @@ const Home = ({
   // CONVERSATION OPERATIONS  --------------------------------------------
 
   const handleNewConversation = () => {
-    // 先检查是否已经存在空的新聊天
+    // 先保存当前对话的状态
+    if (selectedConversation && selectedConversation.messages.length > 0) {
+      saveConversation(selectedConversation);
+    }
+
+    // 检查是否已经存在空的新聊天
     const existingNewChat = conversations.find(
       (chat) => chat.messages.length === 0 && chat.name === t('New Conversation')
     );
 
     if (existingNewChat) {
-      // 如果存在空的新聊天，重新排序确保它在最前面
-      const updatedConversations = conversations.filter(chat => chat.id !== existingNewChat.id);
-      updatedConversations.unshift(existingNewChat);
-      
+      // 如果存在空的新聊天，直接选中它
       dispatch({ field: 'selectedConversation', value: existingNewChat });
-      dispatch({ field: 'conversations', value: updatedConversations });
-      
-      saveConversation(existingNewChat);
-      saveConversations(updatedConversations);
       return;
     }
-
-    // 生成唯一的会话ID
-    const newConversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     const newConversation: Conversation = {
       id: uuidv4(),
@@ -211,18 +206,19 @@ const Home = ({
       prompt: DEFAULT_SYSTEM_PROMPT,
       temperature: DEFAULT_TEMPERATURE,
       folderId: null,
-      conversationID: newConversationId, // 使用生成的会话ID
+      conversationID: '',  // 初始为空字符串，让后端生成conversationID
       deletable: true,
     };
 
-    // 将新对话添加到数组开头
+    // 将新对话添加到数组开头，保持现有对话不变
     const updatedConversations = [newConversation, ...conversations];
 
-    dispatch({ field: 'selectedConversation', value: newConversation });
-    dispatch({ field: 'conversations', value: updatedConversations });
-
-    saveConversation(newConversation);
+    // 先保存所有对话
     saveConversations(updatedConversations);
+    
+    // 再更新状态
+    dispatch({ field: 'conversations', value: updatedConversations });
+    dispatch({ field: 'selectedConversation', value: newConversation });
     
     console.log('创建新会话:', {
       id: newConversation.id,

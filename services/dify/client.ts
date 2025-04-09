@@ -8,10 +8,15 @@ export interface Message {
   id?: string;
 }
 
+export type MessageCallback = (chunk: string) => void;
+export type ErrorCallback = (error: Error) => void;
+export type CompleteCallback = () => void;
+
 export interface DifyStream {
-  onMessage: (callback: (chunk: string) => void) => void;
-  onError: (callback: (error: Error) => void) => void;
-  onComplete: (callback: () => void) => void;
+  onMessage: (callback: MessageCallback) => void;
+  onError: (callback: ErrorCallback) => void;
+  onComplete: (callback: CompleteCallback) => void;
+  conversationId?: string;
 }
 
 export interface RequestBody {
@@ -53,6 +58,10 @@ export class DifyClient {
     const safeConfig = config || {};
     let rawUrl = safeConfig.apiUrl || process.env.NEXT_PUBLIC_DIFY_API_URL || DEFAULT_API_URL;
     
+    // 确保baseUrl不包含API路径
+    if (rawUrl.endsWith(API_PATHS.CHAT_MESSAGES)) {
+      rawUrl = rawUrl.slice(0, -API_PATHS.CHAT_MESSAGES.length);
+    }
     // 确保baseUrl不以斜杠结尾
     this.baseUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
     this.currentModel = 'dify';
@@ -91,37 +100,48 @@ export class DifyClient {
     temperature
   }: ChatParams): Promise<DifyStream> {
     return new Promise(async (resolve, reject) => {
-      let messageCallback: ((chunk: string) => void) | null = null;
-      let errorCallback: ((error: Error) => void) | null = null;
-      let completeCallback: (() => void) | null = null;
+      let messageCallback: MessageCallback | undefined;
+      let errorCallback: ErrorCallback | undefined;
+      let completeCallback: CompleteCallback | undefined;
+      let streamConversationId = conversationId;
 
       const stream: DifyStream = {
-        onMessage: (callback: (chunk: string) => void) => {
+        onMessage: (callback: MessageCallback) => {
           messageCallback = callback;
         },
-        onError: (callback: (error: Error) => void) => {
+        onError: (callback: ErrorCallback) => {
           errorCallback = callback;
         },
-        onComplete: (callback: () => void) => {
+        onComplete: (callback: CompleteCallback) => {
           completeCallback = callback;
+        },
+        get conversationId() {
+          return streamConversationId;
+        }
+      };
+
+      const handleError = (error: Error) => {
+        if (errorCallback) {
+          errorCallback(error);
         }
       };
 
       try {
-        const apiEndpoint = this.baseUrl;
+        const apiEndpoint = `${this.baseUrl}${API_PATHS.CHAT_MESSAGES}`;
         
         if (this.debug) {
           console.log('创建聊天流 - 配置信息:', {
             endpoint: apiEndpoint,
-            conversationId,
-            user
+            conversationId: streamConversationId,
+            user,
+            key: key ? '已设置' : '未设置'
           });
         }
 
         const requestParams = {
           query,
           response_mode: 'streaming',
-          conversation_id: conversationId,
+          ...(streamConversationId ? { conversation_id: streamConversationId } : {}),
           user: user,
           inputs: inputs || {},
           auto_generate_name: autoGenerateName,
@@ -146,12 +166,11 @@ export class DifyClient {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${key}`,
               'Accept': 'text/event-stream',
-              'Connection': 'keep-alive',
-              'Cache-Control': 'no-cache',
               ...(this.currentAppId && { 'X-App-ID': this.currentAppId })
             },
             body: JSON.stringify(requestParams),
-            signal: controller.signal
+            signal: controller.signal,
+            credentials: 'same-origin'
           });
 
           clearTimeout(timeoutId);
@@ -161,6 +180,12 @@ export class DifyClient {
             try {
               const errorData = await response.json();
               errorMessage = errorData.message || errorMessage;
+              
+              if (errorMessage.includes('Conversation Not Exists')) {
+                streamConversationId = '';
+                handleError(new Error('Conversation Not Exists'));
+                return;
+              }
             } catch (e) {
               console.error('解析错误响应失败:', e);
             }
@@ -175,92 +200,99 @@ export class DifyClient {
           const decoder = new TextDecoder();
           let buffer = '';
 
-          const processStream = async () => {
+          const processStreamData = async () => {
             try {
               while (true) {
                 const { done, value } = await reader.read();
-                
+
                 if (done) {
-                  if (completeCallback) completeCallback();
+                  if (completeCallback) {
+                    completeCallback();
+                  }
                   break;
                 }
 
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
+                const text = decoder.decode(value, { stream: true });
+                buffer += text;
+
+                const lines = buffer.split('\n\n');
                 buffer = lines.pop() || '';
 
                 for (const line of lines) {
-                  if (line.trim() === '') continue;
-                  
-                  if (line.startsWith('data: ')) {
-                    const eventData = line.slice(6);
-                    
-                    try {
-                      const data = JSON.parse(eventData) as ChatResponse;
-                      
-                      switch (data.event) {
-                        case EVENTS.MESSAGE:
-                          if (data.answer && messageCallback) {
-                            messageCallback(data.answer);
-                          }
-                          break;
+                  if (!line.trim() || !line.startsWith('data:')) continue;
 
-                        case EVENTS.MESSAGE_END:
-                          if (completeCallback) completeCallback();
-                          return;
-
-                        case EVENTS.ERROR:
-                          const errorMsg = data.answer || 'Unknown error from server';
-                          if (errorCallback) {
-                            errorCallback(new Error(errorMsg));
-                          }
-                          return;
-                      }
-                    } catch (e) {
-                      if (errorCallback) {
-                        errorCallback(e as Error);
-                      }
-                      return;
+                  const eventData = line.slice(5).trim();
+                  if (eventData === '[DONE]') {
+                    if (completeCallback) {
+                      completeCallback();
                     }
+                    break;
+                  }
+
+                  try {
+                    const data = JSON.parse(eventData);
+
+                    // 捕获并更新conversationId
+                    if (data.conversation_id && (!streamConversationId || streamConversationId === '')) {
+                      streamConversationId = data.conversation_id;
+                      console.log('收到新的conversationId:', streamConversationId);
+                    }
+
+                    if (data.event === 'message') {
+                      if (messageCallback && data.answer) {
+                        messageCallback(data.answer);
+                      }
+                    } else if (data.event === 'message_end') {
+                      if (completeCallback) {
+                        completeCallback();
+                      }
+                    }
+                  } catch (e) {
+                    console.error('解析事件数据失败:', e);
                   }
                 }
               }
-            } catch (e) {
-              if (errorCallback) {
-                errorCallback(e as Error);
-              }
+            } catch (error: any) {
+              console.error('处理流数据错误:', error);
+              handleError(new Error(error?.message || '处理流数据错误'));
             }
           };
 
-          processStream();
+          processStreamData();
           resolve(stream);
-        } catch (fetchError) {
+        } catch (error: any) {
           clearTimeout(timeoutId);
-          throw fetchError;
+          reject(error);
         }
-      } catch (error) {
-        const typedError = error instanceof Error ? error : new Error(String(error));
-        if (errorCallback) {
-          errorCallback(typedError);
-        }
-        reject(typedError);
+      } catch (error: any) {
+        reject(error);
       }
     });
   }
 
-  async streamChat(
-    body: RequestBody,
-    signal: AbortSignal | undefined,
-    onMessage: (message: string) => void,
-    onError: (error: Error) => void,
-    onStop: () => void,
-  ) {
-    const isDebug = this.debug || this.isMobileDevice();
-    const isMobile = this.isMobileDevice();
+  public async streamChat({
+    body, 
+    key, 
+    onMessage,
+    onError = () => {},
+    onStop = () => {},
+    isMobile = false,
+    isDebug = false,
+    signal
+  }: {
+    body: RequestBody;
+    key: string;
+    onMessage: (message: string) => void;
+    onError?: (error: Error) => void;
+    onStop?: () => void;
+    isMobile?: boolean;
+    isDebug?: boolean;
+    signal?: AbortSignal;
+  }) {
     const startTime = Date.now();
     
     if (isMobile) {
-      alert('开始发送请求');
+      console.log('[移动端] 开始发送请求');
     }
     
     try {
@@ -269,18 +301,30 @@ export class DifyClient {
         console.log('[DifyClient] request body', body);
       }
       
-      const url = this.baseUrl;
+      // 统一URL构建逻辑
+      const apiEndpoint = `${this.baseUrl}${API_PATHS.CHAT_MESSAGES}`;
       const timeout = isMobile ? this.timeout * 1.5 : this.timeout;
       
       if (isMobile) {
-        console.log(`[移动端] 请求URL: ${url}`);
+        console.log(`[移动端] 请求URL: ${apiEndpoint}`);
         console.log(`[移动端] 超时设置: ${timeout}ms`);
+      }
+
+      // 统一处理conversationId
+      const requestBody = { 
+        ...body,
+        // 空字符串转为undefined
+        conversation_id: body.conversation_id || undefined
+      };
+      
+      if (isDebug) {
+        console.log('处理后的请求参数:', requestBody);
       }
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         controller.abort();
-        if (isMobile) alert('请求超时');
+        if (isMobile) console.error('请求超时');
         onError(new Error(`连接超时: ${timeout}ms`));
       }, timeout);
 
@@ -290,25 +334,29 @@ export class DifyClient {
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        ...(key && { 'Authorization': `Bearer ${key}` }),
+        ...(this.currentAppId && { 'X-App-ID': this.currentAppId })
       };
       
-      const response = await fetch(url, {
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers,
-        body: JSON.stringify(body),
+        body: JSON.stringify(requestBody),
         signal: combinedSignal,
+        credentials: 'same-origin'
       });
 
       clearTimeout(timeoutId);
       
       if (isMobile) {
-        alert(`请求响应状态: ${response.status}`);
+        console.log(`请求响应状态: ${response.status}`);
       }
       
       if (!response.ok) {
         const responseTime = Date.now() - startTime;
         if (isMobile) {
-          alert(`请求失败: ${response.status} ${response.statusText}, 耗时: ${responseTime}ms`);
+          console.error(`请求失败: ${response.status} ${response.statusText}, 耗时: ${responseTime}ms`);
         }
         
         let errorText = '';
@@ -324,13 +372,13 @@ export class DifyClient {
       }
       
       if (isMobile) {
-        alert('收到响应，开始处理数据流');
+        console.log('收到响应，开始处理数据流');
       }
       
       await this.readResponseAsStream(response, onMessage, isMobile);
       
       if (isMobile) {
-        alert('数据流处理完成');
+        console.log('数据流处理完成');
       }
       
       onStop();
@@ -339,7 +387,7 @@ export class DifyClient {
       const errorMessage = error?.message || '未知错误';
       
       if (isMobile) {
-        alert(`错误发生: ${errorMessage}, 耗时: ${responseTime}ms`);
+        console.error(`错误发生: ${errorMessage}, 耗时: ${responseTime}ms`);
       }
       
       console.error(`[DifyClient] error: ${errorMessage}`, error);
@@ -350,7 +398,8 @@ export class DifyClient {
   async readResponseAsStream(
     response: Response, 
     onMessage: (message: string) => void,
-    isMobile: boolean
+    isMobile: boolean,
+    onConversationId?: (id: string) => void
   ) {
     if (!response.body) {
       throw new Error('响应体为空');
@@ -361,7 +410,7 @@ export class DifyClient {
     let buffer = '';
     
     if (isMobile) {
-      alert('开始读取数据流');
+      console.log('开始读取数据流');
     }
     
     while (true) {
@@ -369,13 +418,13 @@ export class DifyClient {
       
       if (done) {
         if (isMobile) {
-          alert('数据流读取完成');
+          console.log('数据流读取完成');
         }
         break;
       }
       
       if (isMobile) {
-        alert(`收到数据: ${value.length} 字节`);
+        console.log(`收到数据: ${value.length} 字节`);
       }
       
       const text = decoder.decode(value, { stream: true });
@@ -393,10 +442,16 @@ export class DifyClient {
           
           try {
             const parsedData = JSON.parse(data);
+            
+            // 提取会话ID
+            if (parsedData.conversation_id && onConversationId) {
+              onConversationId(parsedData.conversation_id);
+            }
+            
             onMessage(parsedData.answer || '');
           } catch (e) {
             if (isMobile) {
-              alert(`解析数据失败: ${line}`);
+              console.error(`解析数据失败: ${line}`);
             }
             console.error('[DifyClient] Failed to parse data', line, e);
           }

@@ -40,6 +40,7 @@ import { ChatInput } from './ChatInput';
 import { ChatMessage } from './ChatMessage';
 import { streamDifyChat } from '@/services/useApiService';
 import { DifyClient } from '../../services/dify/client';
+import { API_PATHS } from '@/services/dify/constants';
 
 // 添加主题类型定义
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
@@ -59,7 +60,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       apiKey,
       pluginKeys,
       serverSideApiKeyIsSet,
-      messageIsStreaming,
       modelError,
       loading,
       prompts,
@@ -79,6 +79,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const [showScrollDownButton, setShowScrollDownButton] =
     useState<boolean>(false);
   const [isTyping, setIsTyping] = useState<boolean>(false);
+  const [messageIsStreaming, setMessageIsStreaming] = useState<boolean>(false);
   // 添加一个锁定变量，防止按钮状态在短时间内频繁变化
   const scrollButtonLockRef = useRef<boolean>(false);
 
@@ -359,160 +360,166 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     }
   }, [selectedConversation?.messages, autoScrollEnabled]);
 
-  const onSend = useCallback(
-    async (message: Message, deleteCount = 0) => {
-      if (!selectedConversation) return;
-
-      let updatedConversation: Conversation = {
-        ...selectedConversation,
-        messages: deleteCount
-          ? [...selectedConversation.messages.slice(0, -deleteCount), message]
-          : [...selectedConversation.messages, message],
-      };
-
-      homeDispatch({
-        field: 'selectedConversation',
-        value: updatedConversation,
+  const onSend = async (message: Message, deleteCount = 0) => {
+    if (!selectedConversation) return;
+    
+    try {
+      const difyClient = new DifyClient({
+        apiUrl: process.env.NEXT_PUBLIC_DIFY_API_URL,
+        debug: true
       });
 
-      homeDispatch({ field: 'messageIsStreaming', value: true });
+      const apiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || '';
+      let conversationId = selectedConversation.conversationID || '';
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
-      setTimeout(() => {
-        handleScrollDown();
-      }, 50);
+      console.log('API配置信息:', {
+        url: process.env.NEXT_PUBLIC_DIFY_API_URL,
+        hasApiKey: !!apiKey,
+        conversationId,
+        isMobile
+      });
 
-      try {
-        const difyClient = getDifyClient();
-        console.log('DifyClient实例获取成功');
+      // 添加用户消息到对话
+      const updatedMessages = [...selectedConversation.messages];
+      if (deleteCount) {
+        updatedMessages.splice(-deleteCount);
+      }
+      updatedMessages.push(message);
+      
+      const updatedConversation = {
+        ...selectedConversation,
+        messages: updatedMessages
+      };
+      
+      homeDispatch({
+        field: 'selectedConversation',
+        value: updatedConversation
+      });
 
-        const currentApiKey = apiKey || process.env.NEXT_PUBLIC_DIFY_API_KEY || '';
-        if (!currentApiKey) {
-          throw new Error('API密钥未设置');
-        }
+      // 使用统一的消息处理逻辑
+      const chatStream = await difyClient.createChatStream({
+        query: message.content,
+        key: apiKey,
+        user: user || 'unknown',
+        conversationId,
+        inputs: {},
+        autoGenerateName: true
+      });
 
-        // 如果没有会话ID，先创建新会话
-        if (!updatedConversation.conversationID) {
-          try {
-            const newConversationId = await difyClient.createConversation({
-              key: currentApiKey,
-              user: user || 'anonymous',
-            });
-            
-            updatedConversation = {
-              ...updatedConversation,
-              conversationID: newConversationId,
-            };
-            
-            homeDispatch({
-              field: 'selectedConversation',
-              value: updatedConversation,
-            });
-            
-            console.log('已创建新会话:', newConversationId);
-          } catch (error) {
-            console.error('创建会话失败:', error);
-            throw error;
+      let fullResponse = '';
+      
+      chatStream.onMessage((chunk: string) => {
+        setMessageIsStreaming(true);
+        const updatedMessages = [...updatedConversation.messages];
+        
+        if (!fullResponse) {
+          updatedMessages.push({
+            role: 'assistant',
+            content: chunk
+          });
+        } else {
+          const lastMessage = updatedMessages[updatedMessages.length - 1];
+          if (lastMessage && lastMessage.role === 'assistant') {
+            lastMessage.content = fullResponse + chunk;
           }
         }
-
-        console.log('API配置信息:', {
-          url: process.env.NEXT_PUBLIC_DIFY_API_URL,
-          hasApiKey: !!currentApiKey,
-          conversationId: updatedConversation.conversationID,
-          isMobile: isMobile
-        });
-
-        const stream = await difyClient.createChatStream({
-          query: message.content,
-          key: currentApiKey,
-          user: user || 'anonymous',
-          conversationId: updatedConversation.conversationID,
-          autoGenerateName: true,
-          inputs: {},
-        });
-
-        console.log('成功创建聊天流');
-
-        const assistantMessage: Message = {
-          role: 'assistant',
-          content: '',
+        
+        fullResponse += chunk;
+        
+        // 保存后端返回的conversationId
+        if (chatStream.conversationId && (!conversationId || conversationId === '')) {
+          conversationId = chatStream.conversationId;
+          console.log('收到新的conversationId:', conversationId);
+        }
+        
+        const streamUpdatedConversation = {
+          ...updatedConversation,
+          messages: updatedMessages,
+          conversationID: conversationId
         };
+        
+        homeDispatch({
+          field: 'selectedConversation',
+          value: streamUpdatedConversation
+        });
+      });
 
-        stream.onMessage((chunk: string) => {
-          if (!assistantMessage.content) {
-            updatedConversation = {
-              ...updatedConversation,
-              messages: [...updatedConversation.messages, assistantMessage],
-            };
-            homeDispatch({
-              field: 'selectedConversation',
-              value: updatedConversation,
-            });
-          }
-
-          assistantMessage.content += chunk;
-
-          updatedConversation = {
-            ...updatedConversation,
-            messages: [...updatedConversation.messages],
+      chatStream.onError((error: Error) => {
+        console.error('处理消息时错误:', error);
+        setMessageIsStreaming(false);
+        
+        // 如果是会话不存在的错误，清除会话ID并重试
+        if (error.message.includes('Conversation Not Exists')) {
+          const resetConversation = {
+            ...selectedConversation,
+            conversationID: ''
           };
-
           homeDispatch({
             field: 'selectedConversation',
-            value: updatedConversation,
+            value: resetConversation
           });
-
-          handleScrollDown();
-        });
-
-        stream.onError((error: unknown) => {
-          console.error('流错误:', error);
-          const errorMessage = error instanceof Error ? error.message : '未知错误';
-          toast.error(errorMessage);
-          homeDispatch({ field: 'messageIsStreaming', value: false });
-        });
-
-        stream.onComplete(() => {
-          console.log('流完成');
-          homeDispatch({ field: 'messageIsStreaming', value: false });
-          
-          // 保存对话
-          saveConversation(updatedConversation);
-        });
-
-      } catch (error: unknown) {
-        console.error('处理消息时错误:', error);
-        let errorMessage = '发送消息失败';
-        
-        if (error instanceof Error) {
-          if (error.message.includes('401')) {
-            errorMessage = 'API密钥无效或未授权';
-          } else if (error.message.includes('404') || error.message.includes('Conversation Not Exists')) {
-            // 如果会话不存在，清除会话ID并重试
-            updatedConversation = {
-              ...updatedConversation,
-              conversationID: '',
-            };
-            homeDispatch({
-              field: 'selectedConversation',
-              value: updatedConversation,
-            });
-            errorMessage = '会话已失效，请重新发送消息';
-          } else if (error.message.includes('timeout') || error.message.includes('超时')) {
-            errorMessage = '请求超时，请检查网络连接';
-          } else if (error.message.includes('Failed to fetch')) {
-            errorMessage = '网络请求失败，请确认网络连接';
-          } else {
-            errorMessage = error.message;
-          }
+          // 重新发送消息
+          onSend(message, deleteCount);
+          return;
         }
         
-        toast.error(errorMessage);
-        homeDispatch({ field: 'messageIsStreaming', value: false });
-      }
-    },
-    [apiKey, selectedConversation, homeDispatch, handleScrollDown, isMobile, user],
-  );
+        toast.error(error.message);
+      });
+
+      chatStream.onComplete(() => {
+        setMessageIsStreaming(false);
+        
+        // 确保使用最新的conversationId
+        if (chatStream.conversationId && (!conversationId || conversationId === '')) {
+          conversationId = chatStream.conversationId;
+          console.log('完成时收到的conversationId:', conversationId);
+        }
+        
+        // 保存完整的对话
+        const updatedMessages = [...updatedConversation.messages];
+        
+        const finalMessage = {
+          role: 'assistant',
+          content: fullResponse
+        };
+        
+        // 检查是否已经添加了消息，避免重复
+        const lastMessage = updatedMessages[updatedMessages.length - 1];
+        if (!lastMessage || lastMessage.role !== 'assistant') {
+          updatedMessages.push(finalMessage);
+        }
+        
+        const finalConversation = {
+          ...updatedConversation,
+          messages: updatedMessages,
+          conversationID: conversationId
+        };
+        
+        homeDispatch({
+          field: 'selectedConversation',
+          value: finalConversation
+        });
+        
+        saveConversation(finalConversation);
+        
+        // 确保对话列表中的对话也被更新
+        const updatedConversations = conversations.map(conv => 
+          conv.id === finalConversation.id ? finalConversation : conv
+        );
+        homeDispatch({
+          field: 'conversations',
+          value: updatedConversations
+        });
+        saveConversations(updatedConversations);
+      });
+
+    } catch (error) {
+      console.error('处理消息时错误:', error);
+      setMessageIsStreaming(false);
+      toast.error(error instanceof Error ? error.message : '发送消息失败');
+    }
+  };
 
   const handleSettings = () => {
     setShowSettings(!showSettings);

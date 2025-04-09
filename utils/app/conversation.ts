@@ -8,7 +8,6 @@ export const updateConversation = (
     if (c.id === updatedConversation.id) {
       return updatedConversation;
     }
-
     return c;
   });
 
@@ -22,17 +21,23 @@ export const updateConversation = (
 };
 
 export const saveConversation = (conversation: Conversation) => {
+  // 保存当前选中的对话
   localStorage.setItem('selectedConversation', JSON.stringify(conversation));
+  
+  // 同时更新对话历史中的对应对话
+  const conversationHistory = localStorage.getItem('conversationHistory');
+  if (conversationHistory) {
+    const conversations: Conversation[] = JSON.parse(conversationHistory);
+    const updatedConversations = conversations.map((c) => {
+      if (c.id === conversation.id) {
+        return conversation;
+      }
+      return c;
+    });
+    localStorage.setItem('conversationHistory', JSON.stringify(updatedConversations));
+  }
 };
 
 export const saveConversations = (conversations: Conversation[]) => {
-  // 确保新聊天在最上方，先排序再保存
-  const sortedConversations = [...conversations].sort((a, b) => {
-    // 空聊天（无消息的新聊天）排在最前面
-    if (a.messages.length === 0 && a.name.includes('New Conversation')) return -1;
-    if (b.messages.length === 0 && b.name.includes('New Conversation')) return 1;
-    return 0;
-  });
-  
-  localStorage.setItem('conversationHistory', JSON.stringify(sortedConversations));
+  localStorage.setItem('conversationHistory', JSON.stringify(conversations));
 };

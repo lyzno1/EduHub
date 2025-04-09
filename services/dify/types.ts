@@ -22,13 +22,13 @@ export interface ChatParams {
 }
 
 export interface ChatResponse {
-  event: string;
-  conversation_id?: string;
+  event: 'message' | 'message_end' | 'error' | 'ping';
   answer?: string;
-  metadata?: {
-    usage?: {
-      total_tokens?: number;
-    };
+  conversation_id?: string;
+  message_id?: string;
+  created_at?: number;
+  usage?: {
+    total_tokens: number;
   };
 }
 

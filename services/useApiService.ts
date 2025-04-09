@@ -2,12 +2,14 @@ import { useCallback } from 'react';
 
 import { useFetch } from '@/hooks/useFetch';
 import { ChatBody, ChatResponse } from '@/types/chat';
+import { API_PATHS } from './dify/constants';
 
 export interface GetModelsRequestProps {
   key: string;
 }
 
-export const DIFY_API_URL = process.env.NEXT_PUBLIC_DIFY_API_URL || 'http://localhost:8080/v1/chat-messages';
+// 确保API_URL不包含API路径
+export const DIFY_API_BASE_URL = process.env.NEXT_PUBLIC_DIFY_API_URL || 'http://localhost:8080';
 
 export async function streamDifyChat({
   query,
@@ -21,11 +23,25 @@ export async function streamDifyChat({
   user: string;
   conversationId?: string;
   onMessage: (chunk: string) => void;
-  onComplete?: () => void;
+  onComplete?: (conversationId?: string) => void;
   onError?: (err: any) => void;
 }) {
   try {
-    const response = await fetch(DIFY_API_URL, {
+    // 确保baseUrl不以斜杠结尾
+    const baseUrl = DIFY_API_BASE_URL.endsWith('/') 
+      ? DIFY_API_BASE_URL.slice(0, -1) 
+      : DIFY_API_BASE_URL;
+      
+    // 统一URL构建逻辑
+    const apiEndpoint = `${baseUrl}${API_PATHS.CHAT_MESSAGES}`;
+    
+    console.log('streamDifyChat API配置信息:', {
+      endpoint: apiEndpoint,
+      conversationId: conversationId || '未设置',
+      user
+    });
+
+    const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.NEXT_PUBLIC_DIFY_API_KEY}`,
@@ -36,7 +52,8 @@ export async function streamDifyChat({
         inputs: {},
         response_mode: 'streaming',
         user,
-        conversation_id: conversationId ?? '',
+        // 统一conversationId处理逻辑，空字符串转为undefined
+        ...(conversationId ? { conversation_id: conversationId } : {}),
         auto_generate_name: true
       } as ChatBody)
     });
@@ -49,6 +66,7 @@ export async function streamDifyChat({
     const decoder = new TextDecoder();
 
     let buffer = '';
+    let receivedConversationId = conversationId;
 
     while (true) {
       const { value, done } = await reader!.read();
@@ -62,16 +80,23 @@ export async function streamDifyChat({
         if (!part.trim().startsWith('data:')) continue;
         const raw = part.replace(/^data:\s*/, '');
         if (raw === '[DONE]') {
-          onComplete?.();
+          onComplete?.(receivedConversationId);
           return;
         }
 
         try {
           const json = JSON.parse(raw) as ChatResponse;
+          
+          // 保存后端返回的conversationId
+          if (json.conversation_id && (!receivedConversationId || receivedConversationId === '')) {
+            receivedConversationId = json.conversation_id;
+            console.log('收到新的conversationId:', receivedConversationId);
+          }
+          
           if (json.event === 'message') {
             onMessage(json.answer || '');
           } else if (json.event === 'message_end') {
-            onComplete?.();
+            onComplete?.(receivedConversationId);
           }
         } catch (err) {
           console.error('Error parsing SSE message:', err);
