@@ -89,6 +89,34 @@ export class DifyClient {
     return typeof window !== 'undefined' && window.innerWidth < 768;
   }
 
+  // 检查字符串是否为有效的UUID格式
+  private isValidUUID(str: string): boolean {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  }
+  
+  // 尝试格式化或验证对话ID
+  private validateConversationId(id: string | undefined): string | undefined {
+    if (!id || id.trim() === '') {
+      return undefined;
+    }
+    
+    // 如果已经是有效的UUID，直接返回
+    if (this.isValidUUID(id)) {
+      return id;
+    }
+    
+    // 尝试处理特殊格式的ID
+    if (id.startsWith('conv_')) {
+      // 如果使用特殊前缀，可能需要移除前缀或者直接返回undefined创建新会话
+      console.warn('检测到非UUID格式的对话ID，将创建新会话');
+      return undefined;
+    }
+    
+    // 保守处理：无法确认格式时返回undefined
+    return undefined;
+  }
+
   public async createChatStream({
     query,
     key,
@@ -103,7 +131,7 @@ export class DifyClient {
       let messageCallback: MessageCallback | undefined;
       let errorCallback: ErrorCallback | undefined;
       let completeCallback: CompleteCallback | undefined;
-      let streamConversationId = conversationId;
+      let streamConversationId = this.validateConversationId(conversationId);
 
       const stream: DifyStream = {
         onMessage: (callback: MessageCallback) => {
@@ -138,16 +166,20 @@ export class DifyClient {
           });
         }
 
-        const requestParams = {
+        const requestParams: any = {
           query,
           response_mode: 'streaming',
-          ...(streamConversationId ? { conversation_id: streamConversationId } : {}),
           user: user,
           inputs: inputs || {},
           auto_generate_name: autoGenerateName,
           ...(model && { model }),
           ...(temperature && { temperature })
         };
+        
+        // 只有当conversation_id为有效值时才添加
+        if (streamConversationId) {
+          requestParams['conversation_id'] = streamConversationId;
+        }
 
         if (this.debug) {
           console.log('请求参数:', requestParams);
@@ -291,40 +323,46 @@ export class DifyClient {
   }) {
     const startTime = Date.now();
     
+    // 移动端使用alert以确保可见
     if (isMobile) {
-      console.log('[移动端] 开始发送请求');
+      alert(`[移动端] 发送请求: ${body.conversation_id || '新对话'}`);
     }
     
     try {
-      if (isDebug) {
-        console.log('[DifyClient] sending request to', this.baseUrl);
-        console.log('[DifyClient] request body', body);
-      }
-      
       // 统一URL构建逻辑
       const apiEndpoint = `${this.baseUrl}${API_PATHS.CHAT_MESSAGES}`;
-      const timeout = isMobile ? this.timeout * 1.5 : this.timeout;
+      const timeout = this.timeout;
       
-      if (isMobile) {
-        console.log(`[移动端] 请求URL: ${apiEndpoint}`);
-        console.log(`[移动端] 超时设置: ${timeout}ms`);
-      }
-
-      // 统一处理conversationId
+      // 统一处理conversationId，确保空字符串和undefined都作相同处理
       const requestBody = { 
-        ...body,
-        // 空字符串转为undefined
-        conversation_id: body.conversation_id || undefined
+        ...body
       };
       
+      // 验证和处理conversation_id
+      const validatedId = this.validateConversationId(requestBody.conversation_id);
+      
+      if (validatedId) {
+        requestBody.conversation_id = validatedId;
+        
+        if (isMobile) {
+          alert(`[移动端] 使用有效的对话ID: ${validatedId}`);
+        }
+      } else {
+        // 删除无效的conversation_id
+        delete requestBody.conversation_id;
+        
+        if (isMobile) {
+          alert('[移动端] 无效的对话ID格式，将创建新对话');
+        }
+      }
+      
       if (isDebug) {
-        console.log('处理后的请求参数:', requestBody);
+        console.log('处理后的请求参数:', JSON.stringify(requestBody));
       }
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         controller.abort();
-        if (isMobile) console.error('请求超时');
         onError(new Error(`连接超时: ${timeout}ms`));
       }, timeout);
 
@@ -349,20 +387,32 @@ export class DifyClient {
 
       clearTimeout(timeoutId);
       
-      if (isMobile) {
-        console.log(`请求响应状态: ${response.status}`);
-      }
+      console.log(`${isMobile ? '[移动端]' : '[桌面端]'} 请求响应状态: ${response.status}`);
       
       if (!response.ok) {
         const responseTime = Date.now() - startTime;
+        
         if (isMobile) {
-          console.error(`请求失败: ${response.status} ${response.statusText}, 耗时: ${responseTime}ms`);
+          alert(`[移动端] 请求失败: ${response.status}`);
         }
         
         let errorText = '';
         try {
-          errorText = await response.text();
-        } catch (e) {
+          const errorData = await response.json();
+          errorText = errorData.message || '';
+          
+          // 统一处理会话不存在的错误
+          if (errorText.includes('Conversation Not Exists') || errorText.includes('会话不存在')) {
+            if (isMobile) {
+              alert('[移动端] 对话不存在，重置会话ID');
+            }
+            // 统一错误信息格式
+            throw new Error('Conversation Not Exists');
+          }
+        } catch (e: any) {
+          if (e.message === 'Conversation Not Exists') {
+            throw e;
+          }
           errorText = '无法获取错误详情';
         }
         
@@ -372,13 +422,23 @@ export class DifyClient {
       }
       
       if (isMobile) {
-        console.log('收到响应，开始处理数据流');
+        alert('[移动端] 收到响应，开始处理数据');
       }
       
-      await this.readResponseAsStream(response, onMessage, isMobile);
+      // 添加对话ID回调
+      await this.readResponseAsStream(
+        response, 
+        onMessage, 
+        isMobile,
+        (conversationId) => {
+          if (isMobile) {
+            alert(`[移动端] 收到并保存对话ID: ${conversationId}`);
+          }
+        }
+      );
       
       if (isMobile) {
-        console.log('数据流处理完成');
+        alert('[移动端] 数据处理完成');
       }
       
       onStop();
@@ -387,10 +447,9 @@ export class DifyClient {
       const errorMessage = error?.message || '未知错误';
       
       if (isMobile) {
-        console.error(`错误发生: ${errorMessage}, 耗时: ${responseTime}ms`);
+        alert(`[移动端] 错误: ${errorMessage}`);
       }
       
-      console.error(`[DifyClient] error: ${errorMessage}`, error);
       onError(error);
     }
   }
@@ -408,9 +467,10 @@ export class DifyClient {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let localConversationId = '';
     
     if (isMobile) {
-      console.log('开始读取数据流');
+      alert('[移动端] 开始读取数据流');
     }
     
     while (true) {
@@ -418,13 +478,13 @@ export class DifyClient {
       
       if (done) {
         if (isMobile) {
-          console.log('数据流读取完成');
+          alert('[移动端] 数据流读取完成');
         }
         break;
       }
       
       if (isMobile) {
-        console.log(`收到数据: ${value.length} 字节`);
+        alert(`[移动端] 收到数据: ${value.length} 字节`);
       }
       
       const text = decoder.decode(value, { stream: true });
@@ -443,15 +503,25 @@ export class DifyClient {
           try {
             const parsedData = JSON.parse(data);
             
-            // 提取会话ID
-            if (parsedData.conversation_id && onConversationId) {
-              onConversationId(parsedData.conversation_id);
+            // 提取会话ID，确保在移动端和桌面端一致性处理
+            if (parsedData.conversation_id && parsedData.conversation_id.trim() !== '') {
+              if (isMobile) {
+                alert(`[移动端] 收到对话ID: ${parsedData.conversation_id}`);
+              }
+              
+              if (!localConversationId || localConversationId.trim() === '') {
+                localConversationId = parsedData.conversation_id;
+                
+                if (onConversationId) {
+                  onConversationId(parsedData.conversation_id);
+                }
+              }
             }
             
             onMessage(parsedData.answer || '');
           } catch (e) {
             if (isMobile) {
-              console.error(`解析数据失败: ${line}`);
+              alert(`[移动端] 解析数据失败: ${line}`);
             }
             console.error('[DifyClient] Failed to parse data', line, e);
           }
