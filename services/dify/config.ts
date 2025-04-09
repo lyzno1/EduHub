@@ -16,7 +16,7 @@ export function getDifyConfig(config: Partial<DifyConfig> = {}): DifyConfig {
 
   // 合并配置，优先使用传入的配置
   const mergedConfig: DifyConfig = {
-    apiUrl: config.apiUrl || envConfig.apiUrl || 'http://localhost:8088',
+    apiUrl: config.apiUrl || envConfig.apiUrl || 'http://localhost:8080',
     debug: config.debug ?? envConfig.debug ?? false,
     timeout: config.timeout || envConfig.timeout || 30000
   };

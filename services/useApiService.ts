@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 
 import { useFetch } from '@/hooks/useFetch';
 import { ChatBody, ChatResponse } from '@/types/chat';
-import { DIFY_CONFIG } from '@/utils/app/api';
 
 export interface GetModelsRequestProps {
   key: string;
