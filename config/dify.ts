@@ -1,7 +1,7 @@
 import { DifyConfig } from '@/services/dify';
 
 export const getDifyConfig = (): DifyConfig => ({
-  apiUrl: process.env.DIFY_API_URL || 'http://localhost:8088/v1/chat-messages',
+  apiUrl: process.env.DIFY_API_URL || 'http://localhost:8080/v1/chat-messages',
   timeout: Number(process.env.DIFY_TIMEOUT || 30000),
   debug: process.env.NODE_ENV === 'development',
 });

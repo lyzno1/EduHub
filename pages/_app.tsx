@@ -8,14 +8,21 @@ import { useEffect, useState } from 'react';
 
 import '@/styles/globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+// 配置 Inter 字体
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter', // 使用CSS变量
+  display: 'swap',
+});
 
 function App({ Component, pageProps }: AppProps<{}>) {
   const queryClient = new QueryClient();
+  const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<string>('light');
 
   // 页面加载时应用保存的主题
   useEffect(() => {
+    setMounted(true);
     // 从localStorage获取主题设置
     const savedTheme = localStorage.getItem('theme') || 'light';
     setTheme(savedTheme);
@@ -67,8 +74,23 @@ function App({ Component, pageProps }: AppProps<{}>) {
     };
   }, []);
 
+  // 使用 variable 类名来应用字体
+  const baseClassName = `${inter.variable} font-sans`;
+
+  // 避免服务端渲染时的主题类名不匹配
+  if (!mounted) {
+    return (
+      <div className={baseClassName}>
+        <Toaster />
+        <QueryClientProvider client={queryClient}>
+          <Component {...pageProps} />
+        </QueryClientProvider>
+      </div>
+    );
+  }
+
   return (
-    <div className={`${inter.className} ${theme}`}>
+    <div className={`${baseClassName} ${theme}`}>
       <Toaster />
       <QueryClientProvider client={queryClient}>
         <Component {...pageProps} />

@@ -30,6 +30,27 @@ export const getEndpoint = (plugin: Plugin) => {
 
 // 获取 DifyClient 实例
 export const getDifyClient = () => {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  
+  // 移动端每次创建新实例，避免共享实例导致的问题
+  if (isMobile) {
+    // 直接打印alert弹窗，确保在移动端也能看到日志
+    try {
+      const config = getDifyConfig();
+      alert('移动端创建DifyClient: ' + config.apiUrl);
+      
+      // 创建新的实例而不是复用
+      return new DifyClient({
+        apiUrl: config.apiUrl,
+        timeout: config.timeout || 45000, // 确保有默认值
+        debug: true // 启用调试模式
+      });
+    } catch (err) {
+      alert('创建DifyClient错误: ' + (err instanceof Error ? err.message : String(err)));
+      throw err;
+    }
+  }
+  
   return defaultClient;
 };
 

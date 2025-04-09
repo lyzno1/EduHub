@@ -200,6 +200,9 @@ const Home = ({
       return;
     }
 
+    // 生成唯一的会话ID
+    const newConversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     const newConversation: Conversation = {
       id: uuidv4(),
       name: t('New Conversation'),
@@ -208,7 +211,7 @@ const Home = ({
       prompt: DEFAULT_SYSTEM_PROMPT,
       temperature: DEFAULT_TEMPERATURE,
       folderId: null,
-      conversationID: '',
+      conversationID: newConversationId, // 使用生成的会话ID
       deletable: true,
     };
 
@@ -220,6 +223,12 @@ const Home = ({
 
     saveConversation(newConversation);
     saveConversations(updatedConversations);
+    
+    console.log('创建新会话:', {
+      id: newConversation.id,
+      conversationID: newConversation.conversationID,
+      name: newConversation.name
+    });
   };
 
   const handleUpdateConversation = (

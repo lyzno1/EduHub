@@ -359,118 +359,159 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     }
   }, [selectedConversation?.messages, autoScrollEnabled]);
 
-  const handleSend = useCallback(
-    async (message: Message, deleteCount = 0, plugin: Plugin | null = null) => {
-      if (selectedConversation) {
-        let updatedConversation: Conversation;
-        if (deleteCount) {
-          const updatedMessages = [...selectedConversation.messages];
-          for (let i = 0; i < deleteCount; i++) {
-            updatedMessages.pop();
-          }
-          updatedConversation = {
-            ...selectedConversation,
-            messages: [...updatedMessages, message],
-          };
-        } else {
-          updatedConversation = {
-            ...selectedConversation,
-            messages: [...selectedConversation.messages, message],
-          };
+  const onSend = useCallback(
+    async (message: Message, deleteCount = 0) => {
+      if (!selectedConversation) return;
+
+      let updatedConversation: Conversation = {
+        ...selectedConversation,
+        messages: deleteCount
+          ? [...selectedConversation.messages.slice(0, -deleteCount), message]
+          : [...selectedConversation.messages, message],
+      };
+
+      homeDispatch({
+        field: 'selectedConversation',
+        value: updatedConversation,
+      });
+
+      homeDispatch({ field: 'messageIsStreaming', value: true });
+
+      setTimeout(() => {
+        handleScrollDown();
+      }, 50);
+
+      try {
+        const difyClient = getDifyClient();
+        console.log('DifyClient实例获取成功');
+
+        const currentApiKey = apiKey || process.env.NEXT_PUBLIC_DIFY_API_KEY || '';
+        if (!currentApiKey) {
+          throw new Error('API密钥未设置');
         }
-        
-        homeDispatch({
-          field: 'selectedConversation',
-          value: updatedConversation,
+
+        // 如果没有会话ID，先创建新会话
+        if (!updatedConversation.conversationID) {
+          try {
+            const newConversationId = await difyClient.createConversation({
+              key: currentApiKey,
+              user: user || 'anonymous',
+            });
+            
+            updatedConversation = {
+              ...updatedConversation,
+              conversationID: newConversationId,
+            };
+            
+            homeDispatch({
+              field: 'selectedConversation',
+              value: updatedConversation,
+            });
+            
+            console.log('已创建新会话:', newConversationId);
+          } catch (error) {
+            console.error('创建会话失败:', error);
+            throw error;
+          }
+        }
+
+        console.log('API配置信息:', {
+          url: process.env.NEXT_PUBLIC_DIFY_API_URL,
+          hasApiKey: !!currentApiKey,
+          conversationId: updatedConversation.conversationID,
+          isMobile: isMobile
         });
-        
-        // 设置消息流状态
-        homeDispatch({ field: 'messageIsStreaming', value: true });
-        
-        // 确保在发送消息时，视图滚动到底部
-        setTimeout(() => {
-          handleScrollDown();
-        }, 50);
-        
-        try {
-          const difyClient = getDifyClient();
-          // 创建聊天流
-          const stream = await difyClient.createChatStream({
-            query: message.content,
-            key: apiKey || process.env.NEXT_PUBLIC_DIFY_API_KEY || '',
-            user: user || 'anonymous',
-            conversationId: updatedConversation.conversationID || '',
-            autoGenerateName: true,
-            inputs: {},
-          });
 
-          // 设置消息流状态
-          homeDispatch({ field: 'messageIsStreaming', value: true });
+        const stream = await difyClient.createChatStream({
+          query: message.content,
+          key: currentApiKey,
+          user: user || 'anonymous',
+          conversationId: updatedConversation.conversationID,
+          autoGenerateName: true,
+          inputs: {},
+        });
 
-          // 创建初始的助手消息
-          const assistantMessage: Message = {
-            role: 'assistant',
-            content: '',
-            id: Date.now().toString(),
+        console.log('成功创建聊天流');
+
+        const assistantMessage: Message = {
+          role: 'assistant',
+          content: '',
+        };
+
+        stream.onMessage((chunk: string) => {
+          if (!assistantMessage.content) {
+            updatedConversation = {
+              ...updatedConversation,
+              messages: [...updatedConversation.messages, assistantMessage],
+            };
+            homeDispatch({
+              field: 'selectedConversation',
+              value: updatedConversation,
+            });
+          }
+
+          assistantMessage.content += chunk;
+
+          updatedConversation = {
+            ...updatedConversation,
+            messages: [...updatedConversation.messages],
           };
 
-          // 处理流式响应
-          stream.onMessage((chunk: string) => {
-            console.log('Received chunk:', chunk);
-            
-            // 如果是第一个数据块，添加助手消息到对话中
-            if (!assistantMessage.content) {
-                                updatedConversation = {
-                                  ...updatedConversation,
-                messages: [...updatedConversation.messages, assistantMessage],
-                                };
-                                homeDispatch({
-                                  field: 'selectedConversation',
-                                  value: updatedConversation,
-                                });
-            }
-            
-            // 更新助手消息内容
-            assistantMessage.content += chunk;
-            
-                                updatedConversation = {
-                                  ...updatedConversation,
-              messages: [...updatedConversation.messages],
-                                };
-            
-                                homeDispatch({
-                                  field: 'selectedConversation',
-                                  value: updatedConversation,
-                                });
-            
-            // 确保滚动到底部
-            handleScrollDown();
+          homeDispatch({
+            field: 'selectedConversation',
+            value: updatedConversation,
           });
 
-          stream.onError((error: unknown) => {
-            console.error('Stream error:', error);
-            const errorMessage = error instanceof Error ? error.message : '未知错误';
-            toast.error(errorMessage);
-            homeDispatch({ field: 'messageIsStreaming', value: false });
-          });
+          handleScrollDown();
+        });
 
-          stream.onComplete(() => {
-            console.log('Stream completed');
-            homeDispatch({ field: 'messageIsStreaming', value: false });
-            
-            // 保存对话
-                saveConversation(updatedConversation);
-          });
-
-            } catch (error: unknown) {
-          console.error('Error in handleSend:', error);
+        stream.onError((error: unknown) => {
+          console.error('流错误:', error);
           const errorMessage = error instanceof Error ? error.message : '未知错误';
           toast.error(errorMessage);
-                homeDispatch({ field: 'messageIsStreaming', value: false });
+          homeDispatch({ field: 'messageIsStreaming', value: false });
+        });
+
+        stream.onComplete(() => {
+          console.log('流完成');
+          homeDispatch({ field: 'messageIsStreaming', value: false });
+          
+          // 保存对话
+          saveConversation(updatedConversation);
+        });
+
+      } catch (error: unknown) {
+        console.error('处理消息时错误:', error);
+        let errorMessage = '发送消息失败';
+        
+        if (error instanceof Error) {
+          if (error.message.includes('401')) {
+            errorMessage = 'API密钥无效或未授权';
+          } else if (error.message.includes('404') || error.message.includes('Conversation Not Exists')) {
+            // 如果会话不存在，清除会话ID并重试
+            updatedConversation = {
+              ...updatedConversation,
+              conversationID: '',
+            };
+            homeDispatch({
+              field: 'selectedConversation',
+              value: updatedConversation,
+            });
+            errorMessage = '会话已失效，请重新发送消息';
+          } else if (error.message.includes('timeout') || error.message.includes('超时')) {
+            errorMessage = '请求超时，请检查网络连接';
+          } else if (error.message.includes('Failed to fetch')) {
+            errorMessage = '网络请求失败，请确认网络连接';
+          } else {
+            errorMessage = error.message;
+          }
         }
+        
+        toast.error(errorMessage);
+        homeDispatch({ field: 'messageIsStreaming', value: false });
       }
     },
-    [apiKey, selectedConversation, homeDispatch, handleScrollDown],
+    [apiKey, selectedConversation, homeDispatch, handleScrollDown, isMobile, user],
   );
 
   const handleSettings = () => {
@@ -949,13 +990,13 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                       <ModernChatInput
                         stopConversationRef={stopConversationRef}
                         textareaRef={textareaRef}
-                        onSend={(message, plugin) => {
-                          handleSend(message, 0, plugin);
+                        onSend={(message) => {
+                          onSend(message, 0);
                         }}
                         onScrollDownClick={handleScrollDown}
                         onRegenerate={() => {
                           if (currentMessage) {
-                            handleSend(currentMessage, 2);
+                            onSend(currentMessage, 2);
                           }
                         }}
                         showScrollDownButton={showScrollDownButton}
@@ -986,7 +1027,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                     onEdit={(editedMessage) => {
                       // 安全地处理deleteCount
                       const deleteCount = messagesLength - index;
-                      handleSend(editedMessage, deleteCount - 1);
+                      onSend(editedMessage, deleteCount - 1);
                     }}
                   />
                 ))}
@@ -1042,13 +1083,13 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 <ModernChatInput
                   stopConversationRef={stopConversationRef}
                   textareaRef={textareaRef}
-                  onSend={(message, plugin) => {
-                    handleSend(message, 0, plugin);
+                  onSend={(message) => {
+                    onSend(message, 0);
                   }}
                   onScrollDownClick={handleScrollDown}
                   onRegenerate={() => {
                     if (currentMessage) {
-                      handleSend(currentMessage, 2);
+                      onSend(currentMessage, 2);
                     }
                   }}
                   showScrollDownButton={showScrollDownButton}
