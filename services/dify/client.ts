@@ -106,15 +106,65 @@ export class DifyClient {
       return id;
     }
     
-    // 尝试处理特殊格式的ID
+    // 尝试从conv_前缀格式提取ID部分
     if (id.startsWith('conv_')) {
-      // 如果使用特殊前缀，可能需要移除前缀或者直接返回undefined创建新会话
-      console.warn('检测到非UUID格式的对话ID，将创建新会话');
-      return undefined;
+      const parts = id.split('_');
+      if (parts.length >= 3) {
+        // 尝试组装为UUID格式
+        try {
+          // 假设最后部分可能是随机字符串，尝试构造一个有效的UUID
+          // 使用时间戳部分和随机部分构造UUID
+          const timestamp = parts[1];
+          const randomPart = parts[2];
+          
+          if (timestamp && timestamp.length > 8 && randomPart && randomPart.length > 4) {
+            // 提取数字并格式化为UUID格式
+            const uuidParts = [
+              timestamp.slice(0, 8),                         // 8个字符
+              timestamp.slice(8, 12),                        // 4个字符
+              '4' + timestamp.slice(12, 15),                 // UUID版本4的格式
+              '8' + randomPart.slice(0, 3),                  // UUID变体
+              randomPart.slice(3, 15)                        // 剩余部分
+            ];
+            
+            const formattedUUID = uuidParts.join('-');
+            
+            // 验证生成的UUID格式是否正确
+            if (this.isValidUUID(formattedUUID)) {
+              console.log(`已将对话ID ${id} 转换为UUID格式: ${formattedUUID}`);
+              return formattedUUID;
+            }
+          }
+        } catch (e) {
+          console.error('转换对话ID格式失败:', e);
+        }
+      }
+      
+      // 如果无法转换为有效UUID，尝试使用固定格式
+      // 构造一个基于当前时间的UUID v4格式ID
+      return this.generateUUID();
     }
     
-    // 保守处理：无法确认格式时返回undefined
-    return undefined;
+    // 对于其他格式，尝试通用方法转换为UUID
+    return this.generateUUID();
+  }
+
+  // 生成一个符合UUID v4格式的随机ID
+  private generateUUID(): string {
+    // 使用当前时间戳和随机数生成UUID
+    const timestamp = Date.now().toString(16);
+    const randomStr = Math.random().toString(16).substring(2, 10);
+    
+    // 组合UUID各段
+    const p1 = timestamp.slice(0, 8).padStart(8, '0');
+    const p2 = timestamp.slice(8, 12).padStart(4, '0');
+    const p3 = '4' + timestamp.slice(12, 15).padStart(3, '0');
+    const p4 = (8 + Math.floor(Math.random() * 4)).toString(16) + randomStr.slice(0, 3);
+    const p5 = randomStr.slice(3, 15).padStart(12, '0');
+    
+    const uuid = `${p1}-${p2}-${p3}-${p4}-${p5}`;
+    console.log('已生成新的UUID:', uuid);
+    return uuid;
   }
 
   public async createChatStream({
@@ -175,7 +225,7 @@ export class DifyClient {
           ...(model && { model }),
           ...(temperature && { temperature })
         };
-        
+
         // 只有当conversation_id为有效值时才添加
         if (streamConversationId) {
           requestParams['conversation_id'] = streamConversationId;
@@ -192,103 +242,149 @@ export class DifyClient {
         }, this.timeout);
 
         try {
-          const response = await fetch(apiEndpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${key}`,
-              'Accept': 'text/event-stream',
-              ...(this.currentAppId && { 'X-App-ID': this.currentAppId })
-            },
-            body: JSON.stringify(requestParams),
+        const response = await fetch(apiEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`,
+            'Accept': 'text/event-stream',
+            ...(this.currentAppId && { 'X-App-ID': this.currentAppId })
+          },
+          body: JSON.stringify(requestParams),
             signal: controller.signal,
             credentials: 'same-origin'
-          });
+        });
 
           clearTimeout(timeoutId);
 
-          if (!response.ok) {
+        if (!response.ok) {
             let errorMessage = `API请求失败: ${response.status}`;
-            try {
-              const errorData = await response.json();
-              errorMessage = errorData.message || errorMessage;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
               
               if (errorMessage.includes('Conversation Not Exists')) {
                 streamConversationId = '';
                 handleError(new Error('Conversation Not Exists'));
                 return;
               }
-            } catch (e) {
+          } catch (e) {
               console.error('解析错误响应失败:', e);
-            }
-            throw new Error(errorMessage);
           }
+          throw new Error(errorMessage);
+        }
 
-          if (!response.body) {
-            throw new Error('Response body is null');
-          }
+        if (!response.body) {
+          throw new Error('Response body is null');
+        }
 
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
 
           const processStreamData = async () => {
-            try {
-              while (true) {
-                const { done, value } = await reader.read();
-
-                if (done) {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              
+              if (done) {
                   if (completeCallback) {
                     completeCallback();
                   }
-                  break;
-                }
+                break;
+              }
 
-                const text = decoder.decode(value, { stream: true });
-                buffer += text;
+              // 立即处理每一段数据
+              const text = decoder.decode(value, { stream: true });
+              buffer += text;
 
-                const lines = buffer.split('\n\n');
-                buffer = lines.pop() || '';
-
-                for (const line of lines) {
-                  if (!line.trim() || !line.startsWith('data:')) continue;
-
-                  const eventData = line.slice(5).trim();
-                  if (eventData === '[DONE]') {
-                    if (completeCallback) {
-                      completeCallback();
+              // 更改分隔符检测逻辑，确保能处理不同格式的数据
+              // 尝试多种分隔符，提高兼容性
+              const separators = ['\n\n', '\n', '\r\n\r\n', '\r\n'];
+              let splitFound = false;
+              
+              for (const separator of separators) {
+                if (buffer.includes(separator)) {
+                  const lines = buffer.split(separator);
+                  // 保留最后一部分作为新的buffer
+                  buffer = lines.pop() || '';
+                  
+                  for (const line of lines) {
+                    if (!line.trim()) continue;
+                    
+                    // 尝试多种数据前缀格式
+                    let eventData = '';
+                    if (line.startsWith('data:')) {
+                      eventData = line.slice(5).trim();
+                    } else if (line.includes('data:')) {
+                      // 兼容数据中间包含data:的情况
+                      const parts = line.split('data:');
+                      eventData = parts[parts.length - 1].trim();
+                    } else {
+                      // 尝试直接解析
+                      eventData = line.trim();
                     }
-                    break;
-                  }
-
-                  try {
-                    const data = JSON.parse(eventData);
-
-                    // 捕获并更新conversationId
-                    if (data.conversation_id && (!streamConversationId || streamConversationId === '')) {
-                      streamConversationId = data.conversation_id;
-                      console.log('收到新的conversationId:', streamConversationId);
-                    }
-
-                    if (data.event === 'message') {
-                      if (messageCallback && data.answer) {
-                        messageCallback(data.answer);
-                      }
-                    } else if (data.event === 'message_end') {
+                    
+                    if (!eventData || eventData === '[DONE]') {
                       if (completeCallback) {
                         completeCallback();
                       }
+                      continue;
                     }
-                  } catch (e) {
-                    console.error('解析事件数据失败:', e);
+
+                    try {
+                      const data = JSON.parse(eventData);
+                      
+                      // 捕获并更新conversationId
+                      if (data.conversation_id && (!streamConversationId || streamConversationId === '')) {
+                        streamConversationId = data.conversation_id;
+                        console.log('收到新的conversationId:', streamConversationId);
+                      }
+
+                      if (data.event === 'message') {
+                        if (messageCallback && data.answer !== undefined) {
+                          // 即使是空字符串也要回调，确保流式效果
+                          messageCallback(data.answer);
+                        }
+                      } else if (data.event === 'message_end') {
+                        if (completeCallback) {
+                          completeCallback();
+                        }
+                      } else if (data.answer !== undefined) {
+                        // 兼容没有event字段的情况
+                        if (messageCallback) {
+                          messageCallback(data.answer);
+                        }
+                      }
+                    } catch (e) {
+                      console.error('解析事件数据失败:', eventData, e);
+                    }
                   }
+                  
+                  splitFound = true;
+                  break;
                 }
               }
-            } catch (error: any) {
-              console.error('处理流数据错误:', error);
-              handleError(new Error(error?.message || '处理流数据错误'));
+              
+              // 如果没有找到任何分隔符但buffer较大，尝试直接处理
+              if (!splitFound && buffer.length > 100) {
+                try {
+                  // 尝试解析整个buffer
+                  const data = JSON.parse(buffer);
+                  if (data.answer !== undefined && messageCallback) {
+                    messageCallback(data.answer);
+                    buffer = '';
+                  }
+                } catch (e) {
+                  // 解析失败，继续等待更多数据
+                }
+              }
             }
-          };
+          } catch (error: any) {
+            console.error('处理流数据错误:', error);
+            handleError(new Error(error?.message || '处理流数据错误'));
+          }
+        };
 
           processStreamData();
           resolve(stream);
@@ -345,14 +441,14 @@ export class DifyClient {
         requestBody.conversation_id = validatedId;
         
         if (isMobile) {
-          alert(`[移动端] 使用有效的对话ID: ${validatedId}`);
+          alert(`[移动端] 使用对话ID: ${validatedId}${validatedId !== requestBody.conversation_id ? ' (已转换)' : ''}`);
         }
       } else {
-        // 删除无效的conversation_id
+        // 当返回undefined的极端情况
         delete requestBody.conversation_id;
         
         if (isMobile) {
-          alert('[移动端] 无效的对话ID格式，将创建新对话');
+          alert('[移动端] 无法验证对话ID，将创建新对话');
         }
       }
       
@@ -473,60 +569,104 @@ export class DifyClient {
       alert('[移动端] 开始读取数据流');
     }
     
-    while (true) {
-      const { done, value } = await reader.read();
-      
-      if (done) {
-        if (isMobile) {
-          alert('[移动端] 数据流读取完成');
-        }
-        break;
-      }
-      
-      if (isMobile) {
-        alert(`[移动端] 收到数据: ${value.length} 字节`);
-      }
-      
-      const text = decoder.decode(value, { stream: true });
-      buffer += text;
-      
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      
-      for (const line of lines) {
-        if (!line.trim()) continue;
+    // 添加调试计数器，跟踪数据处理
+    let chunkCount = 0;
+    let messageCount = 0;
+    
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
         
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') continue;
-          
-          try {
-            const parsedData = JSON.parse(data);
+        if (done) {
+          if (isMobile) {
+            alert(`[移动端] 数据流读取完成，共处理 ${chunkCount} 个数据块, ${messageCount} 条消息`);
+          }
+          break;
+        }
+        
+        chunkCount++;
+        
+        // 立即处理收到的数据
+        const text = decoder.decode(value, { stream: true });
+        buffer += text;
+        
+        // 尝试使用多种分隔符
+        const separators = ['\n\n', '\n', '\r\n\r\n', '\r\n'];
+        let foundSeparator = false;
+        
+        for (const separator of separators) {
+          if (buffer.includes(separator)) {
+            const lines = buffer.split(separator);
+            buffer = lines.pop() || '';
             
-            // 提取会话ID，确保在移动端和桌面端一致性处理
-            if (parsedData.conversation_id && parsedData.conversation_id.trim() !== '') {
-              if (isMobile) {
-                alert(`[移动端] 收到对话ID: ${parsedData.conversation_id}`);
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              
+              let dataContent = '';
+              if (line.startsWith('data: ')) {
+                dataContent = line.slice(6);
+              } else if (line.includes('data:')) {
+                const dataParts = line.split('data:');
+                dataContent = dataParts[dataParts.length - 1].trim();
+              } else {
+                dataContent = line.trim();
               }
               
-              if (!localConversationId || localConversationId.trim() === '') {
-                localConversationId = parsedData.conversation_id;
+              if (dataContent === '[DONE]') continue;
+              
+              try {
+                const parsedData = JSON.parse(dataContent);
                 
-                if (onConversationId) {
-                  onConversationId(parsedData.conversation_id);
+                // 提取会话ID
+                if (parsedData.conversation_id && parsedData.conversation_id.trim() !== '') {
+                  if (!localConversationId || localConversationId.trim() === '') {
+                    localConversationId = parsedData.conversation_id;
+                    
+                    if (onConversationId) {
+                      onConversationId(parsedData.conversation_id);
+                    }
+                  }
                 }
+                
+                if (parsedData.answer !== undefined) {
+                  // 检测到回答内容
+                  messageCount++;
+                  onMessage(parsedData.answer);
+                } else if (parsedData.event === 'message' && parsedData.answer !== undefined) {
+                  // 兼容event模式
+                  messageCount++;
+                  onMessage(parsedData.answer);
+                }
+              } catch (e) {
+                console.error('解析数据失败:', dataContent);
               }
             }
             
-            onMessage(parsedData.answer || '');
-          } catch (e) {
-            if (isMobile) {
-              alert(`[移动端] 解析数据失败: ${line}`);
+            foundSeparator = true;
+            break;
+          }
+        }
+        
+        // 如果buffer积累太多但没找到分隔符，尝试解析整个buffer
+        if (!foundSeparator && buffer.length > 100) {
+          try {
+            const data = JSON.parse(buffer);
+            if (data.answer !== undefined) {
+              messageCount++;
+              onMessage(data.answer);
+              buffer = '';
             }
-            console.error('[DifyClient] Failed to parse data', line, e);
+          } catch (e) {
+            // 解析失败，继续等待更多数据
           }
         }
       }
+    } catch (error: any) {
+      console.error('读取流数据错误:', error);
+      if (isMobile) {
+        alert(`[移动端] 读取数据出错: ${error.message}`);
+      }
+      throw error;
     }
   }
 }

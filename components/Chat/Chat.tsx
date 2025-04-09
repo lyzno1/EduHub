@@ -413,19 +413,22 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         setMessageIsStreaming(true);
         const updatedMessages = [...updatedConversation.messages];
         
-        if (!fullResponse) {
+        // 添加细粒度的处理，确保即使是很小的chunk也能即时显示
+        fullResponse += chunk;
+        
+        // 确保消息存在
+        if (!updatedMessages.some(m => m.role === 'assistant')) {
           updatedMessages.push({
             role: 'assistant',
-            content: chunk
+            content: fullResponse
           });
         } else {
-          const lastMessage = updatedMessages[updatedMessages.length - 1];
-          if (lastMessage && lastMessage.role === 'assistant') {
-            lastMessage.content = fullResponse + chunk;
+          // 更新最后一条消息的内容
+          const lastIndex = updatedMessages.length - 1;
+          if (updatedMessages[lastIndex].role === 'assistant') {
+            updatedMessages[lastIndex].content = fullResponse;
           }
         }
-        
-        fullResponse += chunk;
         
         // 保存后端返回的conversationId
         if (chatStream.conversationId && (!conversationId || conversationId === '')) {
@@ -433,16 +436,27 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           console.log('收到新的conversationId:', conversationId);
         }
         
+        // 立即更新状态，确保UI即时反映
         const streamUpdatedConversation = {
           ...updatedConversation,
           messages: updatedMessages,
           conversationID: conversationId
         };
         
+        // 使用非批量更新方式，确保每个字符都能立即显示
         homeDispatch({
           field: 'selectedConversation',
           value: streamUpdatedConversation
         });
+        
+        // 确保滚动跟随新内容
+        if (autoScrollEnabled) {
+          requestAnimationFrame(() => {
+            if (chatContainerRef.current) {
+              chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+            }
+          });
+        }
       });
 
       chatStream.onError((error: Error) => {
