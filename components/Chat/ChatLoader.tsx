@@ -4,12 +4,13 @@ import HomeContext from '@/pages/api/home/home.context';
 
 interface Props {
   messageIsStreaming: boolean;
+  modelWaiting?: boolean;
 }
 
-export const ChatLoader: FC<Props> = ({ messageIsStreaming }) => {
+export const ChatLoader: FC<Props> = ({ messageIsStreaming, modelWaiting = true }) => {
   const { state: { lightMode } } = useContext(HomeContext);
   
-  if (!messageIsStreaming) return null;
+  if (!messageIsStreaming || !modelWaiting) return null;
 
   return (
     <div className="flex justify-center py-0 w-full">

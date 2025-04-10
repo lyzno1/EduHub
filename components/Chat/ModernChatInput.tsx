@@ -164,6 +164,11 @@ export const ModernChatInput = ({
 
   const handleStopConversation = () => {
     stopConversationRef.current = true;
+    
+    // 触发一个自定义事件来通知停止对话
+    const stopEvent = new CustomEvent('chatStopConversation');
+    document.dispatchEvent(stopEvent);
+    
     setTimeout(() => {
       stopConversationRef.current = false;
     }, 1000);

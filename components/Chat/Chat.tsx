@@ -78,8 +78,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showScrollDownButton, setShowScrollDownButton] =
     useState<boolean>(false);
-  const [isTyping, setIsTyping] = useState<boolean>(false);
   const [messageIsStreaming, setMessageIsStreaming] = useState<boolean>(false);
+  const [modelWaiting, setModelWaiting] = useState<boolean>(false);
   // 添加一个锁定变量，防止按钮状态在短时间内频繁变化
   const scrollButtonLockRef = useRef<boolean>(false);
 
@@ -375,7 +375,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       // 如果conversationID为空，则保持为空，让API生成新的ID
       // 这样确保新建对话时的ID与发送消息时使用的ID一致
       let conversationId = selectedConversation.conversationID || '';
-      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      // 使用状态变量，而不是临时检测，确保一致性
+      // const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
       console.log('对话ID信息:', {
         conversationId: conversationId,
@@ -406,6 +407,11 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         value: updatedConversation
       });
 
+      // 无论是移动端还是电脑端，都统一设置状态，确保显示黑点
+      console.log('设置等待状态: messageIsStreaming=true, modelWaiting=true');
+      setMessageIsStreaming(true);
+      setModelWaiting(true);
+
       // 使用统一的消息处理逻辑
       const chatStream = await difyClient.createChatStream({
         query: message.content,
@@ -420,6 +426,10 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       
       chatStream.onMessage((chunk: string) => {
         setMessageIsStreaming(true);
+        // 接收到模型响应后，关闭等待状态（黑点）
+        setModelWaiting(false);
+        console.log('接收到模型响应，设置modelWaiting=false');
+        
         const updatedMessages = [...updatedConversation.messages];
         
         // 添加细粒度的处理，确保即使是很小的chunk也能即时显示
@@ -489,6 +499,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       chatStream.onError((error: Error) => {
         console.error('处理消息时错误:', error);
         setMessageIsStreaming(false);
+        setModelWaiting(false);
         
         // 如果是会话不存在的错误，清除会话ID并重试
         if (error.message.includes('Conversation Not Exists')) {
@@ -509,15 +520,13 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       });
 
       chatStream.onComplete(() => {
+        console.log('消息处理已完成');
+        
+        // 所有消息处理完成后，重置流状态
         setMessageIsStreaming(false);
+        setModelWaiting(false);
         
-        // 确保使用最新的conversationId
-        if (chatStream.conversationId && (!conversationId || conversationId === '')) {
-          conversationId = chatStream.conversationId;
-          console.log('完成时收到的conversationId:', conversationId);
-        }
-        
-        // 保存完整的对话 - 不需要额外添加助手消息，因为已经在流式响应中更新了
+        // 将最终结果保存到对话列表中
         const updatedMessages = [...updatedConversation.messages];
         
         // 确保最后一条消息是助手消息且内容正确
@@ -919,6 +928,32 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     };
   }, [messagesLength, bottomInputHeight]);
 
+  const handleStopConversation = () => {
+    stopConversationRef.current = true;
+    setTimeout(() => {
+      stopConversationRef.current = false;
+    }, 1000);
+    
+    // 当用户停止对话时，重置相关状态
+    setMessageIsStreaming(false);
+    setModelWaiting(false);
+  };
+
+  // 监听自定义事件，当对话被停止时重置状态
+  useEffect(() => {
+    const handleStopConversationEvent = () => {
+      setModelWaiting(false);
+      setMessageIsStreaming(false);
+    };
+    
+    // 添加自定义事件监听器
+    document.addEventListener('chatStopConversation', handleStopConversationEvent);
+    
+    return () => {
+      document.removeEventListener('chatStopConversation', handleStopConversationEvent);
+    };
+  }, []);
+
   return (
     <div
       className={`relative flex-1 flex flex-col overflow-y-auto bg-white dark:bg-[#343541] ${
@@ -1075,7 +1110,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                   />
                 ))}
 
-                {messageIsStreaming && <ChatLoader messageIsStreaming={messageIsStreaming} />}
+                {/* 显示加载中的黑点 - 确保在所有设备上统一显示 */}
+                {<ChatLoader messageIsStreaming={messageIsStreaming} modelWaiting={modelWaiting} />}
 
                 {/* 添加底部空白区域，确保内容可见性 */}
                 <div 
