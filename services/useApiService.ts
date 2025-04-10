@@ -67,40 +67,93 @@ export async function streamDifyChat({
 
     let buffer = '';
     let receivedConversationId = conversationId;
+    let pingCount = 0;
+    let chunkCount = 0;
+    let lastChunkTime = Date.now();
 
     while (true) {
       const { value, done } = await reader!.read();
-      if (done) break;
+      if (done) {
+        console.log(`流读取完成，处理了${chunkCount}个数据块，收到${pingCount}次ping`);
+        // 确保最后的完成回调被执行
+        onComplete?.(receivedConversationId);
+        break;
+      }
 
+      chunkCount++;
+      lastChunkTime = Date.now();
       buffer += decoder.decode(value, { stream: true });
-      const parts = buffer.split('\n\n');
-      buffer = parts.pop() || '';
+      
+      // 尝试多种分隔符
+      const separators = ['\n\n', '\n', '\r\n\r\n', '\r\n'];
+      let foundSeparator = false;
+      
+      for (const separator of separators) {
+        if (buffer.includes(separator)) {
+          const parts = buffer.split(separator);
+          buffer = parts.pop() || '';
+          
+          for (const part of parts) {
+            // 处理ping消息
+            if (part.trim() === 'event: ping' || part.trim() === 'ping' || part.includes('event: ping')) {
+              pingCount++;
+              console.log(`收到ping心跳消息 #${pingCount}`);
+              continue;
+            }
+            
+            if (!part.trim() || !part.trim().startsWith('data:')) continue;
+            
+            const raw = part.replace(/^data:\s*/, '');
+            if (raw === '[DONE]') {
+              onComplete?.(receivedConversationId);
+              return;
+            }
 
-      for (const part of parts) {
-        if (!part.trim().startsWith('data:')) continue;
-        const raw = part.replace(/^data:\s*/, '');
-        if (raw === '[DONE]') {
-          onComplete?.(receivedConversationId);
-          return;
+            try {
+              const json = JSON.parse(raw) as ChatResponse;
+              
+              // 保存后端返回的conversationId
+              if (json.conversation_id && (!receivedConversationId || receivedConversationId === '')) {
+                receivedConversationId = json.conversation_id;
+                console.log('收到新的conversationId:', receivedConversationId);
+              }
+              
+              if (json.event === 'message') {
+                onMessage(json.answer || '');
+              } else if (json.event === 'message_end') {
+                onComplete?.(receivedConversationId);
+              } else if (json.event === 'ping') {
+                pingCount++;
+                console.log(`收到ping消息(JSON格式) #${pingCount}`);
+              }
+            } catch (err) {
+              console.error('Error parsing SSE message:', err, 'Raw data:', raw);
+              // 不要中断处理，继续处理下一个消息
+            }
+          }
+          
+          foundSeparator = true;
+          break;
         }
-
+      }
+      
+      // 如果buffer积累太多但没找到分隔符，尝试检查是否有ping消息
+      if (!foundSeparator && buffer.length > 100) {
+        if (buffer.includes('event: ping')) {
+          pingCount++;
+          console.log(`从buffer中提取到ping消息 #${pingCount}`);
+          buffer = buffer.replace('event: ping', '').trim();
+        }
+        
+        // 尝试解析整个buffer
         try {
-          const json = JSON.parse(raw) as ChatResponse;
-          
-          // 保存后端返回的conversationId
-          if (json.conversation_id && (!receivedConversationId || receivedConversationId === '')) {
-            receivedConversationId = json.conversation_id;
-            console.log('收到新的conversationId:', receivedConversationId);
+          const json = JSON.parse(buffer);
+          if (json.answer) {
+            onMessage(json.answer);
+            buffer = '';
           }
-          
-          if (json.event === 'message') {
-            onMessage(json.answer || '');
-          } else if (json.event === 'message_end') {
-            onComplete?.(receivedConversationId);
-          }
-        } catch (err) {
-          console.error('Error parsing SSE message:', err);
-          onError?.(err);
+        } catch (e) {
+          // 解析失败，继续等待更多数据
         }
       }
     }

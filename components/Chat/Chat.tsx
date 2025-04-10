@@ -370,14 +370,17 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       });
 
       const apiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || '';
+      
+      // 重要：使用selectedConversation中的id作为对话ID
+      // 如果conversationID为空，则保持为空，让API生成新的ID
+      // 这样确保新建对话时的ID与发送消息时使用的ID一致
       let conversationId = selectedConversation.conversationID || '';
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
-      console.log('API配置信息:', {
-        url: process.env.NEXT_PUBLIC_DIFY_API_URL,
-        hasApiKey: !!apiKey,
-        conversationId,
-        isMobile
+      console.log('对话ID信息:', {
+        conversationId: conversationId,
+        selectedConversationId: selectedConversation.id,
+        messages: selectedConversation.messages.length
       });
 
       // 添加用户消息到对话
@@ -402,7 +405,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         query: message.content,
         key: apiKey,
         user: user || 'unknown',
-        conversationId,
+        conversationId, // 使用已存在的conversationId或空字符串
         inputs: {},
         autoGenerateName: true
       });
@@ -430,10 +433,25 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           }
         }
         
-        // 保存后端返回的conversationId
+        // 保存后端返回的conversationId，并更新全局状态
         if (chatStream.conversationId && (!conversationId || conversationId === '')) {
           conversationId = chatStream.conversationId;
-          console.log('收到新的conversationId:', conversationId);
+          console.log('收到新的会话ID:', conversationId);
+          
+          // 同时立即更新所有对话列表中的相应对话ID
+          const updatedConversationsWithId = conversations.map(conv => 
+            conv.id === selectedConversation.id 
+              ? {...conv, conversationID: conversationId} 
+              : conv
+          );
+          
+          homeDispatch({
+            field: 'conversations',
+            value: updatedConversationsWithId
+          });
+          
+          // 保存到本地存储
+          saveConversations(updatedConversationsWithId);
         }
         
         // 立即更新状态，确保UI即时反映
@@ -449,11 +467,19 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           value: streamUpdatedConversation
         });
         
-        // 确保滚动跟随新内容
+        // 提高滚动性能，使用防抖或节流优化
         if (autoScrollEnabled) {
+          // 使用requestAnimationFrame来优化滚动性能
           requestAnimationFrame(() => {
             if (chatContainerRef.current) {
-              chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+              // 计算是否需要滚动
+              const container = chatContainerRef.current;
+              const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+              
+              // 只有当接近底部时才滚动，避免用户主动滚动时干扰
+              if (isNearBottom) {
+                container.scrollTop = container.scrollHeight;
+              }
             }
           });
         }
