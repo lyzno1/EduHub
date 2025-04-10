@@ -411,6 +411,13 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       // console.log('设置等待状态: messageIsStreaming=true, modelWaiting=true');
       setMessageIsStreaming(true);
       setModelWaiting(true);
+      
+      // 强制滚动到底部，确保用户消息可见
+      setTimeout(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      }, 50);
 
       // 使用统一的消息处理逻辑
       const chatStream = await difyClient.createChatStream({
@@ -474,25 +481,13 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           value: streamUpdatedConversation
         });
         
-        // 优化滚动逻辑，统一移动端和桌面端
-        if (autoScrollEnabled) {
-          // 使用requestAnimationFrame来优化滚动性能
-          requestAnimationFrame(() => {
+        // 如果是第一个chunk，强制滚动到底部
+        if (fullResponse.length <= chunk.length) {
+          setTimeout(() => {
             if (chatContainerRef.current) {
-              const container = chatContainerRef.current;
-              const { scrollHeight, scrollTop, clientHeight } = container;
-              const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-              
-              // 只有当接近底部时才滚动，避免用户主动滚动时干扰
-              if (isNearBottom) {
-                // 平滑滚动到底部
-                container.scrollTo({
-                  top: scrollHeight,
-                  behavior: isMobile ? 'auto' : 'smooth' // 移动端使用即时滚动，桌面端使用平滑滚动
-                });
-              }
+              chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
             }
-          });
+          }, 50);
         }
       });
 
