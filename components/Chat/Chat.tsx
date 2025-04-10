@@ -390,6 +390,12 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       }
       updatedMessages.push(message);
       
+      // 添加一个空的助手消息用于流式输出
+      updatedMessages.push({
+        role: 'assistant',
+        content: ''
+      });
+      
       const updatedConversation = {
         ...selectedConversation,
         messages: updatedMessages
@@ -419,24 +425,16 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         // 添加细粒度的处理，确保即使是很小的chunk也能即时显示
         fullResponse += chunk;
         
-        // 确保消息存在
-        if (!updatedMessages.some(m => m.role === 'assistant')) {
-          updatedMessages.push({
-            role: 'assistant',
-            content: fullResponse
-          });
-        } else {
-          // 更新最后一条消息的内容
-          const lastIndex = updatedMessages.length - 1;
-          if (updatedMessages[lastIndex].role === 'assistant') {
-            updatedMessages[lastIndex].content = fullResponse;
-          }
-        }
+        // 更新助手消息（最后一条消息）
+        const assistantMessageIndex = updatedMessages.length - 1;
+        updatedMessages[assistantMessageIndex] = {
+          role: 'assistant',
+          content: fullResponse
+        };
         
         // 保存后端返回的conversationId，并更新全局状态
         if (chatStream.conversationId && (!conversationId || conversationId === '')) {
           conversationId = chatStream.conversationId;
-          console.log('收到新的会话ID:', conversationId);
           
           // 同时立即更新所有对话列表中的相应对话ID
           const updatedConversationsWithId = conversations.map(conv => 
@@ -454,7 +452,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           saveConversations(updatedConversationsWithId);
         }
         
-        // 立即更新状态，确保UI即时反映
         const streamUpdatedConversation = {
           ...updatedConversation,
           messages: updatedMessages,
@@ -467,18 +464,22 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           value: streamUpdatedConversation
         });
         
-        // 提高滚动性能，使用防抖或节流优化
+        // 优化滚动逻辑，统一移动端和桌面端
         if (autoScrollEnabled) {
           // 使用requestAnimationFrame来优化滚动性能
           requestAnimationFrame(() => {
             if (chatContainerRef.current) {
-              // 计算是否需要滚动
               const container = chatContainerRef.current;
-              const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+              const { scrollHeight, scrollTop, clientHeight } = container;
+              const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
               
               // 只有当接近底部时才滚动，避免用户主动滚动时干扰
               if (isNearBottom) {
-                container.scrollTop = container.scrollHeight;
+                // 平滑滚动到底部
+                container.scrollTo({
+                  top: scrollHeight,
+                  behavior: isMobile ? 'auto' : 'smooth' // 移动端使用即时滚动，桌面端使用平滑滚动
+                });
               }
             }
           });
@@ -516,18 +517,13 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           console.log('完成时收到的conversationId:', conversationId);
         }
         
-        // 保存完整的对话
+        // 保存完整的对话 - 不需要额外添加助手消息，因为已经在流式响应中更新了
         const updatedMessages = [...updatedConversation.messages];
         
-        const finalMessage = {
-          role: 'assistant',
-          content: fullResponse
-        };
-        
-        // 检查是否已经添加了消息，避免重复
-        const lastMessage = updatedMessages[updatedMessages.length - 1];
-        if (!lastMessage || lastMessage.role !== 'assistant') {
-          updatedMessages.push(finalMessage);
+        // 确保最后一条消息是助手消息且内容正确
+        const lastMessageIndex = updatedMessages.length - 1;
+        if (updatedMessages[lastMessageIndex].role === 'assistant') {
+          updatedMessages[lastMessageIndex].content = fullResponse;
         }
         
         const finalConversation = {
