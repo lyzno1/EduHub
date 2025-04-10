@@ -267,6 +267,20 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
               >
                 {message.content || (messageIsStreaming ? '▍' : '')}
               </MemoizedReactMarkdown>
+              
+              {/* 助手消息（模型输出）的复制按钮 */}
+              <div className="relative mt-2 flex justify-start">
+                <button
+                  className={`flex items-center justify-center rounded-md p-1 px-1.5 text-xs
+                  text-gray-500 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700
+                  transition-colors duration-200 shadow-sm`}
+                  onClick={copyOnClick}
+                  data-tooltip={messagedCopied ? "已复制到剪贴板" : "复制消息内容"}
+                  data-placement="bottom"
+                >
+                  {messagedCopied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                </button>
+              </div>
             </div>
           </div>
         )}
