@@ -252,13 +252,16 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
                     );
                   },
                   table({ children }) {
-                    return (
-                      <div className="overflow-x-auto my-2">
-                        <table className="border-collapse border border-black px-3 py-1 dark:border-white">
-                          {children}
-                        </table>
-                      </div>
-                    );
+                    return <table className="prose">{children}</table>;
+                  },
+                  th({ children }) {
+                    return <th className="prose">{children}</th>;
+                  },
+                  td({ children }) {
+                    return <td className="prose">{children}</td>;
+                  },
+                  tr({ children }) {
+                    return <tr>{children}</tr>;
                   },
                 }}
               >

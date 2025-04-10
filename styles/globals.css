@@ -218,6 +218,307 @@ html.dark {
   letter-spacing: -0.025em;
 }
 
+/* 表格容器样式 */
+.prose table {
+  width: auto;
+  max-width: 100%;
+  border-collapse: collapse;
+  margin: 0.8rem 0;
+  font-size: 0.9rem;
+}
+
+/* 表格边框和样式 */
+.prose table {
+  border: none;
+  background-color: transparent;
+}
+
+.dark .prose table {
+  border: none;
+  background-color: transparent;
+}
+
+/* 移动端样式 */
+@media (max-width: 768px) {
+  .prose table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* 表头样式 */
+.prose thead {
+  background-color: rgba(249, 250, 251, 0.4);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.5);
+}
+
+.dark .prose thead {
+  background-color: rgba(17, 24, 39, 0.4);
+  border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+}
+
+.prose th {
+  padding: 0.5rem 0.75rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #374151;
+  text-align: left;
+  letter-spacing: 0.025em;
+  vertical-align: middle;
+}
+
+.dark .prose th {
+  color: #e5e7eb;
+}
+
+/* 单元格样式 */
+.prose td {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #4b5563;
+  vertical-align: middle;
+  border-top: 1px solid rgba(229, 231, 235, 0.2);
+  border-bottom: none;
+}
+
+.dark .prose td {
+  color: #d1d5db;
+  border-top: 1px solid rgba(55, 65, 81, 0.2);
+}
+
+/* 确保最后一行没有底部边框 */
+.prose tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* 交替行的样式 */
+.prose tbody tr:nth-child(even) {
+  background-color: rgba(249, 250, 251, 0.2);
+}
+
+.dark .prose tbody tr:nth-child(even) {
+  background-color: rgba(31, 41, 55, 0.2);
+}
+
+.prose tbody tr:nth-child(odd) {
+  background-color: transparent;
+}
+
+.dark .prose tbody tr:nth-child(odd) {
+  background-color: transparent;
+}
+
+/* 悬停效果 */
+.prose tbody tr:hover {
+  background-color: rgba(243, 244, 246, 0.3);
+}
+
+.dark .prose tbody tr:hover {
+  background-color: rgba(45, 55, 72, 0.3);
+}
+
+/* 删除表格容器样式，不再需要 */
+.table-container {
+  display: none;
+}
+
+/* 不同主题下的表格样式 */
+/* 红色主题 */
+:root[data-theme='red'] .prose table,
+body[data-theme='red'] .prose table {
+  border: none;
+  background-color: transparent;
+}
+
+:root[data-theme='red'] .prose thead,
+body[data-theme='red'] .prose thead {
+  background-color: rgba(248, 215, 218, 0.3);
+  border-bottom-color: rgba(245, 194, 199, 0.3);
+}
+
+:root[data-theme='red'] .prose th,
+body[data-theme='red'] .prose th {
+  color: rgba(132, 32, 41, 0.9);
+}
+
+:root[data-theme='red'] .prose td,
+body[data-theme='red'] .prose td {
+  color: rgba(88, 21, 28, 0.85);
+  border-top-color: rgba(245, 194, 199, 0.2);
+}
+
+:root[data-theme='red'] .prose tbody tr:nth-child(even),
+body[data-theme='red'] .prose tbody tr:nth-child(even) {
+  background-color: rgba(255, 248, 248, 0.2);
+}
+
+:root[data-theme='red'] .prose tbody tr:nth-child(odd),
+body[data-theme='red'] .prose tbody tr:nth-child(odd) {
+  background-color: transparent;
+}
+
+:root[data-theme='red'] .prose tbody tr:hover,
+body[data-theme='red'] .prose tbody tr:hover {
+  background-color: rgba(248, 215, 218, 0.3);
+}
+
+/* 蓝色主题 */
+:root[data-theme='blue'] .prose table,
+body[data-theme='blue'] .prose table {
+  border: none;
+  background-color: transparent;
+}
+
+:root[data-theme='blue'] .prose thead,
+body[data-theme='blue'] .prose thead {
+  background-color: rgba(207, 226, 255, 0.3);
+  border-bottom-color: rgba(158, 197, 254, 0.3);
+}
+
+:root[data-theme='blue'] .prose th,
+body[data-theme='blue'] .prose th {
+  color: rgba(8, 66, 152, 0.9);
+}
+
+:root[data-theme='blue'] .prose td,
+body[data-theme='blue'] .prose td {
+  color: rgba(5, 44, 101, 0.85);
+  border-top-color: rgba(158, 197, 254, 0.2);
+}
+
+:root[data-theme='blue'] .prose tbody tr:nth-child(even),
+body[data-theme='blue'] .prose tbody tr:nth-child(even) {
+  background-color: rgba(248, 250, 255, 0.2);
+}
+
+:root[data-theme='blue'] .prose tbody tr:nth-child(odd),
+body[data-theme='blue'] .prose tbody tr:nth-child(odd) {
+  background-color: transparent;
+}
+
+:root[data-theme='blue'] .prose tbody tr:hover,
+body[data-theme='blue'] .prose tbody tr:hover {
+  background-color: rgba(207, 226, 255, 0.3);
+}
+
+/* 绿色主题 */
+:root[data-theme='green'] .prose table,
+body[data-theme='green'] .prose table {
+  border: none;
+  background-color: transparent;
+}
+
+:root[data-theme='green'] .prose thead,
+body[data-theme='green'] .prose thead {
+  background-color: rgba(209, 231, 221, 0.3);
+  border-bottom-color: rgba(186, 219, 204, 0.3);
+}
+
+:root[data-theme='green'] .prose th,
+body[data-theme='green'] .prose th {
+  color: rgba(15, 81, 50, 0.9);
+}
+
+:root[data-theme='green'] .prose td,
+body[data-theme='green'] .prose td {
+  color: rgba(10, 54, 34, 0.85);
+  border-top-color: rgba(186, 219, 204, 0.2);
+}
+
+:root[data-theme='green'] .prose tbody tr:nth-child(even),
+body[data-theme='green'] .prose tbody tr:nth-child(even) {
+  background-color: rgba(248, 255, 249, 0.2);
+}
+
+:root[data-theme='green'] .prose tbody tr:nth-child(odd),
+body[data-theme='green'] .prose tbody tr:nth-child(odd) {
+  background-color: transparent;
+}
+
+:root[data-theme='green'] .prose tbody tr:hover,
+body[data-theme='green'] .prose tbody tr:hover {
+  background-color: rgba(209, 231, 221, 0.3);
+}
+
+/* 紫色主题 */
+:root[data-theme='purple'] .prose table,
+body[data-theme='purple'] .prose table {
+  border: none;
+  background-color: transparent;
+}
+
+:root[data-theme='purple'] .prose thead,
+body[data-theme='purple'] .prose thead {
+  background-color: rgba(226, 217, 243, 0.3);
+  border-bottom-color: rgba(208, 191, 234, 0.3);
+}
+
+:root[data-theme='purple'] .prose th,
+body[data-theme='purple'] .prose th {
+  color: rgba(90, 40, 125, 0.9);
+}
+
+:root[data-theme='purple'] .prose td,
+body[data-theme='purple'] .prose td {
+  color: rgba(59, 27, 84, 0.85);
+  border-top-color: rgba(208, 191, 234, 0.2);
+}
+
+:root[data-theme='purple'] .prose tbody tr:nth-child(even),
+body[data-theme='purple'] .prose tbody tr:nth-child(even) {
+  background-color: rgba(250, 248, 255, 0.2);
+}
+
+:root[data-theme='purple'] .prose tbody tr:nth-child(odd),
+body[data-theme='purple'] .prose tbody tr:nth-child(odd) {
+  background-color: transparent;
+}
+
+:root[data-theme='purple'] .prose tbody tr:hover,
+body[data-theme='purple'] .prose tbody tr:hover {
+  background-color: rgba(226, 217, 243, 0.3);
+}
+
+/* 棕色主题 */
+:root[data-theme='brown'] .prose table,
+body[data-theme='brown'] .prose table {
+  border: none;
+  background-color: transparent;
+}
+
+:root[data-theme='brown'] .prose thead,
+body[data-theme='brown'] .prose thead {
+  background-color: rgba(230, 216, 208, 0.3);
+  border-bottom-color: rgba(216, 194, 181, 0.3);
+}
+
+:root[data-theme='brown'] .prose th,
+body[data-theme='brown'] .prose th {
+  color: rgba(101, 67, 33, 0.9);
+}
+
+:root[data-theme='brown'] .prose td,
+body[data-theme='brown'] .prose td {
+  color: rgba(67, 44, 20, 0.85);
+  border-top-color: rgba(216, 194, 181, 0.2);
+}
+
+:root[data-theme='brown'] .prose tbody tr:nth-child(even),
+body[data-theme='brown'] .prose tbody tr:nth-child(even) {
+  background-color: rgba(253, 249, 246, 0.2);
+}
+
+:root[data-theme='brown'] .prose tbody tr:nth-child(odd),
+body[data-theme='brown'] .prose tbody tr:nth-child(odd) {
+  background-color: transparent;
+}
+
+:root[data-theme='brown'] .prose tbody tr:hover,
+body[data-theme='brown'] .prose tbody tr:hover {
+  background-color: rgba(230, 216, 208, 0.3);
+}
+
 /* 代码块样式 - Manus UI 风格 */
 pre {
   border-radius: 10px;

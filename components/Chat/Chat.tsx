@@ -408,7 +408,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       });
 
       // 无论是移动端还是电脑端，都统一设置状态，确保显示黑点
-      console.log('设置等待状态: messageIsStreaming=true, modelWaiting=true');
+      // console.log('设置等待状态: messageIsStreaming=true, modelWaiting=true');
       setMessageIsStreaming(true);
       setModelWaiting(true);
 
@@ -428,7 +428,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         setMessageIsStreaming(true);
         // 接收到模型响应后，关闭等待状态（黑点）
         setModelWaiting(false);
-        console.log('接收到模型响应，设置modelWaiting=false');
+        // console.log('接收到模型响应，设置modelWaiting=false');
         
         const updatedMessages = [...updatedConversation.messages];
         
