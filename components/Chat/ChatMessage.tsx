@@ -194,7 +194,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
                   </div>
                 ) : (
                   <div className="relative pb-8">
-                    <div className="bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-gray-100 px-4 py-3 rounded-[20px] text-sm leading-relaxed border border-gray-200 dark:border-gray-600 shadow-sm font-medium">
+                    <div className="bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-gray-100 px-4 py-3 rounded-[20px] text-sm leading-relaxed border border-gray-200 dark:border-gray-600 shadow-sm font-medium whitespace-pre-wrap break-words">
                       {message.content}
                     </div>
                     
