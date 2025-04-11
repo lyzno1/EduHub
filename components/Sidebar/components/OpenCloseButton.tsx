@@ -14,12 +14,23 @@ export const CloseSidebarButton = ({ onClick, side }: Props) => {
         } z-50 h-7 w-7 hover:text-gray-400 dark:text-white dark:hover:text-gray-300 sm:top-0.5 sm:${
           side === 'right' ? 'right-[270px]' : 'left-[270px]'
         } sm:h-8 sm:w-8 sm:text-neutral-700`}
-        onClick={onClick}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onClick(e);
+        }}
+        onMouseDown={(e) => e.preventDefault()}
+        onMouseEnter={(e) => e.preventDefault()}
+        onMouseLeave={(e) => e.preventDefault()}
       >
         {side === 'right' ? <IconArrowBarRight /> : <IconArrowBarLeft />}
       </button>
       <div
-        onClick={onClick}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onClick(e);
+        }}
         className="absolute top-0 left-0 z-10 h-full w-full bg-black opacity-70 sm:hidden"
       ></div>
     </>
@@ -34,7 +45,14 @@ export const OpenSidebarButton = ({ onClick, side }: Props) => {
       } z-50 h-7 w-7 text-white hover:text-gray-400 dark:text-white dark:hover:text-gray-300 sm:top-0.5 sm:${
         side === 'right' ? 'right-2' : 'left-2'
       } sm:h-8 sm:w-8 sm:text-neutral-700`}
-      onClick={onClick}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick(e);
+      }}
+      onMouseDown={(e) => e.preventDefault()}
+      onMouseEnter={(e) => e.preventDefault()}
+      onMouseLeave={(e) => e.preventDefault()}
     >
       {side === 'right' ? <IconArrowBarLeft /> : <IconArrowBarRight />}
     </button>

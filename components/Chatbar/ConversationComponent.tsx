@@ -140,8 +140,14 @@ export const ConversationComponent = ({ conversation }: Props) => {
           <>
             <button
               className="opacity-0 rounded-md p-1 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 group-hover:opacity-100 transition-opacity"
-              onClick={handleStartEditing}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleStartEditing(e);
+              }}
               onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={(e) => e.preventDefault()}
+              onMouseLeave={(e) => e.preventDefault()}
               data-tooltip="编辑对话名称"
               data-placement="top"
             >
@@ -151,8 +157,14 @@ export const ConversationComponent = ({ conversation }: Props) => {
               id={`delete-button-${conversation.id}`}
               ref={deleteButtonRef}
               className={`relative rounded-md p-1 text-gray-500 hover:bg-gray-200 hover:text-red-500 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-red-400 transition-all ${showDeleteConfirm ? 'text-red-500 dark:text-red-400 bg-gray-200 dark:bg-gray-700' : 'opacity-0 group-hover:opacity-100'}`}
-              onClick={handleDelete}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDelete(e);
+              }}
               onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={(e) => e.preventDefault()}
+              onMouseLeave={(e) => e.preventDefault()}
               data-tooltip="删除对话"
               data-placement="top"
             >

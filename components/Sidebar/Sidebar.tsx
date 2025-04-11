@@ -71,10 +71,15 @@ const Sidebar = <T,>({
         <div className="flex items-center">
           <button
             className="text-sidebar flex w-full flex-shrink-0 cursor-pointer select-none items-center gap-3 rounded-md border border-white/20 p-3 text-white transition-colors duration-200 hover:bg-gray-500/10"
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
               handleCreateItem();
               handleSearchTerm('');
             }}
+            onMouseDown={(e) => e.preventDefault()}
+            onMouseEnter={(e) => e.preventDefault()}
+            onMouseLeave={(e) => e.preventDefault()}
           >
             <IconPlus size={16} />
             {addItemButtonTitle}

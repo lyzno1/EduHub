@@ -1,6 +1,6 @@
 import { FC, useEffect } from 'react';
 import { useTranslation } from 'next-i18next';
-import { IconAdjustments, IconBrandGithub, IconHelp, IconHome, IconMenu2, IconMoon, IconSun } from '@tabler/icons-react';
+import { IconAdjustments, IconBrandGithub, IconHelp, IconHome, IconMenu2, IconMoon, IconPlus, IconSun } from '@tabler/icons-react';
 import { useContext } from 'react';
 import HomeContext from '@/pages/api/home/home.context';
 
@@ -15,6 +15,7 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
   const {
     state: { lightMode },
     dispatch: homeDispatch,
+    handleNewConversation,
   } = useContext(HomeContext);
 
   // 当组件加载时，确保应用正确的主题
@@ -82,6 +83,8 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
             onToggle();
           }}
           onMouseDown={(e) => e.preventDefault()}
+          onMouseEnter={(e) => e.preventDefault()}
+          onMouseLeave={(e) => e.preventDefault()}
           data-tooltip={isSidebarOpen ? "收起侧边栏" : "展开侧边栏"}
           data-placement="right"
         >
@@ -127,21 +130,29 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            // 主页按钮功能
+            handleNewConversation();
           }}
           onMouseDown={(e) => e.preventDefault()}
-          data-tooltip="首页"
+          onMouseEnter={(e) => e.preventDefault()}
+          onMouseLeave={(e) => e.preventDefault()}
+          data-tooltip="新建聊天"
           data-placement="right"
         >
-          <IconHome className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
+          <IconPlus className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
       </div>
 
-      <div className="mt-auto mb-5 flex flex-col items-center gap-5">
+      <div className="mt-auto mb-5 flex flex-col items-center gap-4">
         <div 
           className="flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10"
-          onClick={handleThemeChange}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleThemeChange(e);
+          }}
           onMouseDown={(e) => e.preventDefault()}
+          onMouseEnter={(e) => e.preventDefault()}
+          onMouseLeave={(e) => e.preventDefault()}
           data-tooltip={lightMode === 'light' ? '切换到深色模式' : '切换到浅色模式'}
           data-placement="right"
         >
@@ -157,13 +168,15 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            // 设置按钮功能
+            window.open("https://github.com/ifLab/eduhub", "_blank", "noopener,noreferrer");
           }}
           onMouseDown={(e) => e.preventDefault()}
-          data-tooltip="设置"
+          onMouseEnter={(e) => e.preventDefault()}
+          onMouseLeave={(e) => e.preventDefault()}
+          data-tooltip="GitHub仓库"
           data-placement="right"
         >
-          <IconAdjustments className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
+          <IconBrandGithub className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
 
         <div 
@@ -171,27 +184,16 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            // 帮助按钮功能
+            // 设置按钮功能
           }}
           onMouseDown={(e) => e.preventDefault()}
-          data-tooltip="帮助"
+          onMouseEnter={(e) => e.preventDefault()}
+          onMouseLeave={(e) => e.preventDefault()}
+          data-tooltip="设置"
           data-placement="right"
         >
-          <IconHelp className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
+          <IconAdjustments className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
-
-        <a 
-          href="https://github.com/ifLab/eduhub" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10"
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.preventDefault()}
-          data-tooltip="GitHub仓库"
-          data-placement="right"
-        >
-          <IconBrandGithub className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
-        </a>
       </div>
     </div>
   );
