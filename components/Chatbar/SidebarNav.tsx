@@ -149,7 +149,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   return (
     <div 
       id="mobile-sidebar-container"
-      className={`fixed top-0 flex h-full w-[260px] max-w-[85vw] flex-col border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out dark:border-gray-800 dark:bg-[#202123] ${
+      className={`fixed top-0 flex h-full w-[260px] max-w-[85vw] flex-col border-r border-gray-200 bg-[#f5f5f5] transition-transform duration-300 ease-in-out dark:border-gray-800 dark:bg-[#202123] ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       } left-0 sm:left-[60px]`}
       onClick={stopPropagation}
@@ -158,28 +158,30 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
         zIndex: isMobile ? 9999 : 40
       }}
     >
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center">
+      {/* 固定在顶部的标题栏 */}
+      <div className="sticky top-0 z-10 bg-[#f5f5f5] dark:bg-[#202123] border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center">
+            <button 
+              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 sm:hidden"
+              onClick={onToggle}
+            >
+              <IconX size={18} />
+            </button>
+            <div className="text-lg font-medium ml-2 sm:ml-0 sm:hidden">对话列表</div>
+          </div>
           <button 
-            className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 sm:hidden"
-            onClick={onToggle}
+            className="flex h-8 w-8 items-center justify-center rounded-[8px] text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors duration-200 border border-transparent hover:border-gray-200 dark:hover:border-gray-600"
+            onClick={handleCreateNewChat}
+            onMouseDown={(e) => e.preventDefault()}
+            data-tooltip="新建聊天"
+            data-placement="bottom"
           >
-            <IconX size={18} />
+            <IconMessagePlus size={18} />
           </button>
-          <div className="text-lg font-medium ml-2 sm:ml-0 sm:hidden">对话列表</div>
         </div>
-        <button 
-          className="flex h-8 w-8 items-center justify-center rounded-[8px] text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors duration-200 border border-transparent hover:border-gray-200 dark:hover:border-gray-600"
-          onClick={handleCreateNewChat}
-          onMouseDown={(e) => e.preventDefault()}
-          data-tooltip="新建聊天"
-          data-placement="bottom"
-        >
-          <IconMessagePlus size={18} />
-        </button>
-      </div>
-      
-      <div className="flex-1 overflow-auto">
+        
+        {/* 固定的搜索框 */}
         <div className="p-2">
           <div className="relative flex items-center">
             <div className="relative w-full">
@@ -190,7 +192,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
                 className="w-full rounded-[12px] border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#11191f] py-2 pl-10 pr-10 text-sm text-[#333333] dark:text-[hsl(205deg,16%,77%)] transition-colors duration-200 
                 focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-500 dark:focus:border-gray-500 dark:focus:ring-gray-500
                 hover:border-gray-400 dark:hover:border-gray-500"
-                placeholder={t('搜索聊天...')}
+                placeholder={t('搜索聊天...') || '搜索聊天...'}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 style={{ fontFamily: "'PingFang SC', Arial, sans-serif" }}
@@ -211,8 +213,11 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
             </div>
           </div>
         </div>
-
-        <div className="px-2 pb-2">
+      </div>
+      
+      {/* 可滚动的聊天列表 */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="px-2 pb-2 pt-2">
           {hasNoResults ? (
             <div className="text-center text-gray-500 dark:text-gray-400 py-2">
               未找到相关聊天
@@ -224,6 +229,9 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
           )}
         </div>
       </div>
+      
+      {/* 底部padding区域 */}
+      <div className="bg-[#f5f5f5] dark:bg-[#202123]" style={{ height: "72px" }}></div>
     </div>
   );
 };

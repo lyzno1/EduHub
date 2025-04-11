@@ -73,7 +73,7 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
   };
 
   return (
-    <div className="fixed left-0 top-0 z-20 flex h-full w-[60px] flex-col items-center border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-[#202123]">
+    <div className="fixed left-0 top-0 z-20 flex h-full w-[60px] flex-col items-center border-r border-gray-200 bg-[#f5f5f5] dark:border-gray-800 dark:bg-[#202123]">
       <div className="flex w-full flex-col items-center">
         <div 
           className="mt-5 mb-2 flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10 mx-auto"
