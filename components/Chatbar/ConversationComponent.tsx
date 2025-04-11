@@ -116,14 +116,6 @@ export const ConversationComponent = ({ conversation }: Props) => {
       }`}
       onClick={handleClick}
     >
-      <div className={`mr-3 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
-        isSelected 
-          ? 'bg-blue-500 text-white' 
-          : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-      }`}>
-        <IconMessage size={16} />
-      </div>
-      
       <div className="flex-1 overflow-hidden text-sm font-medium">
         {isEditing ? (
           <form onSubmit={handleNameSubmit} onClick={(e) => e.stopPropagation()}>
@@ -135,10 +127,11 @@ export const ConversationComponent = ({ conversation }: Props) => {
               onKeyDown={handleKeyDown}
               onBlur={handleBlur}
               autoFocus
+              style={{ fontFamily: "'PingFang SC', Arial, sans-serif" }}
             />
           </form>
         ) : (
-          <div className="truncate">{conversation.name}</div>
+          <div className="truncate" style={{ fontFamily: "'PingFang SC', Arial, sans-serif" }}>{conversation.name}</div>
         )}
       </div>
       
