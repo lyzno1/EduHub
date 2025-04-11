@@ -82,6 +82,11 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const [modelWaiting, setModelWaiting] = useState<boolean>(false);
   // 添加一个锁定变量，防止按钮状态在短时间内频繁变化
   const scrollButtonLockRef = useRef<boolean>(false);
+  
+  // 添加用于标题动画的状态
+  const [titleAnimationInProgress, setTitleAnimationInProgress] = useState<boolean>(false);
+  const [currentDisplayTitle, setCurrentDisplayTitle] = useState<string>('');
+  const titleIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -426,7 +431,9 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         user: user || 'unknown',
         conversationId, // 使用已存在的conversationId或空字符串
         inputs: {},
-        autoGenerateName: true
+        // 判断是否是第一次发送消息，如果是则设置auto_generate_name为false
+        // 因为我们会使用异步方式生成标题
+        autoGenerateName: selectedConversation.messages.length > 1 // 仅非首次发送消息时使用自动生成标题
       });
 
       let fullResponse = '';
@@ -552,6 +559,122 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           value: updatedConversations
         });
         saveConversations(updatedConversations);
+
+        // 判断是否是新建的对话（第一条消息发送后）
+        // 通过检查消息数量判断是否是首次对话（仅用户消息+AI回复共2条）
+        const isNewConversation = updatedMessages.length === 2;
+        
+        // 如果是新对话且已有对话ID，则异步获取对话标题
+        if (isNewConversation && conversationId) {
+          console.log('开始异步生成对话标题...');
+          
+          // 立即开始异步生成对话标题，不增加额外延迟
+          (async () => {
+            try {
+              const difyClient = new DifyClient({
+                apiUrl: process.env.NEXT_PUBLIC_DIFY_API_URL,
+                debug: true
+              });
+              
+              const apiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || '';
+              const generatedName = await difyClient.generateConversationName(
+                conversationId,
+                apiKey,
+                user || 'unknown'
+              );
+              
+              console.log('成功生成对话标题:', generatedName);
+              
+              if (generatedName) {
+                // 设置标题动画正在进行中
+                setTitleAnimationInProgress(true);
+                setCurrentDisplayTitle('');
+                
+                // 清除可能存在的旧计时器
+                if (titleIntervalRef.current) {
+                  clearInterval(titleIntervalRef.current);
+                }
+                
+                // 创建带有打字效果的对话，存储在全局状态中
+                const targetTitle = generatedName;
+                let currentIndex = 0;
+                
+                // 使用setInterval创建稳定的打字效果，更快的速度
+                titleIntervalRef.current = setInterval(() => {
+                  // 增加字符
+                  currentIndex++;
+                  
+                  // 构建当前显示的标题
+                  const displayTitle = targetTitle.substring(0, currentIndex);
+                  setCurrentDisplayTitle(displayTitle);
+                  
+                  // 创建一个包含当前显示标题的对话对象
+                  const conversationWithPartialName = {
+                    ...finalConversation,
+                    name: displayTitle
+                  };
+                  
+                  // 更新Redux状态
+                  homeDispatch({
+                    field: 'selectedConversation',
+                    value: conversationWithPartialName
+                  });
+                  
+                  // 更新对话列表中的标题
+                  const updatedConversationsWithName = conversations.map(conv => 
+                    conv.id === conversationWithPartialName.id ? conversationWithPartialName : conv
+                  );
+                  
+                  homeDispatch({
+                    field: 'conversations',
+                    value: updatedConversationsWithName
+                  });
+                  
+                  // 当所有字符显示完成后
+                  if (currentIndex >= targetTitle.length) {
+                    // 清除计时器
+                    if (titleIntervalRef.current) {
+                      clearInterval(titleIntervalRef.current);
+                      titleIntervalRef.current = null;
+                    }
+                    
+                    // 设置标题动画完成
+                    setTitleAnimationInProgress(false);
+                    
+                    // 确保最终标题正确显示
+                    const finalConversationWithName = {
+                      ...finalConversation,
+                      name: targetTitle
+                    };
+                    
+                    // 更新最终状态
+                    homeDispatch({
+                      field: 'selectedConversation',
+                      value: finalConversationWithName
+                    });
+                    
+                    // 更新对话列表
+                    const finalUpdatedConversations = conversations.map(conv => 
+                      conv.id === finalConversationWithName.id ? finalConversationWithName : conv
+                    );
+                    
+                    homeDispatch({
+                      field: 'conversations',
+                      value: finalUpdatedConversations
+                    });
+                    
+                    // 保存到本地存储
+                    saveConversation(finalConversationWithName);
+                    saveConversations(finalUpdatedConversations);
+                  }
+                }, 40); // 使用更快的打字速度(40ms)以保持效果明显但更流畅
+              }
+            } catch (error) {
+              console.error('生成对话标题失败:', error);
+              setTitleAnimationInProgress(false);
+            }
+          })();
+        }
       });
 
     } catch (error) {
@@ -946,6 +1069,17 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     
     return () => {
       document.removeEventListener('chatStopConversation', handleStopConversationEvent);
+    };
+  }, []);
+
+  // 添加useEffect清理计时器
+  useEffect(() => {
+    // 在组件卸载时清理计时器
+    return () => {
+      if (titleIntervalRef.current) {
+        clearInterval(titleIntervalRef.current);
+        titleIntervalRef.current = null;
+      }
     };
   }, []);
 

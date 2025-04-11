@@ -761,4 +761,51 @@ export class DifyClient {
       }
     }
   }
+
+  // 添加异步生成对话标题的方法
+  public async generateConversationName(conversationId: string, key: string, user: string = DEFAULT_USER): Promise<string> {
+    if (!conversationId) {
+      throw new Error('会话ID不能为空');
+    }
+
+    try {
+      const apiEndpoint = `${this.baseUrl}/v1/conversations/${conversationId}/name`;
+      
+      if (this.debug) {
+        console.log('异步生成对话标题 - 配置信息:', {
+          endpoint: apiEndpoint,
+          conversationId,
+          user
+        });
+      }
+
+      const response = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify({
+          auto_generate: true,
+          user: user
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.message || `生成标题失败: ${response.status}`);
+        } catch (e) {
+          throw new Error(`生成标题请求失败: ${response.status} ${response.statusText}`);
+        }
+      }
+
+      const data = await response.json();
+      return data.name || '';
+    } catch (error: any) {
+      console.error('生成对话标题错误:', error);
+      throw error;
+    }
+  }
 }
