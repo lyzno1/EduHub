@@ -111,8 +111,8 @@ export const ConversationComponent = ({ conversation }: Props) => {
     <div
       className={`group relative flex cursor-pointer items-center rounded-md px-3 py-2 transition-colors dark:hover:bg-gray-800 ${
         isSelected 
-          ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white' 
-          : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300'
+          ? 'bg-gray-200 text-gray-900 dark:bg-gray-800 dark:text-white' 
+          : 'text-gray-700 hover:bg-gray-200 dark:text-gray-300'
       }`}
       onClick={handleClick}
     >
@@ -139,7 +139,7 @@ export const ConversationComponent = ({ conversation }: Props) => {
         {conversation.deletable && (
           <>
             <button
-              className="opacity-0 rounded-md p-1 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 group-hover:opacity-100 transition-opacity"
+              className="opacity-0 rounded-md p-1 text-gray-500 hover:bg-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 group-hover:opacity-100 transition-opacity"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -149,14 +149,14 @@ export const ConversationComponent = ({ conversation }: Props) => {
               onMouseEnter={(e) => e.preventDefault()}
               onMouseLeave={(e) => e.preventDefault()}
               data-tooltip="编辑对话名称"
-              data-placement="top"
+              data-placement="bottom"
             >
               <IconPencil size={16} />
             </button>
             <button
               id={`delete-button-${conversation.id}`}
               ref={deleteButtonRef}
-              className={`relative rounded-md p-1 text-gray-500 hover:bg-gray-200 hover:text-red-500 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-red-400 transition-all ${showDeleteConfirm ? 'text-red-500 dark:text-red-400 bg-gray-200 dark:bg-gray-700' : 'opacity-0 group-hover:opacity-100'}`}
+              className={`relative rounded-md p-1 text-gray-500 hover:bg-gray-300 hover:text-red-500 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-red-400 transition-all ${showDeleteConfirm ? 'text-red-500 dark:text-red-400 bg-gray-300 dark:bg-gray-700' : 'opacity-0 group-hover:opacity-100'}`}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -166,7 +166,7 @@ export const ConversationComponent = ({ conversation }: Props) => {
               onMouseEnter={(e) => e.preventDefault()}
               onMouseLeave={(e) => e.preventDefault()}
               data-tooltip="删除对话"
-              data-placement="top"
+              data-placement="bottom"
             >
               <IconTrash size={16} />
             </button>
