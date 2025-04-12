@@ -31,7 +31,6 @@ import { ModernChatInput } from './ModernChatInput';
 import { ChatLoader } from './ChatLoader';
 import { ErrorMessageDiv } from './ErrorMessageDiv';
 import { MemoizedChatMessage } from './MemoizedChatMessage';
-import { TemperatureSlider } from './Temperature';
 import { FunctionCards } from './FunctionCards';
 import { ChatInput } from './ChatInput';
 import { ChatMessage } from './ChatMessage';
