@@ -4,6 +4,7 @@ import {
   IconPencil,
   IconTrash,
   IconX,
+  IconDotsVertical,
 } from '@tabler/icons-react';
 import {
   DragEvent,
@@ -12,7 +13,9 @@ import {
   useContext,
   useEffect,
   useState,
+  useRef,
 } from 'react';
+import { createPortal } from 'react-dom';
 
 import { IconBook, IconCode } from '@tabler/icons-react';
 
@@ -24,7 +27,6 @@ import { Conversation } from '@/types/chat';
 import HomeContext from '@/pages/api/home/home.context';
 
 import SidebarActionButton from '@/components/Buttons/SidebarActionButton';
-import ChatbarContext from '@/components/Chatbar/Chatbar.context';
 
 interface Props {
   conversation: Conversation;
@@ -33,97 +35,83 @@ interface Props {
 // 单个会话的删除、重命名等操作
 export const ConversationComponent = ({ conversation }: Props) => {
   const {
-    state: { selectedConversation, messageIsStreaming,lightMode },
+    state: { selectedConversation, messageIsStreaming, lightMode },
     handleSelectConversation,
+    handleDeleteConversation,
     handleUpdateConversation,
   } = useContext(HomeContext);
 
-  const { handleDeleteConversation } = useContext(ChatbarContext);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameValue, setRenameValue] = useState(conversation.name);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
 
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState('');
+  const handleMenuClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!showMenu) {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (rect) {
+        setMenuPosition({
+          top: rect.top + window.scrollY,
+          left: rect.right + window.scrollX + 8
+        });
+      }
+    }
+    setShowMenu(!showMenu);
+  };
 
-  const handleEnterDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      selectedConversation && handleRename(selectedConversation);
+  // 点击外部关闭菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node) &&
+          buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+        setMenuPosition(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleRename = () => {
+    setShowMenu(false);
+    setMenuPosition(null);
+    setShowRenameModal(true);
+  };
+
+  const handleDelete = () => {
+    setShowMenu(false);
+    setMenuPosition(null);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmRename = () => {
+    if (renameValue.trim().length > 0) {
+      handleUpdateConversation(conversation, { key: 'name', value: renameValue });
+      setShowRenameModal(false);
     }
   };
 
-  const handleDragStart = (
-    e: DragEvent<HTMLButtonElement>,
-    conversation: Conversation,
-  ) => {
+  const handleConfirmDelete = () => {
+    handleDeleteConversation(conversation.id);
+    setShowDeleteModal(false);
+  };
+
+  const handleDragStart = (e: DragEvent<HTMLButtonElement>, conversation: Conversation) => {
     if (e.dataTransfer) {
       e.dataTransfer.setData('conversation', JSON.stringify(conversation));
     }
   };
 
-  const handleRename = (conversation: Conversation) => {
-    if (renameValue.trim().length > 0) {
-      handleUpdateConversation(conversation, {
-        key: 'name',
-        value: renameValue,
-      });
-      setRenameValue('');
-      setIsRenaming(false);
-    }
-  };
-
-  const handleConfirm: MouseEventHandler<HTMLButtonElement> = (e) => {
-    e.stopPropagation();
-    if (isDeleting) {
-      handleDeleteConversation(conversation);
-    } else if (isRenaming) {
-      handleRename(conversation);
-    }
-    setIsDeleting(false);
-    setIsRenaming(false);
-  };
-
-  const handleCancel: MouseEventHandler<HTMLButtonElement> = (e) => {
-    e.stopPropagation();
-    setIsDeleting(false);
-    setIsRenaming(false);
-  };
-
-  const handleOpenRenameModal: MouseEventHandler<HTMLButtonElement> = (e) => {
-    e.stopPropagation();
-    setIsRenaming(true);
-    selectedConversation && setRenameValue(selectedConversation.name);
-  };
-  const handleOpenDeleteModal: MouseEventHandler<HTMLButtonElement> = (e) => {
-    e.stopPropagation();
-    setIsDeleting(true);
-  };
-
-  useEffect(() => {
-    if (isRenaming) {
-      setIsDeleting(false);
-    } else if (isDeleting) {
-      setIsRenaming(false);
-    }
-  }, [isRenaming, isDeleting]);
-
-  // 图标变量 TODO: 优化
+  // 图标变量
   let icon;
   switch (conversation.name) {
-    // case '教师助理':
-    //   icon = <FontAwesomeIcon icon={faChalkboardUser} style={{ height: '16px', width: '16px' }}/>;
-    //   break;
-    // case '学生助理':
-    //   icon = <FontAwesomeIcon icon={faUser} style={{ height: '16px', width: '16px' }}/>;
-    //   break;
-    // case '联网搜索':
-    //   icon = <FontAwesomeIcon icon={faGlobe} style={{ height: '16px', width: '16px' }}/>;
-    //   break;
-    // case '论文检索':
-    //   icon = <FontAwesomeIcon icon={faFileLines} style={{ height: '16px', width: '16px' }}/>;
-    //   break;
-    // case '数学计算':
-    //   icon = <FontAwesomeIcon icon={faSquareRootVariable} style={{ height: '16px', width: '16px' }}/>;
-    //   break;
     case '信息网络问答':
       icon = <FontAwesomeIcon icon={faChalkboardUser} style={{ height: '16px', width: '16px' }}/>;
       break;
@@ -140,82 +128,128 @@ export const ConversationComponent = ({ conversation }: Props) => {
       icon = <IconMessage size={18} />;
   }
 
-  // 单个会话 重命名、删除和选择会话 等显示
   return (
-    // 侧边栏中会话的背景色、字体设置
-    <div className={`relative flex items-center ${lightMode === 'red' ? 'bg-[#9A3B3B]' : lightMode === 'blue' ? 'bg-[#4682A9]' : lightMode === 'green' ? 'bg-[#435334]' : lightMode === 'purple' ? 'bg-[#4A55A2]' : lightMode === 'brown' ? 'bg-[#393646]'  :'bg-[#687084] dark:bg-[#202123]'}`}>
-      {isRenaming && selectedConversation?.id === conversation.id ? (
-        <div className="flex w-full items-center gap-3 rounded-lg bg-[#343541]/90 p-3">
-          <IconMessage size={18} />
-          <input
-            className="mr-12 flex-1 overflow-hidden overflow-ellipsis border-neutral-400 bg-transparent text-left text-[12.5px] leading-3 text-white outline-none focus:border-neutral-100"
-            type="text"
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onKeyDown={handleEnterDown}
-            autoFocus
-          />
-        </div>
-      ) : (
-        <button
-          className={`flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-sm transition-colors duration-200 hover:bg-gray-500/30 ${
-            messageIsStreaming ? 'disabled:cursor-not-allowed' : ''
-          } ${
-            selectedConversation?.id === conversation.id
-              ? 'bg-gray-500/30'
-              : ''
+    <div className="relative flex items-center group">
+      <button
+        className={`flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-sm transition-colors duration-200 hover:bg-gray-500/10 ${
+          messageIsStreaming ? 'disabled:cursor-not-allowed' : ''
+        } ${
+          selectedConversation?.id === conversation.id
+            ? 'bg-gray-500/20'
+            : ''
+        }`}
+        onClick={() => handleSelectConversation(conversation)}
+        disabled={messageIsStreaming}
+        draggable="true"
+        onDragStart={(e) => handleDragStart(e, conversation)}
+      >
+        {icon}
+        <div
+          className={`relative max-h-5 flex-1 overflow-hidden text-ellipsis whitespace-nowrap break-all text-left text-[12.5px] leading-3 ${
+            selectedConversation?.id === conversation.id ? 'pr-12' : 'pr-1'
           }`}
-          onClick={() => handleSelectConversation(conversation)}
-          disabled={messageIsStreaming}
-          draggable="true"
-          onDragStart={(e) => handleDragStart(e, conversation)}
         >
-          {/* <IconMessage size={18} /> */}
-          {/* 图标元素 */}
-          {icon}
-          {/* <div
-            className={`relative max-h-5 flex-1 overflow-hidden text-ellipsis whitespace-nowrap break-all text-left text-[12.5px] leading-3 ${
-              selectedConversation?.id === conversation.id ? 'pr-12' : 'pr-1'
-            }`}
+          {conversation.name}
+        </div>
+      </button>
+
+      <div 
+        ref={buttonRef}
+        className={`absolute right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200`}
+      >
+        <SidebarActionButton 
+          handleClick={handleMenuClick}
+          className={lightMode ? "text-black hover:text-black/70" : "text-neutral-200 hover:text-neutral-100"}
+        >
+          <IconDotsVertical size={18} />
+        </SidebarActionButton>
+
+        {showMenu && menuPosition && createPortal(
+          <div 
+            ref={menuRef}
+            className="fixed z-[9999] w-48"
+            style={{
+              top: `${menuPosition.top}px`,
+              left: `${menuPosition.left}px`,
+            }}
           >
-            {conversation.name}
-          </div> */}
-          {/* 会话名称不变 */}
-          <div
-            className={`relative max-h-5 flex-1 overflow-hidden text-ellipsis whitespace-nowrap break-all text-left text-[12.5px] leading-3 ${
-              selectedConversation?.id === conversation.id ? 'pr-12' : 'pr-1'
-            }`}
-          >
-            {conversation.originalName !== '' ? conversation.originalName : conversation.name}
+            <div className="rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5">
+              <div className="py-1">
+                <button
+                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  onClick={handleRename}
+                >
+                  <IconPencil size={16} className="mr-2" />
+                  重命名
+                </button>
+                <button
+                  className="flex w-full items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  onClick={handleDelete}
+                >
+                  <IconTrash size={16} className="mr-2" />
+                  删除
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+      </div>
+
+      {showRenameModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
+          <div className="w-[320px] rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">重命名对话</h3>
+            <input
+              type="text"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleConfirmRename()}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                onClick={() => setShowRenameModal(false)}
+              >
+                取消
+              </button>
+              <button
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                onClick={handleConfirmRename}
+              >
+                确认
+              </button>
+            </div>
           </div>
-        </button>
+        </div>,
+        document.body
       )}
 
-      {(isDeleting || isRenaming) &&
-        selectedConversation?.id === conversation.id && (
-          <div className="absolute right-1 z-10 flex text-gray-300">
-            <SidebarActionButton handleClick={handleConfirm}>
-              <IconCheck size={18} />
-            </SidebarActionButton>
-            <SidebarActionButton handleClick={handleCancel}>
-              <IconX size={18} />
-            </SidebarActionButton>
+      {showDeleteModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
+          <div className="w-[320px] rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">确认删除</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">确定要删除这个对话吗？此操作无法撤销。</p>
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                取消
+              </button>
+              <button
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                onClick={handleConfirmDelete}
+              >
+                删除
+              </button>
+            </div>
           </div>
-        )}
-
-      {selectedConversation?.deletable &&
-      selectedConversation?.id === conversation.id &&
-        !isDeleting &&
-        !isRenaming && (
-          <div className="absolute right-1 z-10 flex text-gray-300">
-            <SidebarActionButton handleClick={handleOpenRenameModal}>
-              <IconPencil size={18} />
-            </SidebarActionButton>
-            <SidebarActionButton handleClick={handleOpenDeleteModal}>
-              <IconTrash size={18} />
-            </SidebarActionButton>
-          </div>
-        )}
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
