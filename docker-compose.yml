@@ -3,5 +3,9 @@ version: '3.6'
 services:
   chatgpt:
     build: .
+      
     ports:
-      - 1080:8080
+      - "3001:3000"
+  frontend:
+    ports:
+      - "3001:3000"
