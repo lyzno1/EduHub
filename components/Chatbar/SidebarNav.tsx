@@ -175,7 +175,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="px-4 py-2">
           <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-            应用
+            校园应用
           </div>
           <div className="space-y-2">
             {applications.map((app) => (

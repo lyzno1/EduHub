@@ -155,13 +155,13 @@ export const ConversationComponent = ({ conversation }: Props) => {
 
       <div 
         ref={buttonRef}
-        className={`absolute right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200`}
+        className={`absolute right-2 z-10 opacity-0 group-hover:opacity-100 transition-all duration-200`}
       >
         <SidebarActionButton 
           handleClick={handleMenuClick}
-          className={lightMode ? "text-black hover:text-black/70" : "text-neutral-200 hover:text-neutral-100"}
+          className={`${lightMode ? "text-black hover:text-black/70" : "text-neutral-200 hover:text-neutral-100"} hover:bg-gradient-to-r from-gray-500/20 to-gray-500/10 rounded-full p-1.5 transition-all duration-200`}
         >
-          <IconDotsVertical size={18} />
+          <IconDotsVertical size={16} />
         </SidebarActionButton>
 
         {showMenu && menuPosition && createPortal(
