@@ -17,7 +17,6 @@ import {
 } from 'react';
 
 import { useTranslation } from 'next-i18next';
-import { cn } from '@/lib/utils';
 
 import { Message } from '@/types/chat';
 import { Plugin } from '@/types/plugin';
@@ -82,18 +81,6 @@ export const ChatInput = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
-    const maxLength = selectedConversation?.model.maxLength;
-
-    if (maxLength && value.length > maxLength) {
-      alert(
-        t(
-          `Message limit is {{maxLength}} characters. You have entered {{valueLength}} characters.`,
-          { maxLength, valueLength: value.length },
-        ),
-      );
-      return;
-    }
-
     setContent(value);
     updatePromptListVisibility(value);
   };
@@ -281,15 +268,9 @@ export const ChatInput = ({
   }, []);
 
   return (
-    <div className={cn(
-      'flex items-end gap-2 w-full bg-white rounded-lg border border-gray-200',
-      isMobile ? 'p-2' : 'p-4'
-    )}>
+    <div className={isMobile ? 'p-2' : 'p-4'}>
       <textarea
-        className={cn(
-          'flex-1 min-h-[40px] max-h-[200px] p-2 resize-none bg-transparent border-0 focus:ring-0',
-          isMobile ? 'text-sm' : 'text-base'
-        )}
+        className={isMobile ? 'text-sm' : 'text-base'}
         placeholder="输入消息..."
         value={content}
         onChange={handleChange}
@@ -298,18 +279,11 @@ export const ChatInput = ({
         rows={1}
       />
       <button
-        className={cn(
-          'flex items-center justify-center rounded-lg bg-primary text-white',
-          isMobile ? 'w-8 h-8' : 'w-10 h-10',
-          disabled && 'opacity-50 cursor-not-allowed'
-        )}
+        className={isMobile ? 'w-8 h-8' : 'w-10 h-10'}
         onClick={handleSend}
         disabled={disabled}
       >
-        <IconSend className={cn(
-          'text-white',
-          isMobile ? 'w-4 h-4' : 'w-5 h-5'
-        )} />
+        <IconSend className={isMobile ? 'w-4 h-4' : 'w-5 h-5'} />
       </button>
     </div>
   );
