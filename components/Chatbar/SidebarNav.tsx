@@ -1,4 +1,4 @@
-import { IconMessagePlus, IconSearch, IconX, IconBrandChrome, IconSchool, IconBook, IconCode } from '@tabler/icons-react';
+import { IconMessagePlus, IconSearch, IconX, IconBrandChrome, IconSchool, IconBook, IconCode, IconBrain, IconRobot, IconBook2, IconUsers } from '@tabler/icons-react';
 import { FC, useContext, useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'next-i18next';
 
@@ -103,9 +103,9 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   // 应用列表数据
   const applications = [
     { id: 1, name: 'DeepSeek', icon: <IconCode size={20} />, color: 'bg-blue-100 dark:bg-blue-900/30' },
-    { id: 2, name: '校园助理', icon: <IconSchool size={20} />, color: 'bg-green-100 dark:bg-green-900/30' },
-    { id: 3, name: '课程助手', icon: <IconBook size={20} />, color: 'bg-yellow-100 dark:bg-yellow-900/30' },
-    { id: 4, name: '教师应用', icon: <IconSchool size={20} />, color: 'bg-purple-100 dark:bg-purple-900/30' }
+    { id: 2, name: '校园助理', icon: <IconRobot size={20} />, color: 'bg-green-100 dark:bg-green-900/30' },
+    { id: 3, name: '课程助手', icon: <IconBook2 size={20} />, color: 'bg-yellow-100 dark:bg-yellow-900/30' },
+    { id: 4, name: '教师应用', icon: <IconUsers size={20} />, color: 'bg-purple-100 dark:bg-purple-900/30' }
   ];
 
   return (

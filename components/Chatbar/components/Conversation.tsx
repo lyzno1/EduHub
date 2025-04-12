@@ -109,27 +109,30 @@ export const ConversationComponent = ({ conversation }: Props) => {
     }
   };
 
-  // 图标变量
-  let icon;
-  switch (conversation.name) {
-    case '信息网络问答':
-      icon = <FontAwesomeIcon icon={faChalkboardUser} style={{ height: '16px', width: '16px' }}/>;
-      break;
-    case '财务问答':
-      icon = <FontAwesomeIcon icon={faUser} style={{ height: '16px', width: '16px' }}/>;
-      break;
-    case '教务问答':
-      icon = <FontAwesomeIcon icon={faFileLines} style={{ height: '16px', width: '16px' }}/>;
-      break;
-    case '开源软件开发技术':
-      icon = <FontAwesomeIcon icon={faServer} style={{ height: '16px', width: '16px' }}/>;
-      break;
-    default:
-      icon = <IconMessage size={18} />;
-  }
+  // 使用默认图标
+  const icon = <IconMessage size={18} />;
+
+  // 检测是否为移动设备
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   return (
-    <div className="relative flex items-center group">
+    <div 
+      className={`relative flex items-center group ${
+        selectedConversation?.id === conversation.id && !isMobile 
+          ? 'sticky top-0 z-10 bg-[#f5f5f5] dark:bg-[#202123] shadow-sm' 
+          : ''
+      }`}
+    >
       <button
         className={`flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-sm transition-colors duration-200 hover:bg-gray-500/10 ${
           messageIsStreaming ? 'disabled:cursor-not-allowed' : ''
@@ -144,79 +147,69 @@ export const ConversationComponent = ({ conversation }: Props) => {
         onDragStart={(e) => handleDragStart(e, conversation)}
       >
         {icon}
-        <div
-          className={`relative max-h-5 flex-1 overflow-hidden text-ellipsis whitespace-nowrap break-all text-left text-[12.5px] leading-3 ${
-            selectedConversation?.id === conversation.id ? 'pr-12' : 'pr-1'
-          }`}
-        >
+        <div className="relative flex-1 overflow-hidden whitespace-nowrap text-left text-[13px] leading-3">
           {conversation.name}
         </div>
       </button>
 
-      <div 
-        ref={buttonRef}
-        className={`absolute right-2 z-10 opacity-0 group-hover:opacity-100 transition-all duration-200`}
-      >
-        <SidebarActionButton 
-          handleClick={handleMenuClick}
-          className={`${lightMode ? "text-black hover:text-black/70" : "text-neutral-200 hover:text-neutral-100"} hover:bg-gradient-to-r from-gray-500/20 to-gray-500/10 rounded-full p-1.5 transition-all duration-200`}
-        >
-          <IconDotsVertical size={16} />
-        </SidebarActionButton>
-
-        {showMenu && menuPosition && createPortal(
-          <div 
-            ref={menuRef}
-            className="fixed z-[9999] w-48"
-            style={{
-              top: `${menuPosition.top}px`,
-              left: `${menuPosition.left}px`,
-            }}
-          >
-            <div className="rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5">
-              <div className="py-1">
-                <button
-                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  onClick={handleRename}
-                >
-                  <IconPencil size={16} className="mr-2" />
-                  重命名
-                </button>
-                <button
-                  className="flex w-full items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  onClick={handleDelete}
-                >
-                  <IconTrash size={16} className="mr-2" />
-                  删除
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+      {/* 操作按钮 */}
+      <div className="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div ref={buttonRef} className="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer">
+          <IconDotsVertical size={16} className="text-gray-500 dark:text-gray-400" onClick={handleMenuClick} />
+        </div>
       </div>
 
+      {/* 下拉菜单 */}
+      {showMenu && menuPosition && createPortal(
+        <div 
+          ref={menuRef}
+          className="fixed bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 min-w-[120px] z-50"
+          style={{ top: menuPosition.top, left: menuPosition.left }}
+        >
+          <button 
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            onClick={handleRename}
+          >
+            <IconPencil size={16} />
+            <span>重命名</span>
+          </button>
+          <button 
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            onClick={handleDelete}
+          >
+            <IconTrash size={16} />
+            <span>删除</span>
+          </button>
+        </div>,
+        document.body
+      )}
+
+      {/* 重命名模态框 */}
       {showRenameModal && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
-          <div className="w-[320px] rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">重命名对话</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-[300px]">
+            <div className="text-lg font-medium mb-4">重命名对话</div>
             <input
               type="text"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleConfirmRename()}
+              onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+                if (e.key === 'Enter') {
+                  handleConfirmRename();
+                }
+              }}
               autoFocus
             />
-            <div className="flex justify-end gap-2 mt-6">
+            <div className="flex justify-end gap-2 mt-4">
               <button
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                className="px-3 py-1 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 onClick={() => setShowRenameModal(false)}
               >
                 取消
               </button>
               <button
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                className="px-3 py-1 rounded-md bg-blue-500 text-white"
                 onClick={handleConfirmRename}
               >
                 确认
@@ -227,20 +220,23 @@ export const ConversationComponent = ({ conversation }: Props) => {
         document.body
       )}
 
+      {/* 删除确认模态框 */}
       {showDeleteModal && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
-          <div className="w-[320px] rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">确认删除</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">确定要删除这个对话吗？此操作无法撤销。</p>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-[300px]">
+            <div className="text-lg font-medium mb-4">删除对话</div>
+            <div className="text-gray-600 dark:text-gray-400 mb-4">
+              确定要删除这个对话吗？此操作无法撤销。
+            </div>
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                className="px-3 py-1 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 onClick={() => setShowDeleteModal(false)}
               >
                 取消
               </button>
               <button
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                className="px-3 py-1 rounded-md bg-red-500 text-white"
                 onClick={handleConfirmDelete}
               >
                 删除
