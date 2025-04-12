@@ -1,5 +1,4 @@
 import { OpenAIModel } from './openai';
-import { Message } from './message';
 
 export interface Message {
   role: Role;

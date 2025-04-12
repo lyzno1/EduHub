@@ -30,9 +30,7 @@ import { FolderInterface, FolderType } from '@/types/folder';
 import { Prompt } from '@/types/prompt';
 
 import { Chat } from '@/components/Chat/Chat';
-import { Chatbar } from '@/components/Chatbar/Chatbar';
 import { Navbar } from '@/components/Mobile/Navbar';
-import Promptbar from '@/components/Promptbar';
 import LoginNotice from '@/components/Settings/loginNotice';
 import { SidebarSlim } from '@/components/Sidebar/SidebarSlim';
 import { SidebarNav } from '@/components/Chatbar/SidebarNav';

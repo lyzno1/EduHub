@@ -114,7 +114,7 @@ export const ConversationComponent = ({ conversation }: Props) => {
 
   // 检测是否为移动设备
   const [isMobile, setIsMobile] = useState<boolean>(false);
-  
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -133,20 +133,20 @@ export const ConversationComponent = ({ conversation }: Props) => {
           : ''
       }`}
     >
-      <button
+        <button
         className={`flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-sm transition-colors duration-200 hover:bg-gray-500/10 ${
-          messageIsStreaming ? 'disabled:cursor-not-allowed' : ''
-        } ${
-          selectedConversation?.id === conversation.id
+            messageIsStreaming ? 'disabled:cursor-not-allowed' : ''
+          } ${
+            selectedConversation?.id === conversation.id
             ? 'bg-gray-500/20'
-            : ''
-        }`}
-        onClick={() => handleSelectConversation(conversation)}
-        disabled={messageIsStreaming}
-        draggable="true"
-        onDragStart={(e) => handleDragStart(e, conversation)}
-      >
-        {icon}
+              : ''
+          }`}
+          onClick={() => handleSelectConversation(conversation)}
+          disabled={messageIsStreaming}
+          draggable="true"
+          onDragStart={(e) => handleDragStart(e, conversation)}
+        >
+          {icon}
         <div className="relative flex-1 overflow-hidden whitespace-nowrap text-left text-[13px] leading-3">
           {conversation.name}
         </div>
@@ -179,7 +179,7 @@ export const ConversationComponent = ({ conversation }: Props) => {
           >
             <IconTrash size={16} />
             <span>删除</span>
-          </button>
+        </button>
         </div>,
         document.body
       )}
@@ -245,7 +245,7 @@ export const ConversationComponent = ({ conversation }: Props) => {
           </div>
         </div>,
         document.body
-      )}
+        )}
     </div>
   );
 };
