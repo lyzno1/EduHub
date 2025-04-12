@@ -1,9 +1,0 @@
-[33mcommit f41dd5d36860cb9e3dc218e52cf41bcd2d664615[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m)[m
-Author: lyzno1 <yuanyouhuilyz@gmail.com>
-Date:   Tue Apr 1 12:00:09 2025 +0800
-
-    优化聊天界面布局：1.调整欢迎文字和输入框垂直位置 2.修复模型选择按钮和对话气泡重叠问题 3.添加顶部和底部遮罩层 4.修复TypeScript类型错误 5.改善明暗模式适配
-
- components/Chat/Chat.tsx            | 72 [32m++++++++++++++++++++++++++++++[m[31m-------[m
- components/Chat/ModernChatInput.tsx |  2 [32m+[m[31m-[m
- 2 files changed, 61 insertions(+), 13 deletions(-)
