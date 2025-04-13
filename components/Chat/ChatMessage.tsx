@@ -231,7 +231,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
           <div className="w-full">
             <div className="prose dark:prose-invert prose-p:my-1 prose-pre:my-2 max-w-none w-full">
               <MemoizedReactMarkdown
-                className="prose dark:prose-invert prose-p:my-1 prose-pre:my-2 max-w-none w-full"
+                className="prose dark:prose-invert prose-p:my-1 prose-pre:my-2 max-w-none w-full [&>p]:text-gray-900 [&>p]:dark:text-gray-100 [&>ul]:text-gray-900 [&>ul]:dark:text-gray-100 [&>ol]:text-gray-900 [&>ol]:dark:text-gray-100 [&>li]:text-gray-900 [&>li]:dark:text-gray-100 [&_table]:w-full [&_table]:my-4 [&_table]:rounded-xl [&_table]:overflow-hidden [&_table]:shadow-sm [&_table]:bg-gray-200 [&_table]:dark:bg-gray-800/50 [&_table]:divide-y [&_table]:divide-gray-300 [&_table]:dark:divide-gray-600 [&_th]:bg-gray-100 [&_th]:dark:bg-gray-800/50 [&_th]:px-4 [&_th]:py-3 [&_th]:text-gray-900 [&_th]:dark:text-gray-100 [&_th]:font-extrabold [&_th]:border-b [&_th]:border-gray-300 [&_th]:dark:border-gray-600 [&_td]:px-4 [&_td]:py-3 [&_td]:text-gray-700 [&_td]:dark:text-gray-300 [&_td]:bg-gray-100 [&_td]:dark:bg-gray-800/50 [&_td]:border-b [&_td]:border-gray-200 [&_td]:dark:border-gray-700 [&_tr]:even:bg-gray-200 [&_tr]:dark:even:bg-gray-700/30 [&_tr]:hover:bg-gray-300 [&_tr]:dark:hover:bg-gray-600/50 [&_tr]:transition-colors [&_tr]:duration-200"
                 remarkPlugins={[remarkGfm, remarkMath]}
                 rehypePlugins={[rehypeMathjax]}
                 components={{
@@ -250,18 +250,6 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
                         {children}
                       </code>
                     );
-                  },
-                  table({ children }) {
-                    return <table className="prose">{children}</table>;
-                  },
-                  th({ children }) {
-                    return <th className="prose">{children}</th>;
-                  },
-                  td({ children }) {
-                    return <td className="prose">{children}</td>;
-                  },
-                  tr({ children }) {
-                    return <tr>{children}</tr>;
                   },
                 }}
               >
