@@ -49,6 +49,11 @@ export const ConversationComponent = ({ conversation }: Props) => {
   const buttonRef = useRef<HTMLDivElement>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
 
+  // 监听 conversation.name 的变化
+  useEffect(() => {
+    setRenameValue(conversation.name);
+  }, [conversation.name]);
+
   const handleMenuClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!showMenu) {
