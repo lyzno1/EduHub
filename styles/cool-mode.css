@@ -1,0 +1,350 @@
+/* 酷炫模式专用样式 */
+html.cool {
+  --bg-primary: #0a0a2a;
+  --text-primary: #ffffff;
+  --text-secondary: #b8c6ff;
+  --border-color: #3a3a7a;
+  --button-bg: #1a1a4a;
+  --button-hover-bg: #2a2a6a;
+  --input-bg: #1a1a4a;
+  --card-bg: #1a1a4a;
+  --highlight-bg: #2a2a6a;
+  --scrollbar-thumb: #3a3a7a;
+  --scrollbar-track: transparent;
+  --code-bg: #0f0f3a;
+  --code-color: #e9ecef;
+  --code-block-bg: #0f0f3a;
+  --code-block-border: #3a3a7a;
+  --code-block-header-bg: #1a1a4a;
+  --code-block-header-color: #b8c6ff;
+  --sidebar-bg: #0a0a2a;
+  --sidebar-border: #3a3a7a;
+  --dropdown-bg: #1a1a4a;
+  --dropdown-hover: #2a2a6a;
+  --textarea-scrollbar-thumb: #3a3a7a;
+  --textarea-scrollbar-thumb-hover: #5a5a9a;
+  --neon-primary: #00ff9d;
+  --neon-secondary: #ff00ff;
+  --neon-accent: #00ffff;
+  --neon-glow: 0 0 10px rgba(0, 255, 157, 0.5);
+  --neon-text-shadow: 0 0 5px rgba(0, 255, 157, 0.5);
+  --theme-btn-bg: #1a1a4a;
+  --theme-btn-hover: #2a2a6a;
+  --theme-btn-border: #3a3a7a;
+  --theme-btn-glow: 0 0 15px rgba(0, 255, 157, 0.5);
+}
+
+/* 酷炫模式滚动条样式 */
+html.cool ::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb) !important;
+  border-radius: 10px;
+  box-shadow: var(--neon-glow);
+}
+
+html.cool ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--neon-primary) !important;
+  box-shadow: 0 0 15px var(--neon-primary);
+}
+
+html.cool ::-webkit-scrollbar-track:hover {
+  background-color: rgba(0, 255, 157, 0.1) !important;
+}
+
+/* 文本区域专用滚动条样式 */
+html.cool textarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+html.cool textarea::-webkit-scrollbar-thumb {
+  background-color: var(--textarea-scrollbar-thumb) !important;
+  border-radius: 4px;
+  box-shadow: var(--neon-glow);
+}
+
+html.cool textarea::-webkit-scrollbar-thumb:hover {
+  background-color: var(--neon-primary) !important;
+  box-shadow: 0 0 15px var(--neon-primary);
+}
+
+html.cool textarea::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+/* 酷炫模式下的卡片 */
+html.cool .card {
+  background-color: var(--card-bg);
+  border-color: var(--border-color);
+  box-shadow: 0 0 15px rgba(0, 255, 157, 0.3);
+  transition: all 0.3s ease;
+}
+
+html.cool .card:hover {
+  box-shadow: 0 0 25px rgba(0, 255, 157, 0.5);
+  transform: translateY(-2px);
+}
+
+/* 酷炫模式下的按钮 */
+html.cool .btn-secondary {
+  background-color: var(--button-bg);
+  color: var(--text-primary);
+  box-shadow: 0 0 10px rgba(0, 255, 157, 0.2);
+  transition: all 0.3s ease;
+}
+
+html.cool .btn-secondary:hover {
+  background-color: var(--neon-primary);
+  color: var(--bg-primary);
+  box-shadow: 0 0 20px var(--neon-primary);
+  transform: translateY(-2px);
+}
+
+/* 酷炫模式下的输入框 */
+html.cool input,
+html.cool textarea,
+html.cool select {
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  transition: all 0.3s ease;
+}
+
+html.cool input:focus,
+html.cool textarea:focus,
+html.cool select:focus {
+  border-color: var(--neon-primary);
+  box-shadow: 0 0 15px rgba(0, 255, 157, 0.3);
+}
+
+/* 酷炫模式下的代码块 */
+html.cool pre {
+  background-color: var(--code-bg);
+  color: var(--code-color);
+  box-shadow: 0 0 15px rgba(0, 255, 157, 0.2);
+  border: 1px solid var(--neon-primary);
+}
+
+/* 酷炫模式下的行内代码 */
+html.cool :not(pre) > code {
+  background-color: var(--code-bg);
+  color: var(--neon-primary);
+  border: 1px solid var(--neon-primary);
+  box-shadow: 0 0 5px rgba(0, 255, 157, 0.2);
+}
+
+/* 酷炫模式下的代码块容器 */
+html.cool .codeblock {
+  background-color: var(--code-block-bg);
+  border-color: var(--neon-primary);
+  box-shadow: 0 0 20px rgba(0, 255, 157, 0.3);
+}
+
+/* 酷炫模式下的代码块头部 */
+html.cool .codeblock > div:first-child {
+  background-color: var(--code-block-header-bg);
+  border-bottom-color: var(--neon-primary);
+  color: var(--neon-primary);
+}
+
+/* 酷炫模式下的代码块按钮 */
+html.cool .codeblock button {
+  color: var(--neon-primary);
+  transition: all 0.3s ease;
+}
+
+html.cool .codeblock button:hover {
+  color: var(--neon-accent);
+  background-color: rgba(0, 255, 157, 0.1);
+  box-shadow: 0 0 10px rgba(0, 255, 157, 0.3);
+}
+
+/* 酷炫模式下的侧边栏 */
+html.cool .sidebar {
+  background-color: var(--sidebar-bg);
+  border-color: var(--neon-primary);
+  box-shadow: 0 0 20px rgba(0, 255, 157, 0.2);
+}
+
+/* 酷炫模式下的下拉菜单 */
+html.cool .dropdown-menu {
+  background-color: var(--dropdown-bg);
+  border-color: var(--neon-primary);
+  box-shadow: 0 0 20px rgba(0, 255, 157, 0.3);
+}
+
+html.cool .dropdown-item:hover {
+  background-color: rgba(0, 255, 157, 0.1);
+  color: var(--neon-primary);
+}
+
+/* 酷炫模式下的发光边框效果 */
+.glow-border {
+  position: relative;
+  overflow: hidden;
+}
+
+.glow-border::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, var(--neon-primary), var(--neon-secondary), var(--neon-accent), var(--neon-primary));
+  background-size: 400% 400%;
+  z-index: -1;
+  border-radius: 10px;
+  animation: glow 3s ease infinite;
+}
+
+@keyframes glow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* 酷炫模式下的按钮悬停效果 */
+html.cool button:hover {
+  transform: translateY(-2px);
+  transition: transform 0.2s ease;
+  box-shadow: var(--neon-glow);
+}
+
+/* 酷炫模式下的链接效果 */
+html.cool a {
+  color: var(--neon-primary);
+  text-decoration: none;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+html.cool a:hover {
+  color: var(--neon-accent);
+  text-shadow: var(--neon-text-shadow);
+}
+
+html.cool a::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  bottom: -2px;
+  left: 0;
+  background: linear-gradient(90deg, var(--neon-primary), var(--neon-accent));
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s ease;
+}
+
+html.cool a:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* 酷炫模式下的标题效果 */
+html.cool h1, html.cool h2, html.cool h3, html.cool h4, html.cool h5, html.cool h6 {
+  color: var(--neon-primary);
+  text-shadow: var(--neon-text-shadow);
+}
+
+/* 酷炫模式下的列表效果 */
+html.cool ul, html.cool ol {
+  border-left: 2px solid var(--neon-primary);
+  box-shadow: 0 0 10px rgba(0, 255, 157, 0.2);
+}
+
+/* 酷炫模式下的引用效果 */
+html.cool blockquote {
+  border-left: 4px solid var(--neon-primary);
+  background-color: rgba(0, 255, 157, 0.1);
+  box-shadow: 0 0 10px rgba(0, 255, 157, 0.2);
+}
+
+/* 酷炫模式下的表格效果 */
+html.cool table {
+  border: 1px solid var(--neon-primary);
+  box-shadow: 0 0 15px rgba(0, 255, 157, 0.2);
+}
+
+html.cool th {
+  background-color: rgba(0, 255, 157, 0.1);
+  color: var(--neon-primary);
+}
+
+html.cool td {
+  border: 1px solid var(--neon-primary);
+}
+
+/* 酷炫模式下的图片效果 */
+html.cool img {
+  border: 2px solid var(--neon-primary);
+  box-shadow: 0 0 15px rgba(0, 255, 157, 0.3);
+  transition: all 0.3s ease;
+}
+
+html.cool img:hover {
+  box-shadow: 0 0 25px rgba(0, 255, 157, 0.5);
+  transform: scale(1.02);
+}
+
+/* 主题切换按钮样式 */
+html.cool .theme-toggle-btn {
+  background-color: var(--theme-btn-bg);
+  border: 1px solid var(--theme-btn-border);
+  color: var(--neon-primary);
+  box-shadow: var(--theme-btn-glow);
+  transition: all 0.3s ease;
+}
+
+html.cool .theme-toggle-btn:hover {
+  background-color: var(--theme-btn-hover);
+  border-color: var(--neon-primary);
+  box-shadow: 0 0 20px var(--neon-primary);
+  transform: translateY(-2px);
+}
+
+html.cool .theme-toggle-btn svg {
+  color: var(--neon-primary);
+  filter: drop-shadow(0 0 5px var(--neon-primary));
+  transition: all 0.3s ease;
+}
+
+html.cool .theme-toggle-btn:hover svg {
+  color: var(--neon-accent);
+  filter: drop-shadow(0 0 8px var(--neon-accent));
+  transform: rotate(180deg);
+}
+
+/* 主题切换按钮的 tooltip 样式 */
+html.cool [data-tooltip] {
+  position: relative;
+}
+
+html.cool [data-tooltip]:before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 10px;
+  background-color: var(--theme-btn-bg);
+  color: var(--neon-primary);
+  border: 1px solid var(--neon-primary);
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: var(--theme-btn-glow);
+  opacity: 0;
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+html.cool [data-tooltip]:hover:before {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-5px);
+} 
