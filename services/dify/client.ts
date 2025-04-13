@@ -1,6 +1,7 @@
 import { ParsedEvent, ReconnectInterval, createParser } from 'eventsource-parser';
 import { API_PATHS, DEFAULT_API_URL, DEFAULT_TIMEOUT, DEFAULT_USER, EVENTS } from './constants';
 import { ChatParams, ChatResponse, DifyConfig, StreamResponse } from './types';
+import { getApiKey } from '@/utils/app/api';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -81,9 +82,15 @@ export class DifyClient {
       console.log('DifyClient初始化配置:', {
         baseUrl: this.baseUrl,
         model: this.currentModel,
-        timeout: this.timeout
+        timeout: this.timeout,
+        apiKey: process.env.NEXT_PUBLIC_DIFY_API_KEY
       });
     }
+
+    console.log('环境变量检查:', {
+      NEXT_PUBLIC_DIFY_API_KEY: process.env.NEXT_PUBLIC_DIFY_API_KEY,
+      NEXT_PUBLIC_DIFY_API_URL: process.env.NEXT_PUBLIC_DIFY_API_URL
+    });
   }
 
   public setAppId(appId: string) {
