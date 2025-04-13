@@ -194,7 +194,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
                   </div>
                 ) : (
                   <div className="relative pb-8">
-                    <div className="bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-gray-100 px-4 py-3 rounded-[20px] text-sm leading-relaxed border border-gray-200 dark:border-gray-600 shadow-sm font-medium whitespace-pre-wrap break-words">
+                    <div className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-600/30 dark:to-gray-700/30 text-gray-900 dark:text-gray-100 px-4 py-3 rounded-[20px] text-sm leading-relaxed shadow-[0_2px_8px_-2px_rgba(0,0,0,0.1)] dark:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.3)] font-medium whitespace-pre-wrap break-words">
                       {message.content}
                     </div>
                     
@@ -202,7 +202,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
                     <div className="absolute bottom-2 right-0 flex items-center gap-1.5 invisible group-hover:visible">
                       <button
                         className={`flex items-center justify-center rounded-md p-1 px-1.5 text-xs
-                        text-gray-500 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700
+                        text-gray-500 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800
                         transition-colors duration-200 shadow-sm`}
                         onClick={copyUserMessage}
                         data-tooltip={userMessageCopied ? "已复制到剪贴板" : "复制消息内容"}
@@ -277,3 +277,4 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
   );
 });
 ChatMessage.displayName = 'ChatMessage';
+
