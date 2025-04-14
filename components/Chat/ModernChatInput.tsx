@@ -562,7 +562,7 @@ export const ModernChatInput = ({
               color: '#FFFFFF',
               boxShadow: isDarkMode() ? '0 1px 3px rgba(0, 0, 0, 0.3)' : 'none',
               opacity: !content ? '0.3' : '1',
-              cursor: 'default'
+              cursor: !content ? 'default' : 'pointer'
             }}
             onClick={messageIsStreaming ? handleStopConversation : handleSend}
             aria-label={messageIsStreaming ? "停止生成" : "发送消息"}
