@@ -433,11 +433,30 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       });
 
       let fullResponse = '';
-      
+      // --- ADD local halt flag ---
+      let isStreamHalted = false;
+      // --- END ADD ---
+
       chatStream.onMessage((chunk: string) => {
-        setMessageIsStreaming(true);
-        // 接收到模型响应后，关闭等待状态（黑点）
-        setModelWaiting(false);
+        // --- MODIFY stop logic ---
+        // First, check if this stream has already been halted permanently
+        if (isStreamHalted) {
+          return;
+        }
+        // Then, check the trigger ref from the stop button
+        if (stopConversationRef.current) {
+          console.log('Stop signal detected inside onMessage. Halting stream permanently for this request.');
+          isStreamHalted = true; // Set the permanent halt flag for this specific stream
+          // UI state should already be updated by handleStopConversation for immediate feedback
+          // Optional: Attempt to close the underlying stream if possible
+          // if (chatStream.close) chatStream.close();
+          return; // Stop processing this chunk
+        }
+        // --- END MODIFY ---
+
+        // Original logic starts here
+        setMessageIsStreaming(true); // Ensure state is correct on first valid chunk
+        setModelWaiting(false); // Turn off the waiting indicator once we get data
         // console.log('接收到模型响应，设置modelWaiting=false');
         
         const updatedMessages = [...updatedConversation.messages];
@@ -495,6 +514,17 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       });
 
       chatStream.onError((error: Error) => {
+        // --- ADD halt check ---
+        if (isStreamHalted) {
+          console.log('Stream was halted, ignoring error callback.');
+          return;
+        }
+        // --- END ADD ---
+        // Optional: Check stop signal at the beginning (redundant if handleStopConversation sets state)
+        // if (stopConversationRef.current) {
+        //    console.log('Stop signal detected inside onError. Skipping error handling actions.');
+        //    return;
+        // }
         console.error('处理消息时错误:', error);
         setMessageIsStreaming(false);
         setModelWaiting(false);
@@ -518,6 +548,17 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       });
 
       chatStream.onComplete(() => {
+        // --- ADD halt check ---
+        if (isStreamHalted) {
+          console.log('Stream was halted, ignoring complete callback.');
+          return;
+        }
+        // --- END ADD ---
+        // Optional: Check stop signal at the beginning (redundant if handleStopConversation sets state)
+        // if (stopConversationRef.current) {
+        //    console.log('Stop signal detected inside onComplete. Skipping final updates.');
+        //    return;
+        // }
         console.log('消息处理已完成');
         
         // 所有消息处理完成后，重置流状态
@@ -1042,18 +1083,22 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     };
   }, [messagesLength, bottomInputHeight]);
 
+  // --- MODIFY handleStopConversation --- (Restore immediate state update for UX)
   const handleStopConversation = () => {
+    console.log('Stop button clicked, setting stopConversationRef to true and updating UI state.');
     stopConversationRef.current = true;
-    setTimeout(() => {
-      stopConversationRef.current = false;
-    }, 1000);
-    
-    // 当用户停止对话时，重置相关状态
+    // Immediately update state for instant UI feedback
     setMessageIsStreaming(false);
     setModelWaiting(false);
-  };
 
-  // 监听自定义事件，当对话被停止时重置状态
+    setTimeout(() => {
+      stopConversationRef.current = false;
+      console.log('Resetting stopConversationRef to false after timeout.');
+    }, 1000); // Timeout remains to allow the next send operation
+  };
+  // --- END MODIFY ---
+
+  // 监听自定义事件，当对话被停止时重置状态 (This useEffect might be redundant now, consider removing later)
   useEffect(() => {
     const handleStopConversationEvent = () => {
       setModelWaiting(false);
@@ -1206,6 +1251,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                         isCentered={window.innerWidth >= 768}
                         showSidebar={showSidebar}
                         isMobile={window.innerWidth < 768}
+                        handleStopConversation={handleStopConversation}
+                        messageIsStreaming={messageIsStreaming}
                       />
                     </div>
                   </div>
@@ -1300,6 +1347,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                   isCentered={false} // 底部输入框永远不是中心状态
                   showSidebar={showSidebar}
                   isMobile={window.innerWidth < 768}
+                  handleStopConversation={handleStopConversation}
+                  messageIsStreaming={messageIsStreaming}
                 />
               </div>
             </div>

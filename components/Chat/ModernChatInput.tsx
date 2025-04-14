@@ -26,6 +26,8 @@ interface Props {
   isCentered?: boolean;
   showSidebar?: boolean;
   isMobile?: boolean;
+  handleStopConversation: () => void;
+  messageIsStreaming: boolean;
 }
 
 export const ModernChatInput = ({
@@ -38,13 +40,14 @@ export const ModernChatInput = ({
   isCentered,
   showSidebar,
   isMobile = false,
+  handleStopConversation,
+  messageIsStreaming,
 }: Props) => {
   const { t } = useTranslation('chat');
 
   const {
     state: {
       selectedConversation,
-      messageIsStreaming,
       lightMode,
     },
   } = useContext(HomeContext);
@@ -141,10 +144,6 @@ export const ModernChatInput = ({
   }, [textareaRef, isMobile]);
 
   const handleSend = () => {
-    if (messageIsStreaming) {
-      return;
-    }
-
     if (!content) {
       return;
     }
@@ -160,18 +159,6 @@ export const ModernChatInput = ({
     if (window.innerWidth < 640 && textareaRef?.current) {
       textareaRef.current.blur();
     }
-  };
-
-  const handleStopConversation = () => {
-    stopConversationRef.current = true;
-    
-    // 触发一个自定义事件来通知停止对话
-    const stopEvent = new CustomEvent('chatStopConversation');
-    document.dispatchEvent(stopEvent);
-    
-    setTimeout(() => {
-      stopConversationRef.current = false;
-    }, 1000);
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -557,22 +544,42 @@ export const ModernChatInput = ({
 
           <button
             className={`absolute top-[45%] -translate-y-1/2 right-2.5 flex ${isDeviceMobile ? 'h-7 w-7' : 'h-8 w-8 sm:h-9 sm:w-9'} items-center justify-center rounded-full z-10`}
+            // --- MODIFY style logic ---
             style={{
-              backgroundColor: isDarkMode() ? '#1f2937' : '#000000',
+              // Common styles
               color: '#FFFFFF',
               boxShadow: isDarkMode() ? '0 1px 3px rgba(0, 0, 0, 0.3)' : 'none',
-              opacity: !content ? '0.3' : '1',
-              cursor: !content ? 'default' : 'pointer'
+              // Conditional styles
+              ...(messageIsStreaming
+                ? { // STOP BUTTON STYLES
+                    backgroundColor: '#000000', // Always black background
+                    opacity: 1,                // Always fully opaque
+                    cursor: 'pointer'           // Always pointer cursor
+                  }
+                : { // SEND BUTTON STYLES (Original logic)
+                    backgroundColor: '#000000', // Black background
+                    opacity: !content?.trim() ? 0.3 : 1, // Dim if no content
+                    cursor: !content?.trim() ? 'default' : 'pointer' // Default cursor if no content
+                  }
+              )
             }}
+            // --- END MODIFY ---
             onClick={messageIsStreaming ? handleStopConversation : handleSend}
             aria-label={messageIsStreaming ? "停止生成" : "发送消息"}
-            disabled={!messageIsStreaming && (!content || messageIsStreaming)}
+            // Ensure disabled logic only applies when NOT streaming
+            disabled={!messageIsStreaming && !content?.trim()}
           >
+            {/* --- MODIFY button content and style based on streaming state --- */}
             {messageIsStreaming ? (
-              <IconX size={isDeviceMobile ? 14 : 16} className={isDeviceMobile ? '' : 'sm:text-[18px]'} />
+              // STOP BUTTON STATE:
+              // White square icon
+              <div style={{ width: isMobile ? '10px' : '12px', height: isMobile ? '10px' : '12px', backgroundColor: 'white' }}></div>
             ) : (
-              <IconArrowUp size={isDeviceMobile ? 14 : 16} className={isDeviceMobile ? '' : 'sm:text-[18px]'} />
+              // SEND BUTTON STATE:
+              // Original Arrow Up icon
+              <IconArrowUp size={isMobile ? 14 : 16} className={isMobile ? '' : 'sm:text-[18px]'} />
             )}
+            {/* --- END MODIFY --- */}
           </button>
         </div>
         
