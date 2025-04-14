@@ -6,11 +6,14 @@ import {
   ReconnectInterval,
   createParser,
 } from 'eventsource-parser';
+import { createStreamResponse } from './streamUtils';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
-const MOBILE_CHUNK_SIZE = 100; // 移动端分块大小
-const MOBILE_FLUSH_INTERVAL = 50; // 移动端刷新间隔（毫秒）
+const MOBILE_CHUNK_SIZE = 500; // 移动端分块大小，较大以减少更新频率
+const DESKTOP_CHUNK_SIZE = 1000; // 桌面端分块大小
+const MOBILE_FLUSH_INTERVAL = 150; // 移动端刷新间隔（毫秒）
+const DESKTOP_FLUSH_INTERVAL = 80; // 桌面端刷新间隔（毫秒）
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -21,29 +24,45 @@ const isMobileDevice = () => {
 };
 
 export const DifyStream = async (
-  query: string,
-  key: string,
-  user: string,
-  existingConversationId: string,
+  query: string | {
+    query: string;
+    user_id?: string;
+    conversation_id?: string;
+    inputs?: Record<string, any>;
+    response_mode?: string;
+    user?: any;
+  },
+  key?: string,
+  user?: string,
+  existingConversationId?: string,
 ) => {
   const url = process.env.DIFY_API_URL || 'http://localhost:8088/v1/chat-messages';
+  const apiKey = key || process.env.DIFY_API_KEY || '';
+  
+  // 检测是否为对象形式的查询
+  const isObjectQuery = typeof query === 'object';
   const isMobile = isMobileDevice();
   
   let retries = 0;
   while (retries < MAX_RETRIES) {
     try {
-      const requestBody = {
-        query,
-        response_mode: 'streaming',
-        user: user || 'anonymous-user',
-        inputs: {},
-        ...(existingConversationId ? { conversation_id: existingConversationId } : {}),
-        auto_generate_name: true
-      };
+      // 构建请求体
+      const requestBody = isObjectQuery 
+        ? query 
+        : {
+            query,
+            response_mode: 'streaming',
+            user: user || 'anonymous-user',
+            inputs: {},
+            ...(existingConversationId ? { conversation_id: existingConversationId } : {}),
+            auto_generate_name: true
+          };
       
       console.log('DifyStream请求参数:', {
         url,
-        conversationId: existingConversationId || '未设置',
+        conversationId: isObjectQuery 
+          ? (query.conversation_id || '未设置') 
+          : (existingConversationId || '未设置'),
         isMobile
       });
       
@@ -54,7 +73,7 @@ export const DifyStream = async (
       const res = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${key}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Accept': 'text/event-stream',
           'Cache-Control': 'no-cache',
           'Connection': 'keep-alive'
@@ -79,101 +98,39 @@ export const DifyStream = async (
         throw new Error(errorMessage);
       }
       
-      const encoder = new TextEncoder();
-      const decoder = new TextDecoder();
+      // 根据设备类型设置不同的批处理参数
+      const batchingOptions = {
+        maxBatchSize: isMobile ? MOBILE_CHUNK_SIZE : DESKTOP_CHUNK_SIZE,
+        maxBatchDelay: isMobile ? MOBILE_FLUSH_INTERVAL : DESKTOP_FLUSH_INTERVAL
+      };
       
-      const stream = new ReadableStream({
-        async start(controller) {
-          let buffer = '';
-          let lastMessageTime = Date.now();
-          
-          // 心跳检测
-          const heartbeatInterval = setInterval(() => {
-            const now = Date.now();
-            if (now - lastMessageTime > timeoutDuration) {
-              clearInterval(heartbeatInterval);
-              controller.error(new Error('Connection timeout'));
-            }
-          }, 5000);
-          
-          const flushBuffer = () => {
-            if (buffer) {
-              const chunk = buffer;
-              buffer = '';
-              controller.enqueue(encoder.encode(chunk + '\n'));
-            }
-          };
-          
-          // 移动端特殊处理：使用 setTimeout 定期刷新缓冲区
-          let flushInterval: NodeJS.Timeout | null = null;
-          if (isMobile) {
-            flushInterval = setInterval(flushBuffer, MOBILE_FLUSH_INTERVAL);
+      // 使用轻量级流处理工具创建流式响应
+      const stream = createStreamResponse(
+        res, 
+        // 可选的自定义字段提取函数
+        (data) => {
+          // 处理不同类型的事件
+          if (data.event === 'message' || data.event === 'agent_message') {
+            return {
+              conversation_id: data.conversation_id,
+              answer: data.answer
+            };
+          } else if (data.event === 'message_end') {
+            return {
+              conversation_id: data.conversation_id,
+              answer: '',
+              event: 'message_end'
+            };
+          } else if (data.event === 'error') {
+            throw new Error(data.message || 'Dify API error');
+          } else {
+            // 处理其他事件类型（如ping等）
+            return null; // 返回null表示跳过此事件
           }
-          
-          const onParse = (event: ParsedEvent | ReconnectInterval) => {
-            if (event.type === 'event') {
-              try {
-                lastMessageTime = Date.now();
-                const data = JSON.parse(event.data);
-                
-                switch (data.event) {
-                  case 'message':
-                    const response = JSON.stringify({
-                      conversation_id: data.conversation_id,
-                      answer: data.answer || ''
-                    });
-                    
-                    if (isMobile) {
-                      // 移动端：累积到缓冲区
-                      buffer += response;
-                      if (buffer.length >= MOBILE_CHUNK_SIZE) {
-                        flushBuffer();
-                      }
-                    } else {
-                      // 桌面端：直接发送
-                      controller.enqueue(encoder.encode(response + '\n'));
-                    }
-                    break;
-                    
-                  case 'message_end':
-                    if (isMobile && flushInterval) {
-                      clearInterval(flushInterval);
-                      flushBuffer();
-                    }
-                    clearInterval(heartbeatInterval);
-                    controller.close();
-                    break;
-                    
-                  case 'error':
-                    clearInterval(heartbeatInterval);
-                    if (flushInterval) clearInterval(flushInterval);
-                    throw new Error(`Dify API error: ${data.message}`);
-                    
-                  case 'ping':
-                    lastMessageTime = Date.now();
-                    break;
-                }
-              } catch (e) {
-                clearInterval(heartbeatInterval);
-                if (flushInterval) clearInterval(flushInterval);
-                controller.error(e);
-              }
-            }
-          };
-          
-          const parser = createParser(onParse);
-          
-          try {
-            for await (const chunk of res.body as any) {
-              parser.feed(decoder.decode(chunk));
-            }
-          } catch (e) {
-            clearInterval(heartbeatInterval);
-            if (flushInterval) clearInterval(flushInterval);
-            throw e;
-          }
-        }
-      });
+        },
+        timeoutDuration,
+        batchingOptions
+      );
       
       return { stream };
       
