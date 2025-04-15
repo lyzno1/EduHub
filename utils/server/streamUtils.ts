@@ -32,7 +32,7 @@ export const createStreamResponse = (
   return new ReadableStream({
     async start(controller) {
       // 添加超时逻辑
-      let timeoutId: ReturnType<typeof setTimeout>;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined = undefined; // 初始化为 undefined
       let batchTimeoutId: ReturnType<typeof setTimeout> | null = null;
       
       // 数据批处理缓冲区
@@ -40,7 +40,9 @@ export const createStreamResponse = (
       let lastBatchTime = Date.now();
       
       const resetTimeout = () => {
-        clearTimeout(timeoutId);
+        if (timeoutId !== undefined) { // 添加检查
+          clearTimeout(timeoutId);
+        }
         timeoutId = setTimeout(() => {
           // 超时前确保所有缓冲区数据都被发送
           flushBuffer(true);
@@ -125,11 +127,15 @@ export const createStreamResponse = (
         flushBuffer(true);
         
         // 正常结束
-        clearTimeout(timeoutId);
+        if (timeoutId !== undefined) { // 添加检查
+          clearTimeout(timeoutId);
+        }
         controller.close();
       } catch (error) {
         // 错误处理
-        clearTimeout(timeoutId);
+        if (timeoutId !== undefined) { // 添加检查
+          clearTimeout(timeoutId);
+        }
         if (batchTimeoutId) clearTimeout(batchTimeoutId);
         console.error('流处理错误:', error);
         controller.error(error);
