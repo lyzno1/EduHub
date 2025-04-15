@@ -2,10 +2,13 @@ import {
   IconCheck,
   IconCopy,
   IconEdit,
+  IconAtom,
+  IconChevronUp,
+  IconChevronDown
 } from '@tabler/icons-react';
 
-import React from 'react';
-import { FC, memo, useContext, useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
+import { FC, memo, useContext, useEffect, useRef } from 'react';
 
 import { useTranslation } from 'next-i18next';
 
@@ -23,17 +26,87 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
 
+interface StyledDetailsProps {
+  children?: React.ReactNode;
+  messageIndex: number;
+  lastMessageIndex: number;
+  lightMode: string;
+  [key: string]: any;
+}
+
+const StyledDetails: FC<StyledDetailsProps> = ({ 
+  children, 
+  messageIndex, 
+  lastMessageIndex, 
+  lightMode,
+  ...props 
+}) => {
+  const [isOpen, setIsOpen] = useState(props.open || false);
+  let summaryNode: React.ReactNode = null;
+  let otherChildren: React.ReactNode[] = [];
+
+  React.Children.forEach(children, (child) => {
+    if (React.isValidElement(child) && child.type === 'summary') {
+      summaryNode = child;
+    } else {
+      otherChildren.push(child);
+    }
+  });
+
+  const titleText = "已深度思考";
+
+  const handleToggle = (e: React.MouseEvent<HTMLElement>) => {
+    setIsOpen(e.currentTarget.parentElement?.hasAttribute('open') ?? false);
+  };
+
+  return (
+    <details
+      {...props}
+      className={`my-2 overflow-hidden bg-white dark:bg-gray-850 rounded-lg border border-gray-200 dark:border-gray-700/40 shadow-sm`}
+      onToggle={(e) => setIsOpen(e.currentTarget.open)}
+    >
+      <summary
+        className="flex items-center justify-between px-3 py-2 cursor-pointer list-none 
+                   bg-gray-50 dark:bg-gray-700/30 hover:bg-gray-100 dark:hover:bg-gray-700/50 
+                   border-b border-gray-200 dark:border-gray-700/40 
+                   font-medium text-sm text-gray-600 dark:text-gray-300 transition-colors rounded-t-md 
+                   select-none"
+        onClick={handleToggle}
+      >
+        <span className="flex items-center gap-2">
+          <IconAtom size={16} className="text-blue-500" />
+          {titleText}
+        </span>
+        {isOpen ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+      </summary>
+
+      <div 
+        className={`pl-5 py-2 border-l-4 border-gray-300 dark:border-gray-600 
+                   prose prose-sm dark:prose-invert max-w-none 
+                   prose-p:my-0 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 
+                   [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 
+                   bg-transparent 
+                   transition-all duration-300 
+                   mt-1 mb-1 ml-1`}
+      >
+        {otherChildren}
+      </div>
+    </details>
+  );
+};
+
 export interface Props {
   message: Message;
   messageIndex: number;
-  onEdit?: (editedMessage: Message) => void
+  onEdit?: (editedMessage: Message) => void;
+  lightMode: string;
 }
 
-export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) => {
+export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lightMode }) => {
   const { t } = useTranslation('chat');
 
   const {
-    state: { selectedConversation, conversations, currentMessage, messageIsStreaming, lightMode },
+    state: { selectedConversation, conversations, currentMessage, messageIsStreaming },
     dispatch: homeDispatch,
   } = useContext(HomeContext);
 
@@ -102,7 +175,6 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
     }
   };
 
-  // 复制模型输出内容
   const copyOnClick = () => {
     if (!navigator.clipboard) return;
 
@@ -114,7 +186,6 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
     });
   };
 
-  // 复制用户输入内容
   const copyUserMessage = () => {
     if (!navigator.clipboard) return;
 
@@ -130,7 +201,6 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
     setMessageContent(message.content);
   }, [message.content]);
 
-
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'inherit';
@@ -138,21 +208,19 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
     }
   }, [isEditing]);
 
-  // 判断是否为用户消息
   const isUser = message.role === 'user';
-  // 判断是否为空的助手消息（等待流式输出）
   const isEmptyAssistantMessage = !isUser && message.content === '';
 
-  // 如果是空的助手消息，直接返回 null
   if (isEmptyAssistantMessage && !messageIsStreaming) {
     return null;
   }
+
+  const lastMessageIndex = (selectedConversation?.messages.length ?? 0) - 1;
 
   return (
     <div className={`flex justify-center py-3 w-full`}>
       <div className={`w-full max-w-[800px] px-2 sm:px-4`}>
         {isUser ? (
-          // 用户消息
           <div className="flex justify-end">
             <div className="max-w-[75%]">
               <div className="group relative">
@@ -199,7 +267,6 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
                       {message.content}
                     </div>
                     
-                    {/* 用户消息的操作按钮，位于气泡下方，悬停显示 */}
                     <div className="absolute bottom-2 right-0 flex items-center gap-1.5 invisible group-hover:visible">
                       <button
                         className={`flex items-center justify-center rounded-md p-1 px-1.5 text-xs
@@ -228,29 +295,24 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
             </div>
           </div>
         ) : (
-          // 助手消息
           <div className="w-full">
-            <div className="prose dark:prose-invert prose-p:my-1 prose-pre:my-2 max-w-none w-full">
+            <div className="max-w-none w-full">
               <MemoizedReactMarkdown
-                className="prose dark:prose-invert prose-p:my-1 prose-pre:my-2 max-w-none w-full 
-                            [&>p]:text-gray-900 [&>p]:dark:text-gray-100 
-                            [&>ul]:text-gray-900 [&>ul]:dark:text-gray-100 
-                            [&>ol]:text-gray-900 [&>ol]:dark:text-gray-100 
-                            [&>li]:text-gray-900 [&>li]:dark:text-gray-100 
-                            [&_table]:w-full [&_table]:my-4 [&_table]:rounded-xl [&_table]:overflow-hidden [&_table]:shadow-sm [&_table]:bg-gray-200 [&_table]:dark:bg-gray-800/50 [&_table]:divide-y [&_table]:divide-gray-300 [&_table]:dark:divide-gray-600 
-                            [&_th]:bg-gray-100 [&_th]:dark:bg-gray-800/50 [&_th]:px-4 [&_th]:py-3 [&_th]:text-gray-900 [&_th]:dark:text-gray-100 [&_th]:font-extrabold [&_th]:border-b [&_th]:border-gray-300 [&_th]:dark:border-gray-600 
-                            [&_td]:px-4 [&_td]:py-3 [&_td]:text-gray-700 [&_td]:dark:text-gray-300 [&_td]:bg-gray-100 [&_td]:dark:bg-gray-800/50 [&_td]:border-b [&_td]:border-gray-200 [&_td]:dark:border-gray-700 
-                            [&_tr]:even:bg-gray-200 [&_tr]:dark:even:bg-gray-700/30 [&_tr]:hover:bg-gray-300 [&_tr]:dark:hover:bg-gray-600/50 [&_tr]:transition-colors [&_tr]:duration-200 
-                            /* Style for details/summary */
-                            [&_details]:my-3 [&_details]:rounded-lg [&_details]:border [&_details]:border-gray-200 [&_details]:dark:border-gray-700 [&_details]:overflow-hidden 
-                            [&_summary]:px-3 [&_summary]:py-2 [&_summary]:cursor-pointer [&_summary]:bg-gray-50 [&_summary]:dark:bg-gray-800/60 [&_summary]:hover:bg-gray-100 [&_summary]:dark:hover:bg-gray-700/60 [&_summary]:list-none [&_summary]:font-medium [&_summary]:text-sm [&_summary]:text-gray-700 [&_summary]:dark:text-gray-300 
-                            [&_summary::-webkit-details-marker]:hidden /* Hide default marker */
-                            [&_details>*:not(summary)]:p-3 [&_details>*:not(summary)]:border-t [&_details>*:not(summary)]:border-gray-200 [&_details>*:not(summary)]:dark:border-gray-700 [&_details>*:not(summary)]:bg-white [&_details>*:not(summary)]:dark:bg-gray-800"
+                className="prose dark:prose-invert max-w-none w-full"
                 remarkPlugins={[remarkGfm, remarkMath]}
                 rehypePlugins={[rehypeMathjax, rehypeRaw as any]}
                 components={{
+                  details: (props) => (
+                    <StyledDetails 
+                      {...props} 
+                      messageIndex={messageIndex} 
+                      lastMessageIndex={lastMessageIndex}
+                      lightMode={lightMode}
+                    />
+                  ),
                   code({ node, inline, className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || '');
+                    const isPotentiallyStreaming = messageIsStreaming && messageIndex === lastMessageIndex;
 
                     return !inline ? (
                       <CodeBlock
@@ -267,22 +329,23 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
                   },
                 }}
               >
-                {message.content || (messageIsStreaming ? '▍' : '')}
+                {message.content || (messageIsStreaming && messageIndex === lastMessageIndex ? '▍' : '')}
               </MemoizedReactMarkdown>
-              
-              {/* 助手消息（模型输出）的复制按钮 */}
-              <div className="relative mt-2 flex justify-start">
-                <button
-                  className={`flex items-center justify-center rounded-md p-1 px-1.5 text-xs
-                  text-gray-500 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700
-                  transition-colors duration-200 shadow-sm`}
-                  onClick={copyOnClick}
-                  data-tooltip={messagedCopied ? "已复制到剪贴板" : "复制消息内容"}
-                  data-placement="bottom"
-                >
-                  {messagedCopied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                </button>
-              </div>
+
+              {message.content && !messageIsStreaming && (
+                 <div className="relative mt-2 flex justify-start">
+                   <button
+                    className={`flex items-center justify-center rounded-md p-1 px-1.5 text-xs
+                    text-gray-500 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700
+                    transition-colors duration-200 shadow-sm`}
+                    onClick={copyOnClick}
+                    data-tooltip={messagedCopied ? "已复制到剪贴板" : "复制消息内容"}
+                    data-placement="bottom"
+                  >
+                    {messagedCopied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                  </button>
+                </div>
+               )}
             </div>
           </div>
         )}

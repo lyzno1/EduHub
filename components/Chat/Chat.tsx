@@ -1332,6 +1332,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                       const deleteCount = messagesLength - index;
                       onSend(editedMessage, deleteCount - 1);
                     }}
+                    lightMode={currentTheme}
                   />
                 ))}
 
