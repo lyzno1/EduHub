@@ -21,6 +21,7 @@ import { MemoizedReactMarkdown } from '../Markdown/MemoizedReactMarkdown';
 import rehypeMathjax from 'rehype-mathjax';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import rehypeRaw from 'rehype-raw';
 
 export interface Props {
   message: Message;
@@ -231,9 +232,22 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit }) =
           <div className="w-full">
             <div className="prose dark:prose-invert prose-p:my-1 prose-pre:my-2 max-w-none w-full">
               <MemoizedReactMarkdown
-                className="prose dark:prose-invert prose-p:my-1 prose-pre:my-2 max-w-none w-full [&>p]:text-gray-900 [&>p]:dark:text-gray-100 [&>ul]:text-gray-900 [&>ul]:dark:text-gray-100 [&>ol]:text-gray-900 [&>ol]:dark:text-gray-100 [&>li]:text-gray-900 [&>li]:dark:text-gray-100 [&_table]:w-full [&_table]:my-4 [&_table]:rounded-xl [&_table]:overflow-hidden [&_table]:shadow-sm [&_table]:bg-gray-200 [&_table]:dark:bg-gray-800/50 [&_table]:divide-y [&_table]:divide-gray-300 [&_table]:dark:divide-gray-600 [&_th]:bg-gray-100 [&_th]:dark:bg-gray-800/50 [&_th]:px-4 [&_th]:py-3 [&_th]:text-gray-900 [&_th]:dark:text-gray-100 [&_th]:font-extrabold [&_th]:border-b [&_th]:border-gray-300 [&_th]:dark:border-gray-600 [&_td]:px-4 [&_td]:py-3 [&_td]:text-gray-700 [&_td]:dark:text-gray-300 [&_td]:bg-gray-100 [&_td]:dark:bg-gray-800/50 [&_td]:border-b [&_td]:border-gray-200 [&_td]:dark:border-gray-700 [&_tr]:even:bg-gray-200 [&_tr]:dark:even:bg-gray-700/30 [&_tr]:hover:bg-gray-300 [&_tr]:dark:hover:bg-gray-600/50 [&_tr]:transition-colors [&_tr]:duration-200"
+                className="prose dark:prose-invert prose-p:my-1 prose-pre:my-2 max-w-none w-full 
+                            [&>p]:text-gray-900 [&>p]:dark:text-gray-100 
+                            [&>ul]:text-gray-900 [&>ul]:dark:text-gray-100 
+                            [&>ol]:text-gray-900 [&>ol]:dark:text-gray-100 
+                            [&>li]:text-gray-900 [&>li]:dark:text-gray-100 
+                            [&_table]:w-full [&_table]:my-4 [&_table]:rounded-xl [&_table]:overflow-hidden [&_table]:shadow-sm [&_table]:bg-gray-200 [&_table]:dark:bg-gray-800/50 [&_table]:divide-y [&_table]:divide-gray-300 [&_table]:dark:divide-gray-600 
+                            [&_th]:bg-gray-100 [&_th]:dark:bg-gray-800/50 [&_th]:px-4 [&_th]:py-3 [&_th]:text-gray-900 [&_th]:dark:text-gray-100 [&_th]:font-extrabold [&_th]:border-b [&_th]:border-gray-300 [&_th]:dark:border-gray-600 
+                            [&_td]:px-4 [&_td]:py-3 [&_td]:text-gray-700 [&_td]:dark:text-gray-300 [&_td]:bg-gray-100 [&_td]:dark:bg-gray-800/50 [&_td]:border-b [&_td]:border-gray-200 [&_td]:dark:border-gray-700 
+                            [&_tr]:even:bg-gray-200 [&_tr]:dark:even:bg-gray-700/30 [&_tr]:hover:bg-gray-300 [&_tr]:dark:hover:bg-gray-600/50 [&_tr]:transition-colors [&_tr]:duration-200 
+                            /* Style for details/summary */
+                            [&_details]:my-3 [&_details]:rounded-lg [&_details]:border [&_details]:border-gray-200 [&_details]:dark:border-gray-700 [&_details]:overflow-hidden 
+                            [&_summary]:px-3 [&_summary]:py-2 [&_summary]:cursor-pointer [&_summary]:bg-gray-50 [&_summary]:dark:bg-gray-800/60 [&_summary]:hover:bg-gray-100 [&_summary]:dark:hover:bg-gray-700/60 [&_summary]:list-none [&_summary]:font-medium [&_summary]:text-sm [&_summary]:text-gray-700 [&_summary]:dark:text-gray-300 
+                            [&_summary::-webkit-details-marker]:hidden /* Hide default marker */
+                            [&_details>*:not(summary)]:p-3 [&_details>*:not(summary)]:border-t [&_details>*:not(summary)]:border-gray-200 [&_details>*:not(summary)]:dark:border-gray-700 [&_details>*:not(summary)]:bg-white [&_details>*:not(summary)]:dark:bg-gray-800"
                 remarkPlugins={[remarkGfm, remarkMath]}
-                rehypePlugins={[rehypeMathjax]}
+                rehypePlugins={[rehypeMathjax, rehypeRaw as any]}
                 components={{
                   code({ node, inline, className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || '');
