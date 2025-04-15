@@ -25,47 +25,28 @@ import rehypeMathjax from 'rehype-mathjax';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
+import ReactMarkdown, { Options, Components as ReactMarkdownComponents } from 'react-markdown';
 
-interface StyledDetailsProps {
+// Define the new ReasoningBox component
+interface ReasoningBoxProps {
   children?: React.ReactNode;
-  messageIndex: number;
-  lastMessageIndex: number;
   lightMode: string;
-  [key: string]: any;
 }
 
-const StyledDetails: FC<StyledDetailsProps> = ({ 
-  children, 
-  messageIndex, 
-  lastMessageIndex, 
-  lightMode,
-  ...props 
-}) => {
-  const [isOpen, setIsOpen] = useState(props.open || false);
-  let summaryNode: React.ReactNode = null;
-  let otherChildren: React.ReactNode[] = [];
-
-  React.Children.forEach(children, (child) => {
-    if (React.isValidElement(child) && child.type === 'summary') {
-      summaryNode = child;
-    } else {
-      otherChildren.push(child);
-    }
-  });
-
+const ReasoningBox: FC<ReasoningBoxProps> = ({ children, lightMode }) => {
+  const [isOpen, setIsOpen] = useState(true);
   const titleText = "推理过程";
 
-  const handleToggle = (e: React.MouseEvent<HTMLElement>) => {
-    setIsOpen(e.currentTarget.parentElement?.hasAttribute('open') ?? false);
+  const handleToggle = () => {
+    setIsOpen(!isOpen);
   };
 
   return (
-    <details
-      {...props}
+    <div
       className={`my-2 overflow-hidden bg-white dark:bg-gray-850 rounded-lg border border-gray-200 dark:border-gray-700/40 shadow-sm`}
-      onToggle={(e) => setIsOpen(e.currentTarget.open)}
     >
-      <summary
+      {/* Clickable Summary part */}
+      <div
         className="flex items-center justify-between px-3 py-2 cursor-pointer list-none 
                    bg-gray-50 dark:bg-gray-700/30 hover:bg-gray-100 dark:hover:bg-gray-700/50 
                    border-b border-gray-200 dark:border-gray-700/40 
@@ -78,8 +59,10 @@ const StyledDetails: FC<StyledDetailsProps> = ({
           {titleText}
         </span>
         {isOpen ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
-      </summary>
+      </div>
 
+      {/* Conditionally rendered Content area */}
+      {isOpen && (
       <div 
         className={`pl-5 py-2 border-l-4 border-gray-300 dark:border-gray-600 
                    prose prose-sm dark:prose-invert max-w-none 
@@ -89,11 +72,172 @@ const StyledDetails: FC<StyledDetailsProps> = ({
                    transition-all duration-300 
                    mt-1 mb-1 ml-1`}
       >
-        {otherChildren}
+          {children}
+        </div>
+      )}
       </div>
-    </details>
   );
 };
+
+// Define components map type (only details and code needed here now)
+interface CustomComponents extends ReactMarkdownComponents {
+  details?: React.FC<any>; 
+  code?: React.FC<any>; 
+}
+
+// Define ReasoningBox component (assuming it exists above or is imported)
+// interface ReasoningBoxProps { ... }
+// const ReasoningBox: FC<ReasoningBoxProps> = ({...}) => { ... };
+
+/**
+ * @component StreamingMarkdownRenderer
+ * 
+ * Handles rendering Markdown content that might contain special block tags
+ * (like <think>) requiring custom rendering within a container (ReasoningBox)
+ * while supporting streaming output correctly.
+ * 
+ * --- How it works ---
+ * 1. State (`parts`): Stores the content segmented into three parts: 
+ *    `before` (content before the first special tag),
+ *    `think` (content inside the first special tag found),
+ *    `after` (content after the first special tag's closing tag).
+ * 2. Parsing (`useEffect`): When the input `content` changes, it parses the string:
+ *    - It looks for the *first* occurrence of any tag listed in `customBoxTags`.
+ *    - It splits the content based on the found tag and its closing tag.
+ *    - Updates the `parts` state.
+ * 3. Rendering: It always renders three potential sections using MemoizedReactMarkdown:
+ *    - The `before` part.
+ *    - The `think` part, wrapped inside a `ReasoningBox`.
+ *    - The `after` part.
+ *    Empty parts simply don't render anything.
+ * 4. Streaming Indicator (`▍`): Appended to the last non-empty part during streaming.
+ * 
+ * --- Extensibility ---
+ * To add support for a new tag (e.g., `<reflect>`) that should also be rendered 
+ * inside a ReasoningBox:
+ * 1. Add the tag name (lowercase, without brackets) to the `customBoxTags` array 
+ *    within this component's definition.
+ *    Example: `const customBoxTags = ['think', 'reflect'];`
+ * 2. No other changes are typically needed, as the parsing logic will automatically
+ *    detect the first occurrence of any tag in the list and the rendering logic 
+ *    will place its content in the ReasoningBox.
+ * 
+ * --- Limitations ---
+ * - Only handles the *first* occurrence of a special tag in the `customBoxTags` list.
+ * - Does not support nesting of these special tags.
+ * - Assumes tags are lowercase in the `customBoxTags` array and performs case-insensitive matching.
+ */
+interface StreamingMarkdownRendererProps {
+  content: string; // Raw content string
+  isStreaming: boolean;
+  lightMode: string;
+  components: CustomComponents;
+}
+
+interface ContentParts {
+  before: string;
+  think: string | null;
+  after: string;
+}
+
+const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({ 
+  content,
+  isStreaming,
+  lightMode,
+  components 
+}) => {
+  const [parts, setParts] = useState<ContentParts>({ before: '', think: null, after: '' });
+
+  // Effect to parse content and update parts state
+  useEffect(() => {
+    const thinkStartTag = '<think>';
+    const thinkEndTag = '</think>';
+    let beforeContent = '';
+    let thinkContent: string | null = null;
+    let afterContent = '';
+
+    const startIndex = content.indexOf(thinkStartTag);
+    
+    if (startIndex === -1) {
+      // No <think> tag found
+      beforeContent = content;
+    } else {
+      beforeContent = content.substring(0, startIndex);
+      const endIndex = content.indexOf(thinkEndTag, startIndex + thinkStartTag.length);
+      
+      if (endIndex === -1) {
+        // <think> tag found, but no closing tag yet
+        thinkContent = content.substring(startIndex + thinkStartTag.length);
+      } else {
+        // Both tags found
+        thinkContent = content.substring(startIndex + thinkStartTag.length, endIndex);
+        afterContent = content.substring(endIndex + thinkEndTag.length);
+      }
+    }
+    
+    setParts({ before: beforeContent, think: thinkContent, after: afterContent });
+
+  }, [content]); // Depend only on content
+
+  // Determine where to place the streaming indicator
+  const streamingIndicator = isStreaming ? '▍' : '';
+  let beforeSuffix = '';
+  let thinkSuffix = '';
+  let afterSuffix = '';
+
+  if (isStreaming) {
+    if (parts.after) {
+      afterSuffix = streamingIndicator;
+    } else if (parts.think !== null) {
+      thinkSuffix = streamingIndicator;
+    } else {
+      beforeSuffix = streamingIndicator;
+    }
+  }
+
+  return (
+    <>
+      {/* Render part before think block */} 
+      {parts.before && (
+        <MemoizedReactMarkdown
+          className="prose dark:prose-invert max-w-none w-full"
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[rehypeRaw as any, rehypeMathjax]}
+          components={components}
+        >
+          {parts.before + beforeSuffix}
+        </MemoizedReactMarkdown>
+      )}
+
+      {/* Render think block if it exists */} 
+      {parts.think !== null && (
+        <ReasoningBox lightMode={lightMode}>
+          <MemoizedReactMarkdown
+            className="prose dark:prose-invert max-w-none w-full"
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeRaw as any, rehypeMathjax]}
+            components={components}
+          >
+            {parts.think + thinkSuffix}
+          </MemoizedReactMarkdown>
+        </ReasoningBox>
+      )}
+
+      {/* Render part after think block */} 
+      {parts.after && (
+        <MemoizedReactMarkdown
+          className="prose dark:prose-invert max-w-none w-full"
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[rehypeRaw as any, rehypeMathjax]}
+          components={components}
+        >
+          {parts.after + afterSuffix}
+        </MemoizedReactMarkdown>
+      )}
+    </>
+  );
+};
+// --- End StreamingMarkdownRenderer Component --- 
 
 export interface Props {
   message: Message;
@@ -216,6 +360,37 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
   }
 
   const lastMessageIndex = (selectedConversation?.messages.length ?? 0) - 1;
+  const isCurrentStreamingMessage = messageIsStreaming && messageIndex === lastMessageIndex;
+
+  // Define the components mapping (details and code)
+  const markdownComponents: CustomComponents = {
+    details: ({ node, children, ...props }): React.ReactElement | null => {
+      const contentWithoutSummary = React.Children.toArray(children).filter(
+        (child) => !(React.isValidElement(child) && child.type === 'summary')
+      );
+      return (
+        <ReasoningBox lightMode={lightMode}>
+          {contentWithoutSummary}
+        </ReasoningBox>
+      );
+    },
+    code: ({ node, inline, className, children, ...props }) => {
+      const match = /language-(\w+)/.exec(className || '');
+      const isPotentiallyStreaming = messageIsStreaming && messageIndex === lastMessageIndex;
+      return !inline ? (
+        <CodeBlock
+          key={Math.random()}
+          language={(match && match[1]) || ''}
+          value={String(children).replace(/\n$/, '')}
+          {...props}
+        />
+      ) : (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      );
+    },
+  };
 
   return (
     <div className={`flex justify-center py-3 w-full`}>
@@ -297,40 +472,12 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
         ) : (
           <div className="w-full">
             <div className="max-w-none w-full">
-              <MemoizedReactMarkdown
-                className="prose dark:prose-invert max-w-none w-full"
-                remarkPlugins={[remarkGfm, remarkMath]}
-                rehypePlugins={[rehypeMathjax, rehypeRaw as any]}
-                components={{
-                  details: (props) => (
-                    <StyledDetails 
-                      {...props} 
-                      messageIndex={messageIndex} 
-                      lastMessageIndex={lastMessageIndex}
+              <StreamingMarkdownRenderer 
+                content={message.content || ''} 
+                isStreaming={isCurrentStreamingMessage}
                       lightMode={lightMode}
-                    />
-                  ),
-                  code({ node, inline, className, children, ...props }) {
-                    const match = /language-(\w+)/.exec(className || '');
-                    const isPotentiallyStreaming = messageIsStreaming && messageIndex === lastMessageIndex;
-
-                    return !inline ? (
-                      <CodeBlock
-                        key={Math.random()}
-                        language={(match && match[1]) || ''}
-                        value={String(children).replace(/\n$/, '')}
-                        {...props}
-                      />
-                    ) : (
-                      <code className={className} {...props}>
-                        {children}
-                      </code>
-                    );
-                  },
-                }}
-              >
-                {message.content || (messageIsStreaming && messageIndex === lastMessageIndex ? '▍' : '')}
-              </MemoizedReactMarkdown>
+                components={markdownComponents}
+              />
 
               {message.content && !messageIsStreaming && (
                  <div className="relative mt-2 flex justify-start">
