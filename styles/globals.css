@@ -620,3 +620,24 @@ input::-webkit-input-placeholder {
 .animate-pulse-dot {
   animation: pulse-dot 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* Custom Dark Mode for ReasoningBox */
+.dark .reasoning-box-container {
+  background-color: #202123; /* Use a common dark bg, e.g., same as html.dark */
+  border-color: #4b5563;     /* Use a common dark border color */
+}
+
+.dark .reasoning-box-header {
+  background-color: #2e3440; /* Slightly lighter dark bg for header */
+  border-bottom-color: #4b5563;
+  color: #c8ceda;             /* Lighter text color */
+}
+
+.dark .reasoning-box-header:hover {
+   background-color: #374151; /* Darker hover bg */
+}
+
+.dark .reasoning-box-content {
+  border-left-color: #4b5563; /* Darker border color */
+  /* prose dark:prose-invert will handle text color inside */
+}

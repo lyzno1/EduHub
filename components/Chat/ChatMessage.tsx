@@ -43,14 +43,14 @@ const ReasoningBox: FC<ReasoningBoxProps> = ({ children, lightMode }) => {
 
   return (
     <div
-      className={`my-2 overflow-hidden bg-white dark:bg-gray-850 rounded-lg border border-gray-200 dark:border-gray-700/40 shadow-sm`}
+      className={`reasoning-box-container my-2 overflow-hidden bg-white rounded-lg border border-gray-200 shadow-sm`}
     >
       {/* Clickable Summary part */}
       <div
-        className="flex items-center justify-between px-3 py-2 cursor-pointer list-none 
-                   bg-gray-50 dark:bg-gray-700/30 hover:bg-gray-100 dark:hover:bg-gray-700/50 
-                   border-b border-gray-200 dark:border-gray-700/40 
-                   font-medium text-sm text-gray-600 dark:text-gray-300 transition-colors rounded-t-md 
+        className="reasoning-box-header flex items-center justify-between px-3 py-2 cursor-pointer list-none 
+                   bg-gray-50 hover:bg-gray-100 dark:hover:bg-gray-700/50 
+                   border-b border-gray-200 
+                   font-medium text-sm text-gray-600 transition-colors rounded-t-md 
                    select-none"
         onClick={handleToggle}
       >
@@ -63,15 +63,15 @@ const ReasoningBox: FC<ReasoningBoxProps> = ({ children, lightMode }) => {
 
       {/* Conditionally rendered Content area */}
       {isOpen && (
-      <div 
-        className={`pl-5 py-2 border-l-4 border-gray-300 dark:border-gray-600 
-                   prose prose-sm dark:prose-invert max-w-none 
-                   prose-p:my-0 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 
-                   [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 
-                   bg-transparent 
-                   transition-all duration-300 
-                   mt-1 mb-1 ml-1`}
-      >
+        <div 
+          className={`reasoning-box-content pl-5 pr-5 py-2 border-l-4 border-gray-300 
+                     prose prose-sm dark:prose-invert max-w-none 
+                     prose-p:my-0 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 
+                     [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 
+                     bg-transparent 
+                     transition-all duration-300 
+                     mt-1 mb-1 ml-1`}
+        >
           {children}
         </div>
       )}
