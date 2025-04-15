@@ -53,7 +53,7 @@ const StyledDetails: FC<StyledDetailsProps> = ({
     }
   });
 
-  const titleText = "已深度思考";
+  const titleText = "推理过程";
 
   const handleToggle = (e: React.MouseEvent<HTMLElement>) => {
     setIsOpen(e.currentTarget.parentElement?.hasAttribute('open') ?? false);

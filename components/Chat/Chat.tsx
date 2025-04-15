@@ -84,6 +84,11 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const [currentDisplayTitle, setCurrentDisplayTitle] = useState<string>('');
   const titleIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // --- ADD Refs for parallel title generation ---
+  const titleGenerationInitiated = useRef(false);
+  const titlePromise = useRef<Promise<string | null> | null>(null);
+  // --- END ADD ---
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -364,6 +369,11 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const onSend = async (message: Message, deleteCount = 0) => {
     if (!selectedConversation) return;
     
+    // --- ADD Reset title generation flags for this send operation ---
+    titleGenerationInitiated.current = false;
+    titlePromise.current = null;
+    // --- END ADD ---
+
     try {
       const difyClient = new DifyClient({
         apiUrl: process.env.NEXT_PUBLIC_DIFY_API_URL,
@@ -473,22 +483,50 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         
         // 保存后端返回的conversationId，并更新全局状态
         if (chatStream.conversationId && (!conversationId || conversationId === '')) {
-          conversationId = chatStream.conversationId;
-          
+          const newConversationId = chatStream.conversationId;
+          conversationId = newConversationId; // Update local variable
+
           // 同时立即更新所有对话列表中的相应对话ID
-          const updatedConversationsWithId = conversations.map(conv => 
-            conv.id === selectedConversation.id 
-              ? {...conv, conversationID: conversationId} 
+          const updatedConversationsWithId = conversations.map(conv =>
+            conv.id === selectedConversation.id
+              ? { ...conv, conversationID: newConversationId }
               : conv
           );
-          
           homeDispatch({
             field: 'conversations',
             value: updatedConversationsWithId
           });
-          
-          // 保存到本地存储
           saveConversations(updatedConversationsWithId);
+
+          // --- Start Parallel Title Generation ONLY when ID is first confirmed AND it's a new convo response ---
+          // Check if this is the first response phase (user msg + assistant msg)
+          const isPotentiallyNewConversationResponse = updatedMessages.length === 2;
+          if (isPotentiallyNewConversationResponse && !titleGenerationInitiated.current) {
+            titleGenerationInitiated.current = true;
+            console.log(`[Parallel] Conversation ID (${newConversationId}) confirmed for new convo. Starting title generation...`);
+
+            titlePromise.current = (async () => {
+              try {
+                // Use a separate client instance or ensure thread-safety if reusing
+                const titleDifyClient = new DifyClient({
+                  apiUrl: process.env.NEXT_PUBLIC_DIFY_API_URL,
+                  debug: true // Set to false in production
+                });
+                const titleApiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || '';
+                const generatedName = await titleDifyClient.generateConversationName(
+                  newConversationId, // Use the confirmed ID from the stream
+                  titleApiKey,
+                  user || 'unknown'
+                );
+                console.log('[Parallel] 并行生成对话标题成功:', generatedName);
+                return generatedName || null; // Return null if empty/falsy
+              } catch (error) {
+                console.error('[Parallel] 并行生成对话标题失败:', error);
+                return null; // Return null on error to indicate failure
+              }
+            })();
+          }
+          // --- End Parallel Title Generation Trigger ---
         }
         
         const streamUpdatedConversation = {
@@ -587,11 +625,12 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         // 通过检查消息数量判断是否是首次对话（仅用户消息+AI回复共2条）
         const isNewConversation = updatedMessages.length === 2;
         
-        // 如果是新对话且已有对话ID，则异步获取对话标题
-        if (isNewConversation && conversationId) {
-          console.log('开始异步生成对话标题...');
+        // 如果是新对话且标题生成已启动，则处理结果
+        // --- MODIFY Title Generation Logic ---
+        if (isNewConversation && titleGenerationInitiated.current && titlePromise.current) {
+          console.log('检测到新对话完成，开始处理已启动的标题生成...');
 
-          // --- ADD Placeholder Title Update ---
+          // --- ADD Placeholder Title Update (Keep existing logic) ---
           const placeholderTitle = "正在生成标题...";
           const conversationWithPlaceholder = {
             ...finalConversation,
@@ -605,22 +644,13 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           saveConversations(updatedConversationsWithPlaceholder);
           // --- END ADD ---
 
-          // 立即开始异步生成对话标题，不增加额外延迟
+          // Start an IIFE to handle the promise resolution and UI update
           (async () => {
             try {
-              const difyClient = new DifyClient({
-                apiUrl: process.env.NEXT_PUBLIC_DIFY_API_URL,
-                debug: true
-              });
-              
-              const apiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || '';
-              const generatedName = await difyClient.generateConversationName(
-                conversationId,
-                apiKey,
-                user || 'unknown'
-              );
-              
-              console.log('成功生成对话标题:', generatedName);
+              // Wait for the parallel generation promise to resolve
+              console.log("等待并行标题生成结果...");
+              const generatedName = await titlePromise.current;
+              console.log('并行标题生成结果:', generatedName);
 
               // --- MODIFY Check for empty/nullish result ---
               if (generatedName) {
@@ -628,32 +658,32 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 // 设置标题动画正在进行中
                 setTitleAnimationInProgress(true);
                 setCurrentDisplayTitle('');
-                
+
                 // 清除可能存在的旧计时器
                 if (titleIntervalRef.current) {
                   clearInterval(titleIntervalRef.current);
                 }
-                
+
                 // 创建带有打字效果的对话，存储在全局状态中
                 const targetTitle = generatedName;
                 let currentIndex = 0;
-                
+
                 // 使用setInterval创建稳定的打字效果，更快的速度
                 titleIntervalRef.current = setInterval(() => {
                   // 增加字符
                   currentIndex++;
-                  
+
                   // 构建当前显示的标题
                   const displayTitle = targetTitle.substring(0, currentIndex);
                   setCurrentDisplayTitle(displayTitle);
-                  
+
                   // 创建一个包含当前显示标题的对话对象
                   const conversationWithPartialName = {
                     ...finalConversation,
                     name: displayTitle
                   };
-                  
-                  // --- MODIFY State Updates --- 
+
+                  // --- MODIFY State Updates ---
                   // Update ONLY the list, NOT selectedConversation directly
                   const updatedConversationsWithPartialName = conversations.map(conv =>
                     conv.id === conversationWithPartialName.id ? conversationWithPartialName : conv
@@ -664,7 +694,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                   });
                   // REMOVED: homeDispatch({ field: 'selectedConversation', value: conversationWithPartialName });
                   // --- END MODIFY ---
-                  
+
                   // 当所有字符显示完成后
                   if (currentIndex >= targetTitle.length) {
                     // 清除计时器
@@ -672,16 +702,16 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                       clearInterval(titleIntervalRef.current);
                       titleIntervalRef.current = null;
                     }
-                    
+
                     // 设置标题动画完成
                     setTitleAnimationInProgress(false);
-                    
+
                     // 确保最终标题正确显示
                     const finalConversationWithName = {
                       ...finalConversation,
                       name: targetTitle
                     };
-                    
+
                     // --- MODIFY Final State Updates ---
                     // Update ONLY the list finally, NOT selectedConversation
                     const finalUpdatedConversations = conversations.map(conv =>
@@ -692,19 +722,20 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                       value: finalUpdatedConversations
                     });
                     // REMOVED: homeDispatch({ field: 'selectedConversation', value: finalConversationWithName });
-                    
+
                     // 保存到本地存储 (Keep saving both list and individual)
                     saveConversation(finalConversationWithName);
                     saveConversations(finalUpdatedConversations);
                     // --- END MODIFY ---
                   }
                 }, 30); // Use faster typing speed (e.g., 30ms)
+
               } else {
-                // Title generation succeeded but returned empty/nullish value
-                console.log('生成标题成功，但结果为空，设置备选标题。');
+                // Title generation succeeded (or failed returning null) but result is empty/nullish
+                console.log('并行生成标题成功但结果为空或失败，设置备选标题。');
                 setTitleAnimationInProgress(false); // Ensure animation state is reset
 
-                // --- ADD Fallback Title Logic (copied from catch block) ---
+                // --- ADD Fallback Title Logic (Keep existing logic) ---
                 const userFirstMessage = finalConversation?.messages?.[0]?.content;
                 const fallbackTitle = userFirstMessage
                   ? userFirstMessage.substring(0, 20) + (userFirstMessage.length > 20 ? '...' : '')
@@ -730,26 +761,24 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 // --- END ADD ---
               }
             } catch (error) {
-              // Handle API call errors (existing catch block remains)
-              console.error('生成对话标题失败 (API Error):', error);
+              // This catch block now primarily handles errors from awaiting the promise itself,
+              // though the inner async function also has its own catch.
+              console.error('处理并行标题生成结果时出错:', error);
               setTitleAnimationInProgress(false);
 
-              // --- ADD Fallback Title Logic ---
-              // Try to get the first user message content
+              // --- ADD Fallback Title Logic (Keep existing logic) ---
               const userFirstMessage = finalConversation?.messages?.[0]?.content;
-              // Create a fallback title from the first ~20 chars or a default
               const fallbackTitle = userFirstMessage
                 ? userFirstMessage.substring(0, 20) + (userFirstMessage.length > 20 ? '...' : '')
-                : "未命名对话"; // Default if first message not found
+                : "未命名对话";
 
-              console.log(`生成标题失败，设置为备选标题: "${fallbackTitle}"`);
+              console.log(`处理结果出错，设置为备选标题: "${fallbackTitle}"`);
 
               const conversationWithFallbackTitle = {
                 ...finalConversation,
                 name: fallbackTitle,
               };
 
-              // Update the conversations list with the fallback title
               const updatedConversationsWithFallback = conversations.map(conv =>
                 conv.id === conversationWithFallbackTitle.id ? conversationWithFallbackTitle : conv
               );
@@ -758,13 +787,158 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 value: updatedConversationsWithFallback
               });
 
-              // Save the updated list and the individual conversation with fallback title
               saveConversation(conversationWithFallbackTitle);
               saveConversations(updatedConversationsWithFallback);
               // --- END ADD ---
             }
           })();
+        } else if (isNewConversation && conversationId) {
+          // Fallback for the original logic if parallel generation somehow wasn't triggered
+          // (This part might be removed if confident in the parallel trigger)
+          console.log('[Fallback] 开始原始的异步生成对话标题...');
+          // --- Existing logic from before parallel implementation ---
+          const placeholderTitle = "正在生成标题...";
+          const conversationWithPlaceholder = {
+            ...finalConversation,
+            name: placeholderTitle
+          };
+          // Update conversation list immediately with placeholder
+          const updatedConversationsWithPlaceholder = conversations.map(conv =>
+            conv.id === conversationWithPlaceholder.id ? conversationWithPlaceholder : conv
+          );
+          homeDispatch({ field: 'conversations', value: updatedConversationsWithPlaceholder });
+          saveConversations(updatedConversationsWithPlaceholder);
+
+          (async () => {
+            try {
+              const difyClient = new DifyClient({
+                apiUrl: process.env.NEXT_PUBLIC_DIFY_API_URL,
+                debug: true
+              });
+
+              const apiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || '';
+              const generatedName = await difyClient.generateConversationName(
+                conversationId,
+                apiKey,
+                user || 'unknown'
+              );
+
+              console.log('成功生成对话标题:', generatedName);
+
+              // --- MODIFY Check for empty/nullish result ---
+              if (generatedName) {
+                // Title generation successful and has content
+                setTitleAnimationInProgress(true);
+                setCurrentDisplayTitle('');
+
+                if (titleIntervalRef.current) {
+                  clearInterval(titleIntervalRef.current);
+                }
+
+                const targetTitle = generatedName;
+                let currentIndex = 0;
+
+                titleIntervalRef.current = setInterval(() => {
+                  currentIndex++;
+                  const displayTitle = targetTitle.substring(0, currentIndex);
+                  setCurrentDisplayTitle(displayTitle);
+
+                  const conversationWithPartialName = {
+                    ...finalConversation,
+                    name: displayTitle
+                  };
+
+                  const updatedConversationsWithPartialName = conversations.map(conv =>
+                    conv.id === conversationWithPartialName.id ? conversationWithPartialName : conv
+                  );
+                  homeDispatch({
+                    field: 'conversations',
+                    value: updatedConversationsWithPartialName
+                  });
+
+                  if (currentIndex >= targetTitle.length) {
+                    if (titleIntervalRef.current) {
+                      clearInterval(titleIntervalRef.current);
+                      titleIntervalRef.current = null;
+                    }
+                    setTitleAnimationInProgress(false);
+
+                    const finalConversationWithName = {
+                      ...finalConversation,
+                      name: targetTitle
+                    };
+
+                    const finalUpdatedConversations = conversations.map(conv =>
+                      conv.id === finalConversationWithName.id ? finalConversationWithName : conv
+                    );
+                    homeDispatch({
+                      field: 'conversations',
+                      value: finalUpdatedConversations
+                    });
+
+                    saveConversation(finalConversationWithName);
+                    saveConversations(finalUpdatedConversations);
+                  }
+                }, 30);
+              } else {
+                // Title generation succeeded but returned empty/nullish value
+                console.log('生成标题成功，但结果为空，设置备选标题。');
+                setTitleAnimationInProgress(false);
+
+                const userFirstMessage = finalConversation?.messages?.[0]?.content;
+                const fallbackTitle = userFirstMessage
+                  ? userFirstMessage.substring(0, 20) + (userFirstMessage.length > 20 ? '...' : '')
+                  : "未命名对话";
+
+                console.log(`设置备选标题: "${fallbackTitle}"`);
+
+                const conversationWithFallbackTitle = {
+                  ...finalConversation,
+                  name: fallbackTitle,
+                };
+
+                const updatedConversationsWithFallback = conversations.map(conv =>
+                  conv.id === conversationWithFallbackTitle.id ? conversationWithFallbackTitle : conv
+                );
+                homeDispatch({
+                  field: 'conversations',
+                  value: updatedConversationsWithFallback
+                });
+
+                saveConversation(conversationWithFallbackTitle);
+                saveConversations(updatedConversationsWithFallback);
+              }
+            } catch (error) {
+              // Handle API call errors
+              console.error('生成对话标题失败 (API Error):', error);
+              setTitleAnimationInProgress(false);
+
+              const userFirstMessage = finalConversation?.messages?.[0]?.content;
+              const fallbackTitle = userFirstMessage
+                ? userFirstMessage.substring(0, 20) + (userFirstMessage.length > 20 ? '...' : '')
+                : "未命名对话";
+
+              console.log(`生成标题失败，设置为备选标题: "${fallbackTitle}"`);
+
+              const conversationWithFallbackTitle = {
+                ...finalConversation,
+                name: fallbackTitle,
+              };
+
+              const updatedConversationsWithFallback = conversations.map(conv =>
+                conv.id === conversationWithFallbackTitle.id ? conversationWithFallbackTitle : conv
+              );
+              homeDispatch({
+                field: 'conversations',
+                value: updatedConversationsWithFallback
+              });
+
+              saveConversation(conversationWithFallbackTitle);
+              saveConversations(updatedConversationsWithFallback);
+            }
+          })();
         }
+        // --- END MODIFY ---
       });
 
     } catch (error) {
