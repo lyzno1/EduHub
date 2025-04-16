@@ -242,11 +242,15 @@ const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({
 export interface Props {
   message: Message;
   messageIndex: number;
-  onEdit?: (editedMessage: Message) => void;
   lightMode: string;
+  onEdit?: (editedMessage: Message) => void;
+  isStreaming?: boolean;
+  isWaiting?: boolean;
+  userAvatar?: string;
+  assistantAvatar?: string;
 }
 
-export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lightMode }) => {
+export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lightMode, isStreaming, isWaiting, userAvatar, assistantAvatar }) => {
   const { t } = useTranslation('chat');
 
   const {

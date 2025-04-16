@@ -25,7 +25,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     state: { conversations, selectedConversation, activeAppId },
     handleNewConversation,
     handleSelectConversation,
-    dispatch,
+    handleSelectOrStartAppConversation,
     appConfigs,
   } = useContext(HomeContext);
 
@@ -110,18 +110,18 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     { id: 4, name: '教师助手', icon: <IconUsers size={20} />, color: 'bg-purple-100 dark:bg-purple-900/30' },
   ];
 
-  // --- 新增：处理应用点击的函数 ---
+  // --- New simplified click handler --- 
   const handleAppClick = (appId: number) => {
-    console.log("SidebarNav: App button clicked, appId:", appId); 
-    dispatch({ field: 'activeAppId', value: appId });
-    // 移动端点击后关闭侧边栏
-    if (isMobile) {
-      setTimeout(() => {
-        onToggle();
-      }, 100);
-    }
+     console.log("SidebarNav: App button clicked, calling handleSelectOrStartAppConversation with appId:", appId); 
+     handleSelectOrStartAppConversation(appId); // Call the context function
+     // Mobile toggle logic
+     if (isMobile) {
+       setTimeout(() => {
+         onToggle();
+       }, 100);
+     }
   };
-  // --- END 新增 ---
+  // --- End New Handler ---
 
   return (
     <div 
@@ -201,7 +201,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
             <button
               key={app.id}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 group ${
-                activeAppId === app.id
+                activeAppId === app.id 
                   ? 'bg-gray-200 dark:bg-gray-700 font-medium'
                   : ''
               }`}

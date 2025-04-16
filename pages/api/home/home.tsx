@@ -50,7 +50,15 @@ import { getDifyConfig } from '@/config/dify';
 import { toast } from 'react-hot-toast';
 import difyKeysData from '@/dify_keys.json';
 
-// 定义 Dify 相关的类型
+// Define and export AppConfig interface here
+export interface AppConfig {
+  id: number;
+  name: string;
+  apiKey: string;
+  apiUrl?: string; // Optional app-specific API URL
+}
+
+// Define Dify related types
 interface DifyConfig {
   apiUrl: string;
   apiKey: string;
@@ -65,14 +73,6 @@ interface Props {
 interface UpdateConversationData {
   key: string;
   value: any;
-}
-
-// 定义应用配置接口
-interface AppConfig {
-  id: number;
-  name: string;
-  apiKey: string;
-  apiUrl?: string; // 可选的应用特定 API URL
 }
 
 // 定义应用配置数据
@@ -220,23 +220,72 @@ const Home = ({
 
   // CONVERSATION OPERATIONS  --------------------------------------------
 
-  // --- New Async function to handle the actual Dify call --- 
+  // --- New Function to handle selecting or starting an app conversation ---
+  const handleSelectOrStartAppConversation = (appId: number) => {
+    const appConfig = appConfigs[appId];
+    if (!appConfig) {
+      console.error(`[App Click] Invalid appId: ${appId}`);
+      return;
+    }
+
+    console.log(`[App Click] Handling click for App: ${appConfig.name} (ID: ${appId})`);
+
+    // 先保存当前对话的状态 (如果存在且有消息)
+    if (selectedConversation && selectedConversation.messages.length > 0) {
+      saveConversation(selectedConversation);
+    }
+
+    // 查找是否已存在该应用的对话 (可以允许多个同 appId 对话，这里只找第一个)
+    const existingAppConversation = conversations.find(conv => conv.appId === appId);
+
+    if (existingAppConversation) {
+      console.log(`[App Click] Found existing conversation for appId ${appId}. Selecting it.`);
+      // 如果已存在，直接选中它
+      dispatch({ field: 'selectedConversation', value: existingAppConversation });
+      // 可选: 更新 activeAppId 用于高亮，但主要依赖 selectedConversation.appId
+      dispatch({ field: 'activeAppId', value: appId }); 
+    } else {
+      console.log(`[App Click] No existing conversation found for appId ${appId}. Creating a new one.`);
+      // 如果不存在，创建一个新的应用对话
+      const newAppConversation: Conversation = {
+        id: uuidv4(),
+        name: appConfig.name, // 使用应用名称作为默认名称
+        originalName: appConfig.name,
+        messages: [], // 初始为空
+        prompt: DEFAULT_SYSTEM_PROMPT, // 可以考虑应用特定 prompt
+        temperature: DEFAULT_TEMPERATURE,
+        folderId: null,
+        conversationID: '', // Dify 后端 ID 初始为空
+        deletable: true,
+        appId: appId, // 关键：设置 appId
+      };
+
+      // 将新对话添加到列表开头
+      const updatedConversations = [newAppConversation, ...conversations];
+
+      // 保存并更新状态
+      saveConversations(updatedConversations);
+      dispatch({ field: 'conversations', value: updatedConversations });
+      dispatch({ field: 'selectedConversation', value: newAppConversation });
+      dispatch({ field: 'activeAppId', value: appId }); // 同时更新 activeAppId
+      saveConversation(newAppConversation);
+      console.log('[App Click] New app conversation created and selected:', newAppConversation.id);
+    }
+  };
+  // --- End New Function ---
+
+  // --- Re-insert handleDifyApiCall --- 
   const handleDifyApiCall = async (
     apiKey: string, 
     originalMessage: Message, 
     temporaryId: string, 
     appConfig: AppConfig, 
     user: string | null,
-    // Pass a mutable object to accumulate results
     accumulation: { response: string; convId: string | undefined; msgId: string | undefined }
   ) => {
     console.log(`[handleDifyApiCall] Starting API call for temporary ID: ${temporaryId}`);
-    
-    // We no longer need local variables here for accumulation
-    // let streamedResponse = '';
-    // let finalDifyConversationId: string | undefined = undefined;
-    // let finalAssistantMessageId: string | undefined = undefined; 
-
+    // ... implementation of handleDifyApiCall ...
+    // (This function seems complex and might need review later, but restoring it first)
     try {
       const apiUrlToUse = appConfig.apiUrl || process.env.NEXT_PUBLIC_DIFY_API_URL || difyKeysData.global?.apiUrl || getDifyConfig().apiUrl;
       const client = new DifyClient({
@@ -249,157 +298,178 @@ const Home = ({
         query: originalMessage.content,
         key: apiKey,
         user: user || 'unknown',
-        conversationId: '',
+        conversationId: '', // Always starts a new Dify conversation?
         inputs: {},
       });
 
       stream.onMessage((chunk: any) => {
-          if (stopConversationRef.current === true) return;
-          if (chunk.event === 'agent_message' || chunk.event === 'message') {
-              // Update the properties of the MUTABLE accumulation object
-              accumulation.response += chunk.answer || '';
-              if (chunk.conversation_id) {
-                  accumulation.convId = chunk.conversation_id;
-                  // Log only once when ID is first received
-                  if (accumulation.convId === chunk.conversation_id && chunk.conversation_id !== undefined) { 
-                     console.log(`[handleDifyApiCall onMessage] Received Dify Conversation ID: ${accumulation.convId}`);
-                  }
-              }
-              if (chunk.id) {
-                  accumulation.msgId = chunk.id; 
-              }
-          } else if (chunk.event === 'agent_thought') { /* ... */ }
+        if (stopConversationRef.current === true) return;
+        if (chunk.event === 'agent_message' || chunk.event === 'message') {
+          accumulation.response += chunk.answer || '';
+          if (chunk.conversation_id) {
+            if (accumulation.convId !== chunk.conversation_id) {
+                 accumulation.convId = chunk.conversation_id;
+                 console.log(`[handleDifyApiCall onMessage] Received Dify Conversation ID: ${accumulation.convId}`);
+            }
+          }
+          if (chunk.id) {
+            accumulation.msgId = chunk.id;
+          }
+        } else if (chunk.event === 'agent_thought') { /* Handle thoughts if necessary */ }
       });
 
       stream.onError((error: Error) => {
-          if (stopConversationRef.current === true) return;
-          console.error("[handleDifyApiCall] Dify stream error:", error);
-          toast.error(`应用消息错误: ${error.message || '请求失败'}`);
-          dispatch({ field: 'messageIsStreaming', value: false });
-          dispatch({ field: 'loading', value: false });
+        if (stopConversationRef.current === true) return;
+        console.error("[handleDifyApiCall] Dify stream error:", error);
+        toast.error(`应用消息错误: ${error.message || '请求失败'}`);
+        dispatch({ field: 'messageIsStreaming', value: false });
+        dispatch({ field: 'loading', value: false });
       });
 
       stream.onComplete(() => {
-          if (stopConversationRef.current === true) return;
-          console.log("[handleDifyApiCall] Dify stream complete for temp ID:", temporaryId);
-          
-          const currentState = contextValue.state;
-          const currentConversationsList = currentState.conversations;
+        if (stopConversationRef.current === true) return;
+        console.log("[handleDifyApiCall] Dify stream complete for temp ID:", temporaryId);
+        
+        const currentState = contextValue.state; // Get current state
+        const currentConversationsList = currentState.conversations;
 
-          console.log("[handleDifyApiCall onComplete] Values from accumulation object:", JSON.stringify(accumulation));
+        console.log("[handleDifyApiCall onComplete] Values from accumulation object:", JSON.stringify(accumulation));
 
-          // --- Attempt to get conversationId directly from the stream object --- 
-          // This is a guess based on potential client implementation
-          let finalDifyConversationIdFromStream: string | undefined = undefined;
-          try {
-              // @ts-ignore - Attempting to access a potential property
-              if (stream && typeof stream === 'object' && 'conversationId' in stream && stream.conversationId) {
-                 // @ts-ignore
-                 finalDifyConversationIdFromStream = stream.conversationId;
-                 console.log("[handleDifyApiCall onComplete] Got conversationId directly from stream object:", finalDifyConversationIdFromStream);
-              } else {
-                 console.log("[handleDifyApiCall onComplete] Could not find conversationId directly on stream object. Falling back to accumulation (likely undefined).");
-                 finalDifyConversationIdFromStream = accumulation.convId; // Fallback
-              }
-          } catch (e) {
-              console.warn("[handleDifyApiCall onComplete] Error accessing stream.conversationId:", e);
-              finalDifyConversationIdFromStream = accumulation.convId; // Fallback on error
-          }
-          // --- End attempt ---
+        let finalDifyConversationIdFromStream: string | undefined = accumulation.convId; // Use accumulated first
+         try {
+             // @ts-ignore
+             if (stream && typeof stream === 'object' && 'conversationId' in stream && stream.conversationId) {
+                // @ts-ignore
+                finalDifyConversationIdFromStream = stream.conversationId;
+                console.log("[handleDifyApiCall onComplete] Overriding with conversationId directly from stream object:", finalDifyConversationIdFromStream);
+             }
+         } catch (e) {
+             console.warn("[handleDifyApiCall onComplete] Error accessing stream.conversationId:", e);
+         }
 
-          const finalAssistantMessage: Message = {
-              role: 'assistant',
-              content: accumulation.response, // Use accumulated response
-              id: accumulation.msgId || uuidv4() // Use accumulated msgId or fallback
-          };
+        const finalAssistantMessage: Message = {
+          role: 'assistant',
+          content: accumulation.response,
+          id: accumulation.msgId || uuidv4()
+        };
 
-          const finalConversation: Conversation = {
-            id: temporaryId, 
-            name: `${appConfig.name} - ${originalMessage.content.substring(0, 20)}...`, 
-            originalName: appConfig.name,
-            messages: [originalMessage, finalAssistantMessage], 
-            prompt: DEFAULT_SYSTEM_PROMPT,
-            temperature: DEFAULT_TEMPERATURE,
-            folderId: null,
-            // Use the ID obtained directly from the stream if available
-            conversationID: finalDifyConversationIdFromStream || '', // Use accumulated convId
-            deletable: true,
-            appId: appConfig.id,
-          };
+        const finalConversation: Conversation = {
+          id: temporaryId, 
+          name: `${appConfig.name} - ${originalMessage.content.substring(0, 20)}...`, 
+          originalName: appConfig.name,
+          messages: [originalMessage, finalAssistantMessage], 
+          prompt: DEFAULT_SYSTEM_PROMPT,
+          temperature: DEFAULT_TEMPERATURE,
+          folderId: null,
+          conversationID: finalDifyConversationIdFromStream || '', 
+          deletable: true,
+          appId: appConfig.id,
+        };
 
-          console.log("[handleDifyApiCall onComplete] Final conversation object built:", JSON.stringify(finalConversation, null, 2));
+        console.log("[handleDifyApiCall onComplete] Final conversation object built:", JSON.stringify(finalConversation, null, 2));
 
-          const finalConversationsList = [finalConversation, ...currentConversationsList];
+        // Find the placeholder and replace it, or add if not found (shouldn't happen)
+        const finalConversationsList = currentConversationsList.map(conv => 
+           conv.id === temporaryId ? finalConversation : conv
+        );
+        // Check if placeholder was found and replaced
+        if (!finalConversationsList.some(conv => conv.id === temporaryId)) {
+            console.warn("[handleDifyApiCall onComplete] Placeholder conversation not found, adding to start.");
+            finalConversationsList.unshift(finalConversation);
+        }
 
-          console.log("[handleDifyApiCall onComplete] Dispatching final state updates.");
-          dispatch({ field: 'conversations', value: finalConversationsList });
-          dispatch({ field: 'selectedConversation', value: finalConversation }); 
+        console.log("[handleDifyApiCall onComplete] Dispatching final state updates.");
+        dispatch({ field: 'conversations', value: finalConversationsList });
+        dispatch({ field: 'selectedConversation', value: finalConversation }); 
 
-          saveConversations(finalConversationsList);
-          saveConversation(finalConversation);
-          
-          dispatch({ field: 'messageIsStreaming', value: false });
-          dispatch({ field: 'loading', value: false });
+        saveConversations(finalConversationsList);
+        saveConversation(finalConversation);
+        
+        dispatch({ field: 'messageIsStreaming', value: false });
+        dispatch({ field: 'loading', value: false });
       });
 
     } catch (error: any) {
-       console.error("[handleDifyApiCall] Error setting up or executing Dify stream:", error);
-       toast.error(`启动应用对话失败: ${error.message || '未知错误'}`);
-       dispatch({ field: 'messageIsStreaming', value: false });
-       dispatch({ field: 'loading', value: false });
+      console.error("[handleDifyApiCall] Error setting up or executing Dify stream:", error);
+      toast.error(`启动应用对话失败: ${error.message || '未知错误'}`);
+      dispatch({ field: 'messageIsStreaming', value: false });
+      dispatch({ field: 'loading', value: false });
+      // Remove the temporary conversation on error
+      const currentConversations = contextValue.state.conversations;
+      const conversationsWithoutTemp = currentConversations.filter(conv => conv.id !== temporaryId);
+      dispatch({ field: 'conversations', value: conversationsWithoutTemp });
+      // Optionally select the previous conversation or a new one
+      if (conversationsWithoutTemp.length > 0) {
+          dispatch({ field: 'selectedConversation', value: conversationsWithoutTemp[0] });
+      } else {
+          handleNewConversation();
+      }
     }
   };
+  // --- End Re-insert handleDifyApiCall ---
 
+  // --- Re-insert startConversationFromActiveApp --- 
   const startConversationFromActiveApp = async (message: Message) => {
-    if (!activeAppId) {
+    // This function seems to create a temporary conversation UI first,
+    // then calls handleDifyApiCall to get the actual response.
+    // It uses the *global* activeAppId state, which might be out of sync
+    // if the user clicks quickly. Consider passing appId directly if possible.
+    const currentActiveAppId = contextValue.state.activeAppId; // Read current activeAppId
+
+    if (!currentActiveAppId) {
+      console.warn("[startConversationFromActiveApp] No activeAppId set.");
       return;
     }
-    const appConfig = appConfigs[activeAppId];
+    const appConfig = appConfigs[currentActiveAppId];
     if (!appConfig || !appConfig.apiKey) {
+       console.error(`[startConversationFromActiveApp] Invalid or missing config/apiKey for activeAppId: ${currentActiveAppId}`);
       return;
     }
 
-    console.log(`[startConversationFromActiveApp] Initiating for App: ${appConfig.name} (ID: ${activeAppId})`);
+    console.log(`[startConversationFromActiveApp] Initiating for App: ${appConfig.name} (ID: ${currentActiveAppId})`);
 
     const assistantPlaceholderId = uuidv4();
-    const newConversationId_temporary = uuidv4();
+    const newConversationId_temporary = uuidv4(); // Use temporary ID for UI
 
+    // Create a temporary conversation object for immediate UI display
     const tempDisplayConversation: Conversation = {
-      id: newConversationId_temporary,
-      name: `${appConfig.name} - ${message.content.substring(0, 20)}...`,
+      id: newConversationId_temporary, 
+      name: `${appConfig.name} - Loading...`, // Indicate loading state
       originalName: appConfig.name,
       messages: [
         message,
-        { role: 'assistant', content: '', id: assistantPlaceholderId }
+        { role: 'assistant', content: '', id: assistantPlaceholderId } // Placeholder for response
       ],
       prompt: DEFAULT_SYSTEM_PROMPT,
       temperature: DEFAULT_TEMPERATURE,
       folderId: null,
       conversationID: '', 
-      deletable: true,
-      appId: activeAppId,
+      deletable: true, // Initially deletable, might change after completion
+      appId: currentActiveAppId,
     };
 
-    console.log('[startConversationFromActiveApp] Dispatching initial UI updates (selectedConv only).');
+    // Add temporary conversation to the list for UI update first
+    const conversationsWithTemp = [tempDisplayConversation, ...contextValue.state.conversations];
+    dispatch({ field: 'conversations', value: conversationsWithTemp });
+
+    console.log('[startConversationFromActiveApp] Dispatching initial UI updates.');
     dispatch({ field: 'selectedConversation', value: tempDisplayConversation });
-    dispatch({ field: 'activeAppId', value: null });
+    dispatch({ field: 'activeAppId', value: null }); // Clear activeAppId after starting
     dispatch({ field: 'messageIsStreaming', value: true });
     dispatch({ field: 'loading', value: true });
 
-    // --- Create the mutable accumulation object --- 
     const accumulation = {
       response: '',
       convId: undefined as string | undefined,
-      // Initialize msgId with the placeholder ID, it might be updated by Dify
-      msgId: assistantPlaceholderId 
+      msgId: assistantPlaceholderId
     };
 
-    // --- Pass the accumulation object to the delayed call --- 
-    setTimeout(() => {
-      handleDifyApiCall(appConfig.apiKey, message, newConversationId_temporary, appConfig, user, accumulation);
-    }, 10); 
-
+    // Call the API handling function (might run slightly delayed)
+    // Pass the temporary UI ID so it can be replaced later
+    handleDifyApiCall(appConfig.apiKey, message, newConversationId_temporary, appConfig, user, accumulation);
+      
   };
+  // --- End Re-insert startConversationFromActiveApp ---
 
   const handleNewConversation = () => {
     if (selectedConversation && selectedConversation.messages.length > 0) {
@@ -697,6 +767,7 @@ const Home = ({
         handleCreateFolder,
         handleDeleteFolder,
         handleUpdateFolder,
+        handleSelectOrStartAppConversation,
         startConversationFromActiveApp,
       }}
     >
@@ -709,7 +780,12 @@ const Home = ({
         />
       </Head>
       {ready ? (
-        selectedConversation && whitelist.includes(user) ? (
+        /* 移除selectedConversation检查:
+           原条件: selectedConversation && whitelist.includes(user)
+           问题: 当切换对话时，selectedConversation可能暂时为null，导致触发登录提示
+           即使用户在白名单中也会被重定向到登录页面
+           修改为只检查白名单，解决过渡状态的登录跳转问题 */
+        whitelist.includes(user) ? (
           <main className="flex h-screen w-screen flex-col text-sm text-black bg-white dark:text-white dark:bg-[#343541]">
             <div className="fixed top-0 w-full sm:hidden z-40">
               <div className="flex items-center h-12 px-4 bg-white dark:bg-[#202123] border-b border-neutral-200 dark:border-neutral-600">
