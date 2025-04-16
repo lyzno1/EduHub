@@ -58,7 +58,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     state: {
       selectedConversation,
       conversations,
-      apiKey,
       pluginKeys,
       serverSideApiKeyIsSet,
       modelError,
@@ -66,7 +65,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       prompts,
       user,
       lightMode,
-      activeAppId,
       messageIsStreaming,
     },
     handleUpdateConversation,
@@ -381,20 +379,37 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const onSend = async (message: Message, deleteCount = 0) => {
     if (!selectedConversation) return;
     
-    // --- ADD Reset title generation flags for this send operation ---
     titleGenerationInitiated.current = false;
     titlePromise.current = null;
-    // --- END ADD ---
 
     try {
+      // --- Start modification: Determine API URL and Key based on appId ---
+      const currentAppId = selectedConversation.appId;
+      let targetApiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || '/api/dify'; // Default global URL (or reverse proxy)
+      let targetApiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || ''; // Default global Key
+
+      if (currentAppId !== null && appConfigs && appConfigs[currentAppId]) {
+        const appConfig = appConfigs[currentAppId];
+        console.log(`[Chat Send] Detected App Conversation (appId: ${currentAppId}). Using App Config:`, appConfig);
+        targetApiKey = appConfig.apiKey;
+        if (appConfig.apiUrl) {
+          targetApiUrl = appConfig.apiUrl;
+        }
+        // If the app doesn't specify apiUrl, continue using the global default apiUrl
+      } else {
+        console.log(`[Chat Send] Detected Normal Conversation or App Config not found (appId: ${currentAppId}). Using Global Config.`);
+      }
+
+      console.log(`[Chat Send] Final Dify Config - URL: ${targetApiUrl}, Key Used: ${targetApiKey ? 'Yes' : 'No'}`);
+
       const difyClient = new DifyClient({
-        apiUrl: process.env.NEXT_PUBLIC_DIFY_API_URL,
+        apiUrl: targetApiUrl, // Use the finally determined URL
         debug: true
       });
 
-      const apiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || '';
       let conversationId = selectedConversation.conversationID || '';
-      
+      // --- End modification ---
+
       console.log('对话ID信息:', {
         conversationId: conversationId,
         selectedConversationId: selectedConversation.id,
@@ -406,13 +421,14 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         updatedMessages.splice(-deleteCount);
       }
       updatedMessages.push(message);
+      // Add an empty assistant message for streaming output, with a unique ID
       updatedMessages.push({ role: 'assistant', content: '', id: uuidv4() });
-      
+
       const updatedConversation = {
         ...selectedConversation,
         messages: updatedMessages
       };
-      
+
       homeDispatch({ field: 'selectedConversation', value: updatedConversation });
 
       homeDispatch({ field: 'messageIsStreaming', value: true });
@@ -423,14 +439,16 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         }
       }, 50);
 
+      // --- Modification: Use the finally determined Key to call Dify API ---
       const chatStream = await difyClient.createChatStream({
         query: message.content,
-        key: apiKey,
+        key: targetApiKey, // Use the finally determined Key
         user: user || 'unknown',
-        conversationId, 
+        conversationId,
         inputs: {},
-        autoGenerateName: selectedConversation.messages.length > 1 
+        autoGenerateName: selectedConversation.messages.length > 1
       });
+      // --- End modification ---
 
       let fullResponse = '';
       let isStreamHalted = false;
@@ -440,81 +458,100 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         if (stopConversationRef.current) {
           console.log('Stop signal detected inside onMessage. Halting stream permanently for this request.');
           isStreamHalted = true;
+          homeDispatch({ field: 'messageIsStreaming', value: false });
+          setModelWaiting(false);
+          stopConversationRef.current = false; // Reset stop flag
           return;
         }
 
-        homeDispatch({ field: 'messageIsStreaming', value: true });
-        setModelWaiting(false);
-        
-        const updatedMessages = [...updatedConversation.messages];
+        homeDispatch({ field: 'messageIsStreaming', value: true }); // Ensure streaming state is true
+        setModelWaiting(false); // Received message, no longer waiting
+
+        const currentMessages = [...updatedConversation.messages]; // Use a fresh copy from closure
         fullResponse += chunk;
-        const assistantMessageIndex = updatedMessages.length - 1;
-        updatedMessages[assistantMessageIndex] = { 
-          ...updatedMessages[assistantMessageIndex],
-          role: 'assistant', 
-          content: fullResponse 
-        };
+        const assistantMessageIndex = currentMessages.length - 1;
         
-        if (chatStream.conversationId && (!conversationId || conversationId === '')) {
-          console.log(`[Dify] 收到新对话的 Conversation ID: ${chatStream.conversationId}`); 
-          
-          const newConversationId = chatStream.conversationId;
-          conversationId = newConversationId;
-
-          const updatedConversationsWithId = conversations.map(conv =>
-            conv.id === selectedConversation.id
-              ? { ...conv, conversationID: newConversationId }
-              : conv
-          );
-          homeDispatch({
-            field: 'conversations',
-            value: updatedConversationsWithId
-          });
-          saveConversations(updatedConversationsWithId);
-
-          const isPotentiallyNewConversationResponse = updatedMessages.length === 2;
-          if (isPotentiallyNewConversationResponse && !titleGenerationInitiated.current) {
-            titleGenerationInitiated.current = true;
-            console.log(`[Parallel] Conversation ID (${newConversationId}) confirmed for new convo. Starting title generation...`);
-
-            titlePromise.current = (async () => {
-              try {
-                const titleApiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || difyKeysData.global?.apiUrl || 'https://api.dify.ai/v1';
-                const titleApiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || difyKeysData.global?.apiKey || '';
-                console.log(`[Debug] Title Gen - Determined titleApiUrl: ${titleApiUrl}`);
-                console.log(`[Debug] Title Gen - Determined titleApiKey is empty: ${titleApiKey === ''}`);
-
-                const titleDifyClient = new DifyClient({
-                  apiUrl: titleApiUrl,
-                  debug: true
-                });
-                const generatedName = await titleDifyClient.generateConversationName(
-                  newConversationId,
-                  titleApiKey,
-                  user || 'unknown'
-                );
-                console.log('[Parallel] 并行生成对话标题成功:', generatedName);
-                return generatedName || null;
-              } catch (error) {
-                console.error('[Parallel] 并行生成对话标题失败:', error);
-                return null;
-              }
-            })();
-          }
+        // Ensure we are updating the correct, previously added empty assistant message
+        if(currentMessages[assistantMessageIndex] && currentMessages[assistantMessageIndex].role === 'assistant') {
+            currentMessages[assistantMessageIndex] = {
+              ...currentMessages[assistantMessageIndex],
+              role: 'assistant',
+              content: fullResponse
+            };
+        } else {
+            // Should theoretically not happen, but as a safeguard
+            console.error("Error updating message stream: Cannot find assistant message placeholder.");
+            isStreamHalted = true; // Stop processing if state is inconsistent
+            return;
         }
-        
+
+        // --- Modification: Title generation also needs to use the correct API Key ---
+        const isPotentiallyNewConversationResponse = currentMessages.length === 2;
+        if (isPotentiallyNewConversationResponse && !titleGenerationInitiated.current && chatStream.conversationId) {
+            if (!conversationId || conversationId === '') {
+                conversationId = chatStream.conversationId;
+                console.log(`[Dify] Received new Conversation ID: ${conversationId}`);
+                // Immediately update conversationID in HomeContext and localStorage
+                const updatedConversationsWithId = conversations.map(conv =>
+                  conv.id === selectedConversation.id
+                    ? { ...conv, conversationID: conversationId }
+                    : conv
+                );
+                homeDispatch({
+                  field: 'conversations',
+                  value: updatedConversationsWithId
+                });
+                saveConversations(updatedConversationsWithId);
+                // Update conversationID of the currently selected conversation in closure
+                updatedConversation.conversationID = conversationId;
+            }
+
+            // Check again if conversationId is now valid before proceeding
+            if (conversationId) {
+                titleGenerationInitiated.current = true;
+                console.log(`[Parallel] Conversation ID (${conversationId}) confirmed for new convo. Starting title generation...`);
+
+                titlePromise.current = (async () => {
+                  try {
+                    const titleApiUrl = targetApiUrl; // Reuse the URL determined for main chat
+                    const titleApiKey = targetApiKey; // Reuse the Key determined for main chat
+                    console.log(`[Debug] Title Gen - Using titleApiUrl: ${titleApiUrl}`);
+                    console.log(`[Debug] Title Gen - Using titleApiKey is empty: ${titleApiKey === ''}`);
+
+                    const titleDifyClient = new DifyClient({
+                      apiUrl: titleApiUrl,
+                      debug: true
+                    });
+                    const generatedName = await titleDifyClient.generateConversationName(
+                      conversationId,
+                      titleApiKey,
+                      user || 'unknown'
+                    );
+                    console.log('[Parallel] Parallel title generation successful:', generatedName);
+                    return generatedName || null;
+                  } catch (error) {
+                    console.error('[Parallel] Parallel title generation failed:', error);
+                    return null;
+                  }
+                })();
+            } else {
+                console.warn('[Title Gen] Could not initiate title generation because conversationId is still missing after stream update.');
+            }
+        }
+        // --- End title generation logic modification ---
+
         const streamUpdatedConversation = {
           ...updatedConversation,
-          messages: updatedMessages,
-          conversationID: conversationId
+          messages: currentMessages, // Use the locally updated messages
+          conversationID: conversationId // Ensure conversationID is updated
         };
-        
+
         homeDispatch({
           field: 'selectedConversation',
           value: streamUpdatedConversation
         });
-        
-        if (fullResponse.length <= chunk.length) {
+
+        if (autoScrollEnabled) {
           setTimeout(() => {
             if (chatContainerRef.current) {
               chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -528,332 +565,111 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           console.log('Stream was halted, ignoring error callback.');
           return;
         }
-        console.error('处理消息时错误:', error);
+        console.error('Error processing message:', error);
         homeDispatch({ field: 'messageIsStreaming', value: false });
-        setModelWaiting(false);
-        
+        setModelWaiting(false); // Error, stop waiting
+
         if (error.message.includes('Conversation Not Exists')) {
+          console.warn('Conversation Not Exists error detected. Resetting conversationID and retrying.');
+          // Use the latest state from context for safety
+          const currentSelectedConv = selectedConversation;
+          if (!currentSelectedConv) return; // Should not happen, but safeguard
+
           const resetConversation = {
-            ...selectedConversation,
-            conversationID: ''
+            ...currentSelectedConv,
+            conversationID: '' // Clear the incorrect ID
           };
           homeDispatch({
             field: 'selectedConversation',
             value: resetConversation
           });
-          onSend(message, deleteCount);
-          return;
+
+           const updatedConversationsReset = conversations.map(conv =>
+             conv.id === currentSelectedConv.id
+               ? { ...conv, conversationID: '' }
+               : conv
+           );
+           homeDispatch({ field: 'conversations', value: updatedConversationsReset });
+           saveConversations(updatedConversationsReset);
+
+           setTimeout(() => {
+             onSend(message, deleteCount);
+           }, 500);
+           return;
         }
-        
-        toast.error(error.message);
+
+        toast.error(`Message processing error: ${error.message}`);
       });
 
-      chatStream.onComplete(() => {
+      chatStream.onComplete(async () => {
         if (isStreamHalted) {
-          console.log('Stream was halted, skipping title generation and final updates.');
+          console.log('Stream was halted, skipping final updates.');
+           homeDispatch({ field: 'messageIsStreaming', value: false });
+           setModelWaiting(false);
           return;
         }
-        console.log('消息处理已完成');
-        
+        console.log('Message processing complete');
+
         homeDispatch({ field: 'messageIsStreaming', value: false });
         setModelWaiting(false);
-        
-        const updatedMessages = [...updatedConversation.messages];
-        
-        const lastMessageIndex = updatedMessages.length - 1;
-        if (updatedMessages[lastMessageIndex].role === 'assistant') {
-          updatedMessages[lastMessageIndex].content = fullResponse;
+
+        let finalConversationName = selectedConversation.name;
+        if (titlePromise.current) {
+          try {
+            console.log('[Finalize] Waiting for parallel title generation...');
+            const generatedName = await titlePromise.current;
+            if (generatedName) {
+              finalConversationName = generatedName;
+              console.log('[Finalize] Parallel title generated successfully:', finalConversationName);
+            } else {
+              console.log('[Finalize] Parallel title generation returned null or failed.');
+              // Optionally set a fallback title here if needed
+              // finalConversationName = selectedConversation.messages[0]?.content.substring(0, 20) || 'Untitled';
+            }
+          } catch (error) {
+            console.error('[Finalize] Error awaiting parallel title generation:', error);
+             // Optionally set a fallback title here if needed
+             // finalConversationName = selectedConversation.messages[0]?.content.substring(0, 20) || 'Untitled';
+          }
         }
-        
+
+        // Use the latest message list from closure, ensuring the last message content is final
+        const finalMessages = [...updatedConversation.messages]; // Use the closure's updated messages
+        const lastMessageIndex = finalMessages.length - 1;
+         if (finalMessages[lastMessageIndex] && finalMessages[lastMessageIndex].role === 'assistant') {
+            finalMessages[lastMessageIndex].content = fullResponse; // Ensure final content is set
+         }
+
         const finalConversation = {
-          ...updatedConversation,
-          messages: updatedMessages,
-          conversationID: conversationId
+          ...updatedConversation, // Contains potentially updated conversationID from stream
+          name: finalConversationName,
+          messages: finalMessages,
+          // conversationID: conversationId // Already in updatedConversation if updated
         };
-        
+
         homeDispatch({
           field: 'selectedConversation',
           value: finalConversation
         });
-        
+
         saveConversation(finalConversation);
-        
-        const isNewConversation = updatedMessages.length === 2;
-        
-        if (isNewConversation && titleGenerationInitiated.current && titlePromise.current) {
-          console.log('检测到新对话完成，开始处理已启动的标题生成...');
 
-          const placeholderTitle = "正在生成标题...";
-          const conversationWithPlaceholder = {
-            ...finalConversation,
-            name: placeholderTitle
-          };
-          const updatedConversationsWithPlaceholder = conversations.map(conv =>
-            conv.id === conversationWithPlaceholder.id ? conversationWithPlaceholder : conv
-          );
-          homeDispatch({ field: 'conversations', value: updatedConversationsWithPlaceholder });
-          saveConversations(updatedConversationsWithPlaceholder);
+        // Update the main conversations list in context and localStorage
+        const finalConversationsList = conversations.map(conv =>
+          conv.id === finalConversation.id ? finalConversation : conv
+        );
+        homeDispatch({ field: 'conversations', value: finalConversationsList });
+        saveConversations(finalConversationsList);
 
-          (async () => {
-            try {
-              console.log("等待并行标题生成结果...");
-              const generatedName = await titlePromise.current;
-              console.log('并行标题生成结果:', generatedName);
+        console.log('Conversation saved:', finalConversation.id, finalConversation.name);
 
-              if (generatedName) {
-                setTitleAnimationInProgress(true);
-                setCurrentDisplayTitle('');
-
-                if (titleIntervalRef.current) {
-                  clearInterval(titleIntervalRef.current);
-                }
-
-                const targetTitle = generatedName;
-                let currentIndex = 0;
-
-                titleIntervalRef.current = setInterval(() => {
-                  currentIndex++;
-                  const displayTitle = targetTitle.substring(0, currentIndex);
-                  setCurrentDisplayTitle(displayTitle);
-
-                  const conversationWithPartialName = {
-                    ...finalConversation,
-                    name: displayTitle
-                  };
-
-                  const updatedConversationsWithPartialName = conversations.map(conv =>
-                    conv.id === conversationWithPartialName.id ? conversationWithPartialName : conv
-                  );
-                  homeDispatch({
-                    field: 'conversations',
-                    value: updatedConversationsWithPartialName
-                  });
-
-                  if (currentIndex >= targetTitle.length) {
-                    if (titleIntervalRef.current) {
-                      clearInterval(titleIntervalRef.current);
-                      titleIntervalRef.current = null;
-                    }
-                    setTitleAnimationInProgress(false);
-
-                    const finalConversationWithName = {
-                      ...finalConversation,
-                      name: targetTitle
-                    };
-
-                    const finalUpdatedConversations = conversations.map(conv =>
-                      conv.id === finalConversationWithName.id ? finalConversationWithName : conv
-                    );
-                    homeDispatch({
-                      field: 'conversations',
-                      value: finalUpdatedConversations
-                    });
-
-                    saveConversation(finalConversationWithName);
-                    saveConversations(finalUpdatedConversations);
-                  }
-                }, 30);
-
-              } else {
-                console.log('并行生成标题成功但结果为空或失败，设置备选标题。');
-                setTitleAnimationInProgress(false);
-
-                const userFirstMessage = finalConversation?.messages?.[0]?.content;
-                const fallbackTitle = userFirstMessage
-                  ? userFirstMessage.substring(0, 20) + (userFirstMessage.length > 20 ? '...' : '')
-                  : "未命名对话";
-
-                console.log(`设置备选标题: "${fallbackTitle}"`);
-
-                const conversationWithFallbackTitle = {
-                  ...finalConversation,
-                  name: fallbackTitle,
-                };
-
-                const updatedConversationsWithFallback = conversations.map(conv =>
-                  conv.id === conversationWithFallbackTitle.id ? conversationWithFallbackTitle : conv
-                );
-                homeDispatch({
-                  field: 'conversations',
-                  value: updatedConversationsWithFallback
-                });
-
-                saveConversation(conversationWithFallbackTitle);
-                saveConversations(updatedConversationsWithFallback);
-              }
-            } catch (error) {
-              console.error('处理并行标题生成结果时出错:', error);
-              setTitleAnimationInProgress(false);
-
-              const userFirstMessage = finalConversation?.messages?.[0]?.content;
-              const fallbackTitle = userFirstMessage
-                ? userFirstMessage.substring(0, 20) + (userFirstMessage.length > 20 ? '...' : '')
-                : "未命名对话";
-
-              console.log(`处理结果出错，设置为备选标题: "${fallbackTitle}"`);
-
-              const conversationWithFallbackTitle = {
-                ...finalConversation,
-                name: fallbackTitle,
-              };
-
-              const updatedConversationsWithFallback = conversations.map(conv =>
-                conv.id === conversationWithFallbackTitle.id ? conversationWithFallbackTitle : conv
-              );
-              homeDispatch({
-                field: 'conversations',
-                value: updatedConversationsWithFallback
-              });
-
-              saveConversation(conversationWithFallbackTitle);
-              saveConversations(updatedConversationsWithFallback);
-            }
-          })();
-        } else if (isNewConversation && conversationId) {
-          console.log('[Fallback] 开始原始的异步生成对话标题...');
-          const placeholderTitle = "正在生成标题...";
-          const conversationWithPlaceholder = {
-            ...finalConversation,
-            name: placeholderTitle
-          };
-          const updatedConversationsWithPlaceholder = conversations.map(conv =>
-            conv.id === conversationWithPlaceholder.id ? conversationWithPlaceholder : conv
-          );
-          homeDispatch({ field: 'conversations', value: updatedConversationsWithPlaceholder });
-          saveConversations(updatedConversationsWithPlaceholder);
-
-          (async () => {
-            try {
-              const difyClient = new DifyClient({
-                apiUrl: process.env.NEXT_PUBLIC_DIFY_API_URL,
-                debug: true
-              });
-
-              const apiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || '';
-              const generatedName = await difyClient.generateConversationName(
-                conversationId,
-                apiKey,
-                user || 'unknown'
-              );
-
-              console.log('成功生成对话标题:', generatedName);
-
-              if (generatedName) {
-                setTitleAnimationInProgress(true);
-                setCurrentDisplayTitle('');
-
-                if (titleIntervalRef.current) {
-                  clearInterval(titleIntervalRef.current);
-                }
-
-                const targetTitle = generatedName;
-                let currentIndex = 0;
-
-                titleIntervalRef.current = setInterval(() => {
-                  currentIndex++;
-                  const displayTitle = targetTitle.substring(0, currentIndex);
-                  setCurrentDisplayTitle(displayTitle);
-
-                  const conversationWithPartialName = {
-                    ...finalConversation,
-                    name: displayTitle
-                  };
-
-                  const updatedConversationsWithPartialName = conversations.map(conv =>
-                    conv.id === conversationWithPartialName.id ? conversationWithPartialName : conv
-                  );
-                  homeDispatch({
-                    field: 'conversations',
-                    value: updatedConversationsWithPartialName
-                  });
-
-                  if (currentIndex >= targetTitle.length) {
-                    if (titleIntervalRef.current) {
-                      clearInterval(titleIntervalRef.current);
-                      titleIntervalRef.current = null;
-                    }
-                    setTitleAnimationInProgress(false);
-
-                    const finalConversationWithName = {
-                      ...finalConversation,
-                      name: targetTitle
-                    };
-
-                    const finalUpdatedConversations = conversations.map(conv =>
-                      conv.id === finalConversationWithName.id ? finalConversationWithName : conv
-                    );
-                    homeDispatch({
-                      field: 'conversations',
-                      value: finalUpdatedConversations
-                    });
-
-                    saveConversation(finalConversationWithName);
-                    saveConversations(finalUpdatedConversations);
-                  }
-                }, 30);
-              } else {
-                console.log('生成标题成功，但结果为空，设置备选标题。');
-                setTitleAnimationInProgress(false);
-
-                const userFirstMessage = finalConversation?.messages?.[0]?.content;
-                const fallbackTitle = userFirstMessage
-                  ? userFirstMessage.substring(0, 20) + (userFirstMessage.length > 20 ? '...' : '')
-                  : "未命名对话";
-
-                console.log(`设置备选标题: "${fallbackTitle}"`);
-
-                const conversationWithFallbackTitle = {
-                  ...finalConversation,
-                  name: fallbackTitle,
-                };
-
-                const updatedConversationsWithFallback = conversations.map(conv =>
-                  conv.id === conversationWithFallbackTitle.id ? conversationWithFallbackTitle : conv
-                );
-                homeDispatch({
-                  field: 'conversations',
-                  value: updatedConversationsWithFallback
-                });
-
-                saveConversation(conversationWithFallbackTitle);
-                saveConversations(updatedConversationsWithFallback);
-              }
-            } catch (error) {
-              console.error('生成对话标题失败 (API Error):', error);
-              setTitleAnimationInProgress(false);
-
-              const userFirstMessage = finalConversation?.messages?.[0]?.content;
-              const fallbackTitle = userFirstMessage
-                ? userFirstMessage.substring(0, 20) + (userFirstMessage.length > 20 ? '...' : '')
-                : "未命名对话";
-
-              console.log(`生成标题失败，设置为备选标题: "${fallbackTitle}"`);
-
-              const conversationWithFallbackTitle = {
-                ...finalConversation,
-                name: fallbackTitle,
-              };
-
-              const updatedConversationsWithFallback = conversations.map(conv =>
-                conv.id === conversationWithFallbackTitle.id ? conversationWithFallbackTitle : conv
-              );
-              homeDispatch({
-                field: 'conversations',
-                value: updatedConversationsWithFallback
-              });
-
-              saveConversation(conversationWithFallbackTitle);
-              saveConversations(updatedConversationsWithFallback);
-            }
-          })();
-        }
       });
 
-    } catch (error) {
-      console.error('处理消息时错误:', error);
+    } catch (error: any) {
+      console.error('Unexpected error caught during message sending:', error);
       homeDispatch({ field: 'messageIsStreaming', value: false });
       setModelWaiting(false);
-      toast.error(error instanceof Error ? error.message : '发送消息失败');
+      toast.error(`Send failed: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -1260,178 +1076,185 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     };
   }, []);
 
-  const isWelcomeScreen = activeAppId === null && !messagesLength;
-  const isStandardChat = activeAppId === null && messagesLength > 0;
-  const isAppMode = activeAppId !== null;
+  // --- Determine rendering mode based on selectedConversation --- 
+  const currentAppId = selectedConversation?.appId;
+  const activeAppId = useContext(HomeContext).state.activeAppId;
+
+  // 定义界面模式状态
+  const isStandardChat = messagesLength > 0 && currentAppId === null;
+  const isAppMode = currentAppId !== null || activeAppId !== null;
+  const isWelcomeScreen = !messagesLength && !isAppMode;
 
   return (
     <div
-      className={`relative flex-1 flex flex-col overflow-y-auto bg-white dark:bg-[#343541] ${
-        currentTheme === 'red'
-          ? 'bg-[#F2ECBE]'
-          : currentTheme === 'blue'
-          ? 'bg-[#F6F4EB]'
-          : currentTheme === 'green'
-          ? 'bg-[#FAF1E4]'
-          : currentTheme === 'purple'
-          ? 'bg-[#C5DFF8]'
-          : currentTheme === 'brown'
-          ? 'bg-[#F4EEE0]'
-          : 'bg-white dark:bg-[#343541]'
+      className={`relative flex-1 flex flex-col overflow-y-auto bg-white dark:bg-[#343541] ${ 
+        /* Theme classes based on currentTheme */ 
+        currentTheme === 'red' ? 'bg-[#F2ECBE]' : 
+        currentTheme === 'blue' ? 'bg-[#F6F4EB]' : 
+        currentTheme === 'green' ? 'bg-[#FAF1E4]' : 
+        currentTheme === 'purple' ? 'bg-[#C5DFF8]' : 
+        currentTheme === 'brown' ? 'bg-[#F4EEE0]' : 
+        'bg-white dark:bg-[#343541]' 
       }`}
-      style={{
-        '--bg-color': currentTheme === 'red'
-          ? '#F2ECBE'
-          : currentTheme === 'blue'
-          ? '#F6F4EB'
-          : currentTheme === 'green'
-          ? '#FAF1E4'
-          : currentTheme === 'purple'
-          ? '#C5DFF8'
-          : currentTheme === 'brown'
-          ? '#F4EEE0'
-          : '#FFFFFF',
-        '--dark-bg-color': '#343541'
+      style={{ 
+        /* CSS variables for theme */ 
+        '--bg-color': currentTheme === 'red' ? '#F2ECBE' : 
+                      currentTheme === 'blue' ? '#F6F4EB' : 
+                      currentTheme === 'green' ? '#FAF1E4' : 
+                      currentTheme === 'purple' ? '#C5DFF8' : 
+                      currentTheme === 'brown' ? '#F4EEE0' : 
+                      '#FFFFFF', 
+        '--dark-bg-color': '#343541' 
       } as React.CSSProperties}
     >
       <>
-        {/* 顶部遮罩层，确保内容有足够的padding，只在有聊天记录时显示 */}
+        {/* Top padding/mask, only shown when there are messages */} 
         {messagesLength > 0 && (
-          <div 
-            className="absolute top-0 left-0 right-[17px] z-10 h-[30px] md:block hidden bg-white dark:bg-[#343541]"
-            style={{
-              backgroundColor: currentTheme === 'red'
-                ? '#F2ECBE'
-                : currentTheme === 'blue'
-                ? '#F6F4EB'
-                : currentTheme === 'green'
-                ? '#FAF1E4'
-                : currentTheme === 'purple'
-                ? '#C5DFF8'
-                : currentTheme === 'brown'
-                ? '#F4EEE0'
-                : currentTheme === 'light'
-                ? '#FFFFFF'
-                : '#343541'
+          <div  
+            className="absolute top-0 left-0 right-[17px] z-10 h-[30px] md:block hidden bg-white dark:bg-[#343541]" 
+            style={{ 
+               /* Background color based on theme */ 
+              backgroundColor: currentTheme === 'red' ? '#F2ECBE' : 
+                                currentTheme === 'blue' ? '#F6F4EB' : 
+                                currentTheme === 'green' ? '#FAF1E4' : 
+                                currentTheme === 'purple' ? '#C5DFF8' : 
+                                currentTheme === 'brown' ? '#F4EEE0' : 
+                                currentTheme === 'light' ? '#FFFFFF' : 
+                                '#343541' 
             }}
           ></div>
         )}
 
-        <div
-          className={`${!messagesLength ? 'h-full' : 'flex-1 overflow-y-auto'} chat-container-scrollbar`}
+        <div 
+          className={`${messagesLength === 0 ? 'h-full' : 'flex-1 overflow-y-auto'} chat-container-scrollbar`} 
           ref={chatContainerRef}
         >
-          {/* === 主要渲染逻辑 === */}
-          {isAppMode ? (
-            // *** 应用模式渲染 ***
-            <div className="flex-1 overflow-auto p-4 h-full"> 
-              {/* 应用组件 */} 
-              {activeAppId === 1 && <DeepSeekAppPage />} 
-              {activeAppId === 2 && <CourseHelperAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
-              {activeAppId === 3 && <CampusAssistantAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
-              {activeAppId === 4 && <TeacherAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
-            </div>
-          ) : isWelcomeScreen ? (
-            // ** 欢迎屏幕 **
-            <>
-              <div className="flex flex-col items-center justify-center h-full md:min-h-screen sm:overflow-hidden">
-                {/* 标题区域 */}
-                <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 welcome-text welcome-text-container"
-                  style={{
-                    marginTop: !isInputExpanded
-                      ? window.innerWidth < 768 ? '-20vh' : '-25vh'
-                      : window.innerWidth < 768
-                        ? `calc(-20vh - ${(inputBoxHeight - 65) / 2}px)`
-                        : `calc(-25vh - ${(inputBoxHeight - 65) / 2}px)`
-                  }}
-                >
-                  <div className="relative">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-[#CEFBFA] to-[#FCCD5E] rounded-lg blur-xl opacity-75 dark:opacity-60"></div>
-                    <h1 className="relative text-4xl font-bold tracking-tight mb-4 md:mb-4 bg-gradient-to-r from-[#272727] to-[#696969] dark:from-[#CEFBFA] dark:to-[#FCCD5E] bg-clip-text text-transparent drop-shadow-sm welcome-text" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '-0.5px' }}>eduhub.chat</h1>
-                  </div>
-                  <p className="text-lg font-medium md:mb-20 mb-0 md:block hidden text-[#333333] dark:text-[hsl(205deg,16%,77%)] welcome-text" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '0.2px' }}>基于大语言模型的智能知识助手</p>
-                </div>
-                
-                {/* 移动端内容容器 - 只在移动端显示 */}
-                <div className="md:hidden flex flex-col items-center justify-center mt-12 static">
-                  {/* 引导文字 */}
-                  <div className="max-w-md mx-auto px-4 text-center mb-6">
-                    <p className="text-lg text-[#666666] dark:text-[#A0AEC0] font-medium welcome-text" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '0.1px' }}>
-                      有什么可以帮到你？
-                    </p>
-                  </div>
-                  
-                  {/* 功能卡片 - 移动端版本 */}
-                  <div className="w-full px-0">
-                    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-                      <FunctionCards />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* 桌面端功能卡片区域 - 只在桌面端显示 */}
-                <div className="w-full absolute bottom-[18vh] px-4 hidden md:block"
-                  style={{
-                    bottom: !isInputExpanded
-                      ? '18vh'
-                      : `calc(18vh - ${(inputBoxHeight - 65) / 2}px)`,
-                    transition: 'none' // 确保直接变化，无过渡效果
-                  }}
-                >
-                  <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-                    <FunctionCards />
-                  </div>
-                </div>
-
-                {/* 欢迎屏幕内部无输入框 */} 
-              </div> 
-            </> 
-          ) : (
-            // ** 标准聊天消息列表 **
+          {/* === Rendering Logic Start === */} 
+          {messagesLength > 0 ? (
+            // *** 1. Render Chat Messages (if messages exist) ***
             <div className="flex-1 overflow-y-auto">
               <div className="md:pt-6 pt-2">
-                {showSettings && (
+                {/* Optional settings display */} 
+                {showSettings && ( 
                   <div className="flex flex-col space-y-10 md:mx-auto md:max-w-xl md:gap-6 md:py-3 md:pt-6 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
                     <div className="flex h-full flex-col space-y-4 border-b border-neutral-200 p-4 dark:border-neutral-600 md:rounded-lg md:border">
                     </div>
                   </div>
                 )}
 
+                {/* Message list */} 
                 {selectedConversation?.messages?.map((message, index) => (
                   <MemoizedChatMessage
                     key={message.id || index}
                     message={message}
                     messageIndex={index}
                     onEdit={(editedMessage) => {
-                      const deleteCount = messagesLength - index;
+                      // Logic to handle message editing 
+                      const deleteCount = (selectedConversation?.messages?.length || 0) - index;
                       onSend(editedMessage, deleteCount - 1);
                     }}
                     lightMode={currentTheme}
+                     // Pass streaming/waiting state only to the last message 
+                    isStreaming={index === messagesLength - 1 && messageIsStreaming}
+                    isWaiting={index === messagesLength - 1 && modelWaiting}
+                    userAvatar={user?.length === 8 ? "/teacher-avatar.png" : "/student-avatar.png"}
+                    assistantAvatar="/logon.png"
                   />
                 ))}
 
-                {/* ChatLoader 使用全局状态 */}
+                 {/* Loading indicator */} 
                 {<ChatLoader messageIsStreaming={messageIsStreaming} modelWaiting={modelWaiting} />}
 
-                {/* 添加底部空白区域，确保内容可见性 */}
-                <div 
-                  style={{ height: `${bottomInputHeight + 60}px`, transition: 'none' }} 
-                  ref={messagesEndRef} 
+                 {/* Bottom spacer for scrolling */} 
+                <div  
+                  style={{ height: `${bottomInputHeight + 60}px`, transition: 'none' }}  
+                  ref={messagesEndRef}  
                 />
               </div>
             </div>
-          )}
-          {/* === END 主要渲染逻辑修改 === */}
+          ) : isAppMode ? (
+            // *** 2. Render App Initial Page (if no messages and appId exists) ***
+            <div className="flex-1 overflow-auto p-4 h-full"> 
+              {currentAppId === 1 && <DeepSeekAppPage />} 
+              {currentAppId === 2 && <CourseHelperAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
+              {currentAppId === 3 && <CampusAssistantAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
+              {currentAppId === 4 && <TeacherAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
+            </div>
+          ) : (
+            // *** 3. Render General Welcome Screen (if no messages and no appId) ***
+            <div className="flex flex-col items-center justify-center h-full md:min-h-screen sm:overflow-hidden">
+              {/* Title Area */} 
+              <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 welcome-text welcome-text-container" 
+                  style={{ 
+                    /* Dynamic margin based on input expansion */ 
+                    marginTop: !isInputExpanded 
+                      ? window.innerWidth < 768 ? '-20vh' : '-25vh' 
+                      : window.innerWidth < 768 
+                        ? `calc(-20vh - ${(inputBoxHeight - 65) / 2}px)` 
+                        : `calc(-25vh - ${(inputBoxHeight - 65) / 2}px)` 
+                  }}
+                >
+                 {/* Logo and Title */} 
+                 <div className="relative">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-[#CEFBFA] to-[#FCCD5E] rounded-lg blur-xl opacity-75 dark:opacity-60"></div>
+                    <h1 className="relative text-4xl font-bold tracking-tight mb-4 md:mb-4 bg-gradient-to-r from-[#272727] to-[#696969] dark:from-[#CEFBFA] dark:to-[#FCCD5E] bg-clip-text text-transparent drop-shadow-sm welcome-text" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '-0.5px' }}>eduhub.chat</h1>
+                  </div>
+                  <p className="text-lg font-medium md:mb-20 mb-0 md:block hidden text-[#333333] dark:text-[hsl(205deg,16%,77%)] welcome-text" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '0.2px' }}>基于大语言模型的智能知识助手</p>
+              </div>
+              
+               {/* Mobile specific content */} 
+              <div className="md:hidden flex flex-col items-center justify-center mt-12 static">
+                 {/* Guide text */} 
+                 <div className="max-w-md mx-auto px-4 text-center mb-6">
+                    <p className="text-lg text-[#666666] dark:text-[#A0AEC0] font-medium welcome-text" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '0.1px' }}>
+                      有什么可以帮到你？
+                    </p>
+                  </div>
+                  {/* Function cards */} 
+                 <div className="w-full px-0">
+                    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+                      <FunctionCards />
+                    </div>
+                  </div>
+              </div>
+              
+               {/* Desktop function cards area */} 
+              <div className="w-full absolute bottom-[18vh] px-4 hidden md:block" 
+                  style={{ 
+                    /* Dynamic bottom position based on input expansion */ 
+                    bottom: !isInputExpanded 
+                      ? '18vh' 
+                      : `calc(18vh - ${(inputBoxHeight - 65) / 2}px)`, 
+                    transition: 'none' 
+                  }}
+                >
+                 <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+                    <FunctionCards />
+                  </div>
+              </div>
+            </div>
+          )} 
+          {/* === Rendering Logic End === */} 
         </div>
 
         {/* 底部遮罩层 (只在标准聊天模式显示) */}
         {isStandardChat && (
-          <div 
-             // ... styles ...
+          <div  
+            className="absolute bottom-0 left-0 right-[17px] z-10 h-[80px] pointer-events-none bg-gradient-to-t from-white dark:from-[#343541]"
+            style={{ 
+              backgroundImage: `linear-gradient(to top, ${
+                currentTheme === 'red' ? '#F2ECBE' : 
+                currentTheme === 'blue' ? '#F6F4EB' : 
+                currentTheme === 'green' ? '#FAF1E4' : 
+                currentTheme === 'purple' ? '#C5DFF8' : 
+                currentTheme === 'brown' ? '#F4EEE0' : 
+                currentTheme === 'light' ? '#FFFFFF' : 
+                '#343541'
+              }, transparent)` 
+            }}
           ></div>
         )}
 
-        {/* === 统一的输入框区域 (底部固定) === */}
         {/* --- 条件渲染：只在非欢迎屏幕渲染底部输入框 --- */} 
         {!isWelcomeScreen && (
           <div className="absolute bottom-0 left-0 w-full z-20">
@@ -1482,7 +1305,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                    </div> 
              </div> 
         )}
-        {/* === END 输入框区域 === */}
+        {/* === END Input Area === */}
       </>
     </div>
   );
