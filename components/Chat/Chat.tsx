@@ -374,65 +374,27 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     }
   }, [selectedConversation?.messages, autoScrollEnabled]);
 
+  // --- Add state for task ID ---
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  // --- END Add ---
+
   const onSend = async (message: Message, deleteCount = 0) => {
-    // --- 新增：应用模式处理 --- 
-    // ** 1. 检查是否处于应用模式 **
-    if (activeAppId !== null) {
-      if (startConversationFromActiveApp) {
-        console.log(`Chat.tsx: Calling startConversationFromActiveApp for appId ${activeAppId}`);
-        await startConversationFromActiveApp(message); // 调用 home.tsx 中的函数
-      } else {
-        console.error('Chat.tsx: startConversationFromActiveApp function is missing from context');
-        toast.error('无法从此应用开始对话。');
-      }
-      return; // 应用模式下，发送逻辑到此为止
-    }
-    // --- END 新增 ---
-
-    // --- 原有的标准聊天逻辑 (activeAppId is null) ---
-    if (!selectedConversation) return; // 保持原有检查
-
-    // --- Log 7: Check selectedConversation when standard chat logic starts ---
-    console.log('[Debug Chat.tsx] Standard send triggered. Current selectedConversation:', JSON.stringify(selectedConversation, null, 2));
-
+    if (!selectedConversation) return;
+    
     // --- ADD Reset title generation flags for this send operation ---
     titleGenerationInitiated.current = false;
     titlePromise.current = null;
     // --- END ADD ---
 
     try {
-      // --- 修改：获取全局 API Key (Env -> JSON -> Empty) ---
-      const globalApiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || difyKeysData.global?.apiKey || '';
-      const conversationAppId = selectedConversation.appId; // 获取当前对话关联的 appId
-      let apiKeyToUse = globalApiKey; // 默认使用全局 Key (带 fallback)
-
-      // 注意：appConfigs 是从 context 获取的 (已经包含 fallback)
-      if (conversationAppId !== null) {
-        const appConfig = appConfigs[conversationAppId];
-        if (appConfig && appConfig.apiKey) {
-          apiKeyToUse = appConfig.apiKey; // 使用应用的 Key (已带 fallback)
-          console.log(`Chat.tsx: Standard Send - Using API Key for App ID ${conversationAppId}`);
-        } else {
-          console.warn(`Chat.tsx: Standard Send - Conv has appId ${conversationAppId}, but config/key missing. Fallback to global.`);
-          // Fallback to global is already handled by apiKeyToUse default
-        }
-      } else {
-        console.log("Chat.tsx: Standard Send - Using default global API Key (env or json).");
-      }
-      // --- END 修改 ---
-
-      // --- 修改：获取全局 API URL (Env -> JSON -> Default?) ---
-      // Assuming a default might be needed if both env and json fail
-      const globalApiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || difyKeysData.global?.apiUrl || 'https://api.dify.ai/v1'; // Added a hardcoded default as final fallback
-      console.log(`[Debug] Standard Chat - Determined globalApiUrl: ${globalApiUrl}`); // Add log for URL
-
       const difyClient = new DifyClient({
-        apiUrl: globalApiUrl, // <-- 使用带 fallback 的全局 URL
+        apiUrl: process.env.NEXT_PUBLIC_DIFY_API_URL,
         debug: true
       });
-      // --- END 修改 ---
 
+      const apiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || '';
       let conversationId = selectedConversation.conversationID || '';
+      
       console.log('对话ID信息:', {
         conversationId: conversationId,
         selectedConversationId: selectedConversation.id,
@@ -444,88 +406,61 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         updatedMessages.splice(-deleteCount);
       }
       updatedMessages.push(message);
-      
-      // 添加助手消息占位符 (确保 Message 类型是 chat.ts 的)
-      const assistantPlaceholder: Message = { role: 'assistant', content: '', id: uuidv4() };
-      updatedMessages.push(assistantPlaceholder); // 推入占位符
+      updatedMessages.push({ role: 'assistant', content: '', id: uuidv4() });
       
       const updatedConversation = {
-        ...selectedConversation, // 包含 appId (如果存在)
+        ...selectedConversation,
         messages: updatedMessages
       };
       
       homeDispatch({ field: 'selectedConversation', value: updatedConversation });
 
-      // --- 修改状态更新：使用 dispatch --- 
-      // setMessageIsStreaming(true);
-      homeDispatch({ field: 'messageIsStreaming', value: true }); 
+      homeDispatch({ field: 'messageIsStreaming', value: true });
       setModelWaiting(true);
-      // --- END 修改 --- 
-      
       setTimeout(() => {
         if (chatContainerRef.current) {
           chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
       }, 50);
 
-      // --- 修改 createChatStream 调用：使用 apiKeyToUse --- 
       const chatStream = await difyClient.createChatStream({
         query: message.content,
-        key: apiKeyToUse, // <--- 使用确定的 API Key
+        key: apiKey,
         user: user || 'unknown',
         conversationId, 
         inputs: {},
         autoGenerateName: selectedConversation.messages.length > 1 
       });
-      // --- END 修改 --- 
 
       let fullResponse = '';
       let isStreamHalted = false;
 
       chatStream.onMessage((chunk: string) => {
-        // --- MODIFY stop logic ---
-        // First, check if this stream has already been halted permanently
-        if (isStreamHalted) {
-          return;
-        }
-        // Then, check the trigger ref from the stop button
+        if (isStreamHalted) return;
         if (stopConversationRef.current) {
           console.log('Stop signal detected inside onMessage. Halting stream permanently for this request.');
-          isStreamHalted = true; // Set the permanent halt flag for this specific stream
-          // UI state should already be updated by handleStopConversation for immediate feedback
-          // Optional: Attempt to close the underlying stream if possible
-          // if (chatStream.close) chatStream.close();
-          return; // Stop processing this chunk
+          isStreamHalted = true;
+          return;
         }
-        // --- END MODIFY ---
 
-        // Original logic starts here
-        homeDispatch({ field: 'messageIsStreaming', value: true }); // Ensure state is correct on first valid chunk
-        setModelWaiting(false); // Turn off the waiting indicator once we get data
-        // console.log('接收到模型响应，设置modelWaiting=false');
+        homeDispatch({ field: 'messageIsStreaming', value: true });
+        setModelWaiting(false);
         
         const updatedMessages = [...updatedConversation.messages];
-        
-        // 添加细粒度的处理，确保即使是很小的chunk也能即时显示
         fullResponse += chunk;
-        
-        // 更新助手消息（最后一条消息）
         const assistantMessageIndex = updatedMessages.length - 1;
-        updatedMessages[assistantMessageIndex] = {
-          role: 'assistant',
-          content: fullResponse
+        updatedMessages[assistantMessageIndex] = { 
+          ...updatedMessages[assistantMessageIndex],
+          role: 'assistant', 
+          content: fullResponse 
         };
         
-        // 保存后端返回的conversationId，并更新全局状态
         if (chatStream.conversationId && (!conversationId || conversationId === '')) {
-          // --- 新增日志记录点 ---
           console.log(`[Dify] 收到新对话的 Conversation ID: ${chatStream.conversationId}`); 
-          // ----------------------
           
           const newConversationId = chatStream.conversationId;
-          conversationId = newConversationId; // Update local variable
+          conversationId = newConversationId;
 
-          // 同时立即更新所有对话列表中的相应对话ID
           const updatedConversationsWithId = conversations.map(conv =>
             conv.id === selectedConversation.id
               ? { ...conv, conversationID: newConversationId }
@@ -537,7 +472,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           });
           saveConversations(updatedConversationsWithId);
 
-          // --- Start Parallel Title Generation ONLY when ID is first confirmed AND it's a new convo response ---
           const isPotentiallyNewConversationResponse = updatedMessages.length === 2;
           if (isPotentiallyNewConversationResponse && !titleGenerationInitiated.current) {
             titleGenerationInitiated.current = true;
@@ -545,32 +479,28 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
             titlePromise.current = (async () => {
               try {
-                // --- 修改：获取标题生成 API URL 和 Key (Env -> JSON -> Default?) ---
                 const titleApiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || difyKeysData.global?.apiUrl || 'https://api.dify.ai/v1';
-                const titleApiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || difyKeysData.global?.apiKey || ''; // Use global key with fallback
+                const titleApiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || difyKeysData.global?.apiKey || '';
                 console.log(`[Debug] Title Gen - Determined titleApiUrl: ${titleApiUrl}`);
                 console.log(`[Debug] Title Gen - Determined titleApiKey is empty: ${titleApiKey === ''}`);
 
-                // Use a separate client instance or ensure thread-safety if reusing
                 const titleDifyClient = new DifyClient({
-                  apiUrl: titleApiUrl, // <-- 使用带 fallback 的 URL
-                  debug: true // Set to false in production
+                  apiUrl: titleApiUrl,
+                  debug: true
                 });
                 const generatedName = await titleDifyClient.generateConversationName(
-                  newConversationId, // Use the confirmed ID from the stream
-                  titleApiKey, // <-- 使用带 fallback 的 Key
+                  newConversationId,
+                  titleApiKey,
                   user || 'unknown'
                 );
-                // --- END 修改 ---
                 console.log('[Parallel] 并行生成对话标题成功:', generatedName);
-                return generatedName || null; // Return null if empty/falsy
+                return generatedName || null;
               } catch (error) {
                 console.error('[Parallel] 并行生成对话标题失败:', error);
-                return null; // Return null on error to indicate failure
+                return null;
               }
             })();
           }
-          // --- End Parallel Title Generation Trigger ---
         }
         
         const streamUpdatedConversation = {
@@ -579,13 +509,11 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           conversationID: conversationId
         };
         
-        // 使用非批量更新方式，确保每个字符都能立即显示
         homeDispatch({
           field: 'selectedConversation',
           value: streamUpdatedConversation
         });
         
-        // 如果是第一个chunk，强制滚动到底部
         if (fullResponse.length <= chunk.length) {
           setTimeout(() => {
             if (chatContainerRef.current) {
@@ -596,22 +524,14 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       });
 
       chatStream.onError((error: Error) => {
-        // --- ADD halt check ---
         if (isStreamHalted) {
           console.log('Stream was halted, ignoring error callback.');
           return;
         }
-        // --- END ADD ---
-        // Optional: Check stop signal at the beginning (redundant if handleStopConversation sets state)
-        // if (stopConversationRef.current) {
-        //    console.log('Stop signal detected inside onError. Skipping error handling actions.');
-        //    return;
-        // }
         console.error('处理消息时错误:', error);
         homeDispatch({ field: 'messageIsStreaming', value: false });
         setModelWaiting(false);
         
-        // 如果是会话不存在的错误，清除会话ID并重试
         if (error.message.includes('Conversation Not Exists')) {
           const resetConversation = {
             ...selectedConversation,
@@ -621,7 +541,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             field: 'selectedConversation',
             value: resetConversation
           });
-          // 重新发送消息
           onSend(message, deleteCount);
           return;
         }
@@ -630,23 +549,17 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       });
 
       chatStream.onComplete(() => {
-        // --- ADD halt check --- FIRST!
         if (isStreamHalted) {
           console.log('Stream was halted, skipping title generation and final updates.');
           return;
         }
-        // --- END ADD ---
-
         console.log('消息处理已完成');
         
-        // 所有消息处理完成后，重置流状态
         homeDispatch({ field: 'messageIsStreaming', value: false });
         setModelWaiting(false);
         
-        // 将最终结果保存到对话列表中
         const updatedMessages = [...updatedConversation.messages];
         
-        // 确保最后一条消息是助手消息且内容正确
         const lastMessageIndex = updatedMessages.length - 1;
         if (updatedMessages[lastMessageIndex].role === 'assistant') {
           updatedMessages[lastMessageIndex].content = fullResponse;
@@ -665,70 +578,49 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         
         saveConversation(finalConversation);
         
-        // 判断是否是新建的对话（第一条消息发送后）
-        // 通过检查消息数量判断是否是首次对话（仅用户消息+AI回复共2条）
         const isNewConversation = updatedMessages.length === 2;
         
-        // 如果是新对话且标题生成已启动，则处理结果
-        // --- MODIFY Title Generation Logic ---
         if (isNewConversation && titleGenerationInitiated.current && titlePromise.current) {
           console.log('检测到新对话完成，开始处理已启动的标题生成...');
 
-          // --- ADD Placeholder Title Update (Keep existing logic) ---
           const placeholderTitle = "正在生成标题...";
           const conversationWithPlaceholder = {
             ...finalConversation,
             name: placeholderTitle
           };
-          // Update conversation list immediately with placeholder
           const updatedConversationsWithPlaceholder = conversations.map(conv =>
             conv.id === conversationWithPlaceholder.id ? conversationWithPlaceholder : conv
           );
           homeDispatch({ field: 'conversations', value: updatedConversationsWithPlaceholder });
           saveConversations(updatedConversationsWithPlaceholder);
-          // --- END ADD ---
 
-          // Start an IIFE to handle the promise resolution and UI update
           (async () => {
             try {
-              // Wait for the parallel generation promise to resolve
               console.log("等待并行标题生成结果...");
               const generatedName = await titlePromise.current;
               console.log('并行标题生成结果:', generatedName);
 
-              // --- MODIFY Check for empty/nullish result ---
               if (generatedName) {
-                // Title generation successful and has content
-                // 设置标题动画正在进行中
                 setTitleAnimationInProgress(true);
                 setCurrentDisplayTitle('');
 
-                // 清除可能存在的旧计时器
                 if (titleIntervalRef.current) {
                   clearInterval(titleIntervalRef.current);
                 }
 
-                // 创建带有打字效果的对话，存储在全局状态中
                 const targetTitle = generatedName;
                 let currentIndex = 0;
 
-                // 使用setInterval创建稳定的打字效果，更快的速度
                 titleIntervalRef.current = setInterval(() => {
-                  // 增加字符
                   currentIndex++;
-
-                  // 构建当前显示的标题
                   const displayTitle = targetTitle.substring(0, currentIndex);
                   setCurrentDisplayTitle(displayTitle);
 
-                  // 创建一个包含当前显示标题的对话对象
                   const conversationWithPartialName = {
                     ...finalConversation,
                     name: displayTitle
                   };
 
-                  // --- MODIFY State Updates ---
-                  // Update ONLY the list, NOT selectedConversation directly
                   const updatedConversationsWithPartialName = conversations.map(conv =>
                     conv.id === conversationWithPartialName.id ? conversationWithPartialName : conv
                   );
@@ -736,28 +628,19 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                     field: 'conversations',
                     value: updatedConversationsWithPartialName
                   });
-                  // REMOVED: homeDispatch({ field: 'selectedConversation', value: conversationWithPartialName });
-                  // --- END MODIFY ---
 
-                  // 当所有字符显示完成后
                   if (currentIndex >= targetTitle.length) {
-                    // 清除计时器
                     if (titleIntervalRef.current) {
                       clearInterval(titleIntervalRef.current);
                       titleIntervalRef.current = null;
                     }
-
-                    // 设置标题动画完成
                     setTitleAnimationInProgress(false);
 
-                    // 确保最终标题正确显示
                     const finalConversationWithName = {
                       ...finalConversation,
                       name: targetTitle
                     };
 
-                    // --- MODIFY Final State Updates ---
-                    // Update ONLY the list finally, NOT selectedConversation
                     const finalUpdatedConversations = conversations.map(conv =>
                       conv.id === finalConversationWithName.id ? finalConversationWithName : conv
                     );
@@ -765,21 +648,16 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                       field: 'conversations',
                       value: finalUpdatedConversations
                     });
-                    // REMOVED: homeDispatch({ field: 'selectedConversation', value: finalConversationWithName });
 
-                    // 保存到本地存储 (Keep saving both list and individual)
                     saveConversation(finalConversationWithName);
                     saveConversations(finalUpdatedConversations);
-                    // --- END MODIFY ---
                   }
-                }, 30); // Use faster typing speed (e.g., 30ms)
+                }, 30);
 
               } else {
-                // Title generation succeeded (or failed returning null) but result is empty/nullish
                 console.log('并行生成标题成功但结果为空或失败，设置备选标题。');
-                setTitleAnimationInProgress(false); // Ensure animation state is reset
+                setTitleAnimationInProgress(false);
 
-                // --- ADD Fallback Title Logic (Keep existing logic) ---
                 const userFirstMessage = finalConversation?.messages?.[0]?.content;
                 const fallbackTitle = userFirstMessage
                   ? userFirstMessage.substring(0, 20) + (userFirstMessage.length > 20 ? '...' : '')
@@ -802,15 +680,11 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
                 saveConversation(conversationWithFallbackTitle);
                 saveConversations(updatedConversationsWithFallback);
-                // --- END ADD ---
               }
             } catch (error) {
-              // This catch block now primarily handles errors from awaiting the promise itself,
-              // though the inner async function also has its own catch.
               console.error('处理并行标题生成结果时出错:', error);
               setTitleAnimationInProgress(false);
 
-              // --- ADD Fallback Title Logic (Keep existing logic) ---
               const userFirstMessage = finalConversation?.messages?.[0]?.content;
               const fallbackTitle = userFirstMessage
                 ? userFirstMessage.substring(0, 20) + (userFirstMessage.length > 20 ? '...' : '')
@@ -833,20 +707,15 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
               saveConversation(conversationWithFallbackTitle);
               saveConversations(updatedConversationsWithFallback);
-              // --- END ADD ---
             }
           })();
         } else if (isNewConversation && conversationId) {
-          // Fallback for the original logic if parallel generation somehow wasn't triggered
-          // (This part might be removed if confident in the parallel trigger)
           console.log('[Fallback] 开始原始的异步生成对话标题...');
-          // --- Existing logic from before parallel implementation ---
           const placeholderTitle = "正在生成标题...";
           const conversationWithPlaceholder = {
             ...finalConversation,
             name: placeholderTitle
           };
-          // Update conversation list immediately with placeholder
           const updatedConversationsWithPlaceholder = conversations.map(conv =>
             conv.id === conversationWithPlaceholder.id ? conversationWithPlaceholder : conv
           );
@@ -869,9 +738,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
               console.log('成功生成对话标题:', generatedName);
 
-              // --- MODIFY Check for empty/nullish result ---
               if (generatedName) {
-                // Title generation successful and has content
                 setTitleAnimationInProgress(true);
                 setCurrentDisplayTitle('');
 
@@ -925,7 +792,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                   }
                 }, 30);
               } else {
-                // Title generation succeeded but returned empty/nullish value
                 console.log('生成标题成功，但结果为空，设置备选标题。');
                 setTitleAnimationInProgress(false);
 
@@ -953,7 +819,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 saveConversations(updatedConversationsWithFallback);
               }
             } catch (error) {
-              // Handle API call errors
               console.error('生成对话标题失败 (API Error):', error);
               setTitleAnimationInProgress(false);
 
@@ -982,12 +847,12 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             }
           })();
         }
-        // --- END MODIFY ---
       });
 
     } catch (error) {
       console.error('处理消息时错误:', error);
       homeDispatch({ field: 'messageIsStreaming', value: false });
+      setModelWaiting(false);
       toast.error(error instanceof Error ? error.message : '发送消息失败');
     }
   };
@@ -1355,16 +1220,16 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     };
   }, [messagesLength, bottomInputHeight]);
 
-  // --- handleStopConversation (保持不变，但修复状态调用) ---
-  const handleStopConversation = () => {
+  // --- handleStopConversation (Keep API call commented out) --- 
+  const handleStopConversation = async () => { 
     console.log('Stop button clicked, setting stopConversationRef to true and updating UI state.');
     stopConversationRef.current = true;
-    // Immediately update state for instant UI feedback
-    // setMessageIsStreaming(false);
-    homeDispatch({ field: 'messageIsStreaming', value: false }); // <-- 使用 dispatch
+    homeDispatch({ field: 'messageIsStreaming', value: false });
     setModelWaiting(false);
 
-    // ... saving logic ...
+    // --- Call Dify Stop API (Remains Commented out) ---
+    // if (currentTaskId) { /* ... API call logic ... */ }
+    // --- END Call Dify Stop API ---
 
     setTimeout(() => {
       stopConversationRef.current = false;
@@ -1377,14 +1242,10 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   useEffect(() => {
     const handleStopConversationEvent = () => {
       setModelWaiting(false);
-      // setMessageIsStreaming(false);
-      homeDispatch({ field: 'messageIsStreaming', value: false }); // <-- 使用 dispatch
+      homeDispatch({ field: 'messageIsStreaming', value: false });
     };
     
-    // ... event listener setup ...
-    
     return () => {
-      // ... event listener cleanup ...
     };
   }, []);
 

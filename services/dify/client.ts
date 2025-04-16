@@ -776,7 +776,7 @@ export class DifyClient {
     }
 
     try {
-      const apiEndpoint = `${this.baseUrl}/v1/conversations/${conversationId}/name`;
+      const apiEndpoint = `${this.baseUrl}/conversations/${conversationId}/name`;
       
       if (this.debug) {
         console.log('异步生成对话标题 - 配置信息:', {
