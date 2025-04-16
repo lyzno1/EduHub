@@ -5,7 +5,7 @@ export const DEFAULT_USER = 'anonymous';
 
 // API 路径
 export const API_PATHS = {
-  CHAT_MESSAGES: '/v1/chat-messages'
+  CHAT_MESSAGES: '/chat-messages'
 } as const;
 
 // 事件类型

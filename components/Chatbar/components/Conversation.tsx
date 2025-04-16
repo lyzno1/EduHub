@@ -28,14 +28,25 @@ import HomeContext from '@/pages/api/home/home.context';
 
 import SidebarActionButton from '@/components/Buttons/SidebarActionButton';
 
+// --- 定义 AppConfig 接口 (与 home.tsx/home.context.tsx 一致) ---
+interface AppConfig {
+  id: number;
+  name: string;
+  apiKey: string;
+  apiUrl?: string;
+}
+// --- END 定义 ---
+
 interface Props {
   conversation: Conversation;
+  activeAppId: number | null; // <-- 接收 activeAppId
+  appConfigs: Record<number, AppConfig>; // <-- 接收 appConfigs
 }
 
 // 单个会话的删除、重命名等操作
-export const ConversationComponent = ({ conversation }: Props) => {
+export const ConversationComponent = ({ conversation, activeAppId, appConfigs }: Props) => {
   const {
-    state: { selectedConversation, messageIsStreaming, lightMode },
+    state: { selectedConversation, messageIsStreaming }, // 不再需要 lightMode?
     handleSelectConversation,
     handleDeleteConversation,
     handleUpdateConversation,
@@ -118,22 +129,16 @@ export const ConversationComponent = ({ conversation }: Props) => {
   const icon = <IconMessage size={18} />;
 
   // 检测是否为移动设备
-  const [isMobile, setIsMobile] = useState<boolean>(false);
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  // --- 获取应用名称 (如果存在) --- 
+  const appName = conversation.appId !== null ? appConfigs[conversation.appId]?.name : null;
+  // --- END 获取 ---
 
   return (
     <div 
       className={`relative flex items-center group ${
-        selectedConversation?.id === conversation.id && !isMobile 
+        activeAppId === null && selectedConversation?.id === conversation.id && !isMobile 
           ? 'sticky top-0 z-10 bg-[#f5f5f5] dark:bg-[#202123] shadow-sm' 
           : ''
       }`}
@@ -142,7 +147,7 @@ export const ConversationComponent = ({ conversation }: Props) => {
         className={`flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-sm transition-colors duration-200 hover:bg-gray-500/10 ${
             messageIsStreaming ? 'disabled:cursor-not-allowed' : ''
           } ${
-            selectedConversation?.id === conversation.id
+            activeAppId === null && selectedConversation?.id === conversation.id
             ? 'bg-gray-500/20'
               : ''
           }`}
@@ -152,8 +157,13 @@ export const ConversationComponent = ({ conversation }: Props) => {
           onDragStart={(e) => handleDragStart(e, conversation)}
         >
           {icon}
-        <div className="relative flex-1 overflow-hidden whitespace-nowrap text-left text-[13px] leading-5 py-0.5 text-ellipsis">
-          {conversation.name}
+        <div className="relative flex-1 overflow-hidden whitespace-nowrap text-left text-[13px] leading-5 py-0.5 text-ellipsis flex items-center">
+          <span>{conversation.name}</span>
+          {appName && (
+            <span className="ml-1.5 inline-block whitespace-nowrap rounded bg-blue-100 px-1.5 py-0.5 text-center align-baseline text-[10px] font-bold uppercase leading-none text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+              {appName} 
+            </span>
+          )}
         </div>
       </button>
 

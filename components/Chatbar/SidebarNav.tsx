@@ -26,6 +26,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     handleNewConversation,
     handleSelectConversation,
     dispatch,
+    appConfigs,
   } = useContext(HomeContext);
 
   // 检测是否为移动设备
@@ -173,7 +174,12 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
           ) : (
             <div className="space-y-1">
               {displayedConversations.map((conversation) => (
-                <ConversationComponent key={conversation.id} conversation={conversation} />
+                <ConversationComponent 
+                  key={conversation.id} 
+                  conversation={conversation} 
+                  activeAppId={activeAppId} 
+                  appConfigs={appConfigs}
+                />
               ))}
             </div>
           )}
