@@ -22,9 +22,10 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const prevSelectedConversationRef = useRef<string | null>(null);
 
   const {
-    state: { conversations, selectedConversation },
+    state: { conversations, selectedConversation, activeAppId },
     handleNewConversation,
     handleSelectConversation,
+    dispatch,
   } = useContext(HomeContext);
 
   // 检测是否为移动设备
@@ -100,13 +101,26 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     e.stopPropagation();
   };
 
-  // 应用列表数据
+  // 应用列表数据 (确保 ID 与 home.tsx 一致: 1=DeepSeek, 2=Course, 3=Campus, 4=Teacher)
   const applications = [
     { id: 1, name: 'DeepSeek', icon: <IconCode size={20} />, color: 'bg-blue-100 dark:bg-blue-900/30' },
-    { id: 2, name: '校园助理', icon: <IconRobot size={20} />, color: 'bg-green-100 dark:bg-green-900/30' },
-    { id: 3, name: '课程助手', icon: <IconBook2 size={20} />, color: 'bg-yellow-100 dark:bg-yellow-900/30' },
-    { id: 4, name: '教师应用', icon: <IconUsers size={20} />, color: 'bg-purple-100 dark:bg-purple-900/30' }
+    { id: 2, name: '课程助手', icon: <IconBook2 size={20} />, color: 'bg-yellow-100 dark:bg-yellow-900/30' },
+    { id: 3, name: '校园助理', icon: <IconRobot size={20} />, color: 'bg-green-100 dark:bg-green-900/30' },
+    { id: 4, name: '教师助手', icon: <IconUsers size={20} />, color: 'bg-purple-100 dark:bg-purple-900/30' },
   ];
+
+  // --- 新增：处理应用点击的函数 ---
+  const handleAppClick = (appId: number) => {
+    console.log("SidebarNav: App button clicked, appId:", appId); 
+    dispatch({ field: 'activeAppId', value: appId });
+    // 移动端点击后关闭侧边栏
+    if (isMobile) {
+      setTimeout(() => {
+        onToggle();
+      }, 100);
+    }
+  };
+  // --- END 新增 ---
 
   return (
     <div 
@@ -172,24 +186,29 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
       </div>
 
       {/* 应用区域 */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="px-4 py-2">
-          <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-            校园应用
-          </div>
-          <div className="space-y-2">
-            {applications.map((app) => (
-              <button
-                key={app.id}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 group"
-              >
-                <div className={`w-8 h-8 rounded-lg ${app.color} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}>
-                  {app.icon}
-                </div>
-                <span className="text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white">{app.name}</span>
-              </button>
-            ))}
-          </div>
+      <div className="flex-shrink-0 px-4 py-2">
+        <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+          校园应用
+        </div>
+        <div className="space-y-2">
+          {applications.map((app) => (
+            <button
+              key={app.id}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 group ${
+                activeAppId === app.id
+                  ? 'bg-gray-200 dark:bg-gray-700 font-medium'
+                  : ''
+              }`}
+              onClick={() => handleAppClick(app.id)}
+            >
+              <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${app.color} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}>
+                {app.icon}
+              </div>
+              <span className={`text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white ${
+                activeAppId === app.id ? 'text-gray-900 dark:text-white' : ''
+              }`}>{app.name}</span>
+            </button>
+          ))}
         </div>
       </div>
     </div>

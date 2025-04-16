@@ -25,7 +25,7 @@ import { saveFolders } from '@/utils/app/folders';
 import { savePrompts } from '@/utils/app/prompts';
 import { getSettings } from '@/utils/app/settings';
 
-import { Conversation } from '@/types/chat';
+import { Conversation, Message } from '@/types/chat';
 import { FolderInterface, FolderType } from '@/types/folder';
 import { Prompt } from '@/types/prompt';
 
@@ -45,6 +45,9 @@ import whitelist from '@/whitelist.json';
 import Cookie from 'js-cookie';
 import { v4 as uuidv4 } from 'uuid';
 import { IconMenu2 } from '@tabler/icons-react';
+import { DifyClient } from '@/services/dify/client';
+import { getDifyConfig } from '@/config/dify';
+import { toast } from 'react-hot-toast';
 
 // 定义 Dify 相关的类型
 interface DifyConfig {
@@ -63,10 +66,25 @@ interface UpdateConversationData {
   value: any;
 }
 
-// 定义 Dify 配置
-const DIFY_CONFIG: DifyConfig = {
-  apiUrl: 'http://localhost/v1/chat-messages',
-  apiKey: process.env.DIFY_API_KEY || '',
+// 定义应用配置接口
+interface AppConfig {
+  id: number;
+  name: string;
+  apiKey: string;
+  appId: string; // Dify 的 App ID
+  apiUrl?: string; // 可选的应用特定 API URL
+}
+
+// 定义应用配置数据
+const appConfigs: Record<number, AppConfig> = {
+  // ID 1: DeepSeek (假设)
+  1: { id: 1, name: 'DeepSeek', apiKey: process.env.NEXT_PUBLIC_DIFY_APP_DEEPSEEK_API_KEY || '', appId: process.env.NEXT_PUBLIC_DIFY_APP_DEEPSEEK_APP_ID || '' },
+  // ID 2: Course Helper
+  2: { id: 2, name: '课程助手', apiKey: process.env.NEXT_PUBLIC_DIFY_APP_COURSE_API_KEY || '', appId: process.env.NEXT_PUBLIC_DIFY_APP_COURSE_APP_ID || '' },
+  // ID 3: Campus Assistant
+  3: { id: 3, name: '校园助理', apiKey: process.env.NEXT_PUBLIC_DIFY_APP_CAMPUS_API_KEY || '', appId: process.env.NEXT_PUBLIC_DIFY_APP_CAMPUS_APP_ID || '' },
+  // ID 4: Teacher Assistant
+  4: { id: 4, name: '教师助手', apiKey: process.env.NEXT_PUBLIC_DIFY_APP_TEACHER_API_KEY || '', appId: process.env.NEXT_PUBLIC_DIFY_APP_TEACHER_APP_ID || '' },
 };
 
 const Home = ({
@@ -95,6 +113,7 @@ const Home = ({
       conversations,
       selectedConversation,
       prompts,
+      activeAppId,
     },
     dispatch,
   } = contextValue;
@@ -106,7 +125,7 @@ const Home = ({
       field: 'selectedConversation',
       value: conversation,
     });
-
+    dispatch({ field: 'activeAppId', value: null });
     saveConversation(conversation);
   };
 
@@ -179,23 +198,140 @@ const Home = ({
 
   // CONVERSATION OPERATIONS  --------------------------------------------
 
-  const handleNewConversation = () => {
-    // 先保存当前对话的状态
-    if (selectedConversation && selectedConversation.messages.length > 0) {
-      saveConversation(selectedConversation);
-    }
-
-    // 检查是否已经存在空的新聊天
-    const existingNewChat = conversations.find(
-      (chat) => chat.messages.length === 0 && chat.name === t('New Conversation')
-    );
-
-    if (existingNewChat) {
-      // 如果存在空的新聊天，直接选中它
-      dispatch({ field: 'selectedConversation', value: existingNewChat });
+  const startConversationFromActiveApp = async (message: Message) => {
+    if (!activeAppId) {
+      console.error("startConversationFromActiveApp called without activeAppId");
       return;
     }
 
+    const appConfig = appConfigs[activeAppId];
+    if (!appConfig) {
+      console.error(`No config found for appId: ${activeAppId}`);
+      toast.error(`应用配置 (ID: ${activeAppId}) 未找到，无法发送消息。`);
+      return;
+    }
+    if (!appConfig.apiKey || !appConfig.appId) {
+       console.error(`Missing apiKey or appId for App ${activeAppId}`);
+       toast.error(`应用 ${appConfig.name} 配置不完整，无法发送消息。`);
+       return;
+    }
+
+    console.log(`Starting conversation from App: ${appConfig.name} (ID: ${activeAppId})`);
+
+    let tempConversation: Conversation = {
+      id: uuidv4(),
+      name: `${appConfig.name} Chat - ${new Date().toLocaleTimeString()}`,
+      originalName: '',
+      messages: [message],
+      prompt: DEFAULT_SYSTEM_PROMPT,
+      temperature: DEFAULT_TEMPERATURE,
+      folderId: `app-${activeAppId}`,
+      conversationID: '',
+      deletable: false,
+    };
+
+    dispatch({ field: 'selectedConversation', value: tempConversation });
+    dispatch({ field: 'messageIsStreaming', value: true });
+    dispatch({ field: 'loading', value: true });
+
+    try {
+      const baseConfig = getDifyConfig();
+      const client = new DifyClient({
+        apiUrl: appConfig.apiUrl || baseConfig.apiUrl,
+        timeout: baseConfig.timeout,
+        debug: true,
+      });
+      client.setAppId(appConfig.appId);
+
+      const assistantPlaceholder: Message = { role: 'assistant', content: '', id: uuidv4() };
+      let currentMessagesWithPlaceholder = [...tempConversation.messages, assistantPlaceholder];
+      let streamingConversation = {
+          ...tempConversation,
+          messages: currentMessagesWithPlaceholder,
+      };
+      dispatch({ field: 'selectedConversation', value: streamingConversation });
+
+      let responseMessageId = assistantPlaceholder.id || '';
+      let streamedResponse = '';
+      let finalConversationId = '';
+
+      const stream = await client.createChatStream({
+        query: message.content,
+        key: appConfig.apiKey,
+        user: user || 'unknown',
+        conversationId: '',
+        inputs: {},
+      });
+
+      stream.onMessage((chunk: any) => {
+          if (stopConversationRef.current === true) return;
+
+          if (chunk.event === 'agent_message' || chunk.event === 'message') {
+              streamedResponse += chunk.answer;
+              finalConversationId = chunk.conversation_id || finalConversationId;
+              const currentMessageId = chunk.id || responseMessageId;
+
+              streamingConversation.messages = streamingConversation.messages.map(msg =>
+                  msg.id === responseMessageId
+                     ? { ...msg, content: streamedResponse, id: currentMessageId }
+                     : msg
+              );
+              streamingConversation.conversationID = finalConversationId;
+              responseMessageId = currentMessageId;
+
+              dispatch({ field: 'selectedConversation', value: { ...streamingConversation } });
+          } else if (chunk.event === 'agent_thought') {
+            console.log('Agent thought:', chunk);
+          }
+      });
+
+      stream.onError((error: Error) => {
+          if (stopConversationRef.current === true) return;
+          console.error("App Dify stream error:", error);
+          toast.error(`应用消息错误: ${error.message || '请求失败'}`);
+          const errorMessages = [...tempConversation.messages];
+          const errorConversation = { ...tempConversation, messages: errorMessages };
+          dispatch({ field: 'selectedConversation', value: errorConversation });
+          dispatch({ field: 'messageIsStreaming', value: false });
+          dispatch({ field: 'loading', value: false });
+      });
+
+      stream.onComplete(() => {
+          if (stopConversationRef.current === true) {
+              stopConversationRef.current = false;
+              return;
+          }
+          console.log("App Dify stream complete.");
+          dispatch({ field: 'messageIsStreaming', value: false });
+          dispatch({ field: 'loading', value: false });
+
+          const finalConversation = { ...streamingConversation };
+          dispatch({ field: 'selectedConversation', value: finalConversation });
+      });
+
+    } catch (error: any) {
+        console.error("Error setting up app conversation:", error);
+        toast.error(`应用请求设置错误: ${error.message || '未知错误'}`);
+        const errorMessages = [...tempConversation.messages];
+        const errorConversation = { ...tempConversation, messages: errorMessages };
+        dispatch({ field: 'selectedConversation', value: errorConversation });
+        dispatch({ field: 'messageIsStreaming', value: false });
+        dispatch({ field: 'loading', value: false });
+    }
+  };
+
+  const handleNewConversation = () => {
+    if (selectedConversation && selectedConversation.messages.length > 0) {
+      saveConversation(selectedConversation);
+    }
+    const existingNewChat = conversations.find(
+      (chat) => chat.messages.length === 0 && chat.name === t('New Conversation')
+    );
+    if (existingNewChat) {
+      dispatch({ field: 'selectedConversation', value: existingNewChat });
+      dispatch({ field: 'activeAppId', value: null });
+      return;
+    }
     const newConversation: Conversation = {
       id: uuidv4(),
       name: t('New Conversation'),
@@ -204,25 +340,15 @@ const Home = ({
       prompt: DEFAULT_SYSTEM_PROMPT,
       temperature: DEFAULT_TEMPERATURE,
       folderId: null,
-      conversationID: '',  // 初始为空字符串，让后端生成conversationID
+      conversationID: '',
       deletable: true,
     };
-
-    // 将新对话添加到数组开头，保持现有对话不变
     const updatedConversations = [newConversation, ...conversations];
-
-    // 先保存所有对话
     saveConversations(updatedConversations);
-    
-    // 再更新状态
     dispatch({ field: 'conversations', value: updatedConversations });
     dispatch({ field: 'selectedConversation', value: newConversation });
-    
-    console.log('创建新会话:', {
-      id: newConversation.id,
-      conversationID: newConversation.conversationID,
-      name: newConversation.name
-    });
+    dispatch({ field: 'activeAppId', value: null });
+    console.log('创建新会话 (并取消激活应用)');
   };
 
   const handleUpdateConversation = (
@@ -244,12 +370,10 @@ const Home = ({
   };
 
   const handleDeleteConversation = (conversationId: string) => {
-    // 找到要删除的对话
     const updatedConversations = conversations.filter(
       (conversation) => conversation.id !== conversationId
     );
 
-    // 如果删除的是当前选中的对话，选择另一个对话
     if (selectedConversation?.id === conversationId) {
       if (updatedConversations.length > 0) {
         dispatch({
@@ -257,12 +381,10 @@ const Home = ({
           value: updatedConversations[0],
         });
       } else {
-        // 如果没有对话了，创建一个新的
         handleNewConversation();
       }
     }
 
-    // 更新对话列表
     dispatch({ field: 'conversations', value: updatedConversations });
     saveConversations(updatedConversations);
   };
@@ -279,7 +401,6 @@ const Home = ({
     setUser(CheckLogin());
     setReady(true);
 
-    // 获取并设置用户的主题设置
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
       dispatch({
@@ -287,7 +408,6 @@ const Home = ({
         value: savedTheme,
       });
       
-      // 立即应用主题
       if (savedTheme === 'dark') {
         document.documentElement.classList.add('dark');
         document.documentElement.classList.remove('light');
@@ -296,7 +416,6 @@ const Home = ({
         document.documentElement.classList.add('light');
       }
     } else {
-      // 如果没有保存的主题设置，默认使用白天模式
       dispatch({
         field: 'lightMode',
         value: 'light',
@@ -313,7 +432,6 @@ const Home = ({
       dispatch({ field: 'apiKey', value: apiKey });
     }
 
-    // 获取并设置存储在本地的插件密钥
     const pluginKeys = localStorage.getItem('pluginKeys');
     if (serverSidePluginKeysSet) {
       dispatch({ field: 'pluginKeys', value: [] });
@@ -322,7 +440,6 @@ const Home = ({
       dispatch({ field: 'pluginKeys', value: pluginKeys });
     }
 
-    // 根据窗口大小决定是否显示聊天栏和提示栏
     if (window.innerWidth < 640) {
       dispatch({ field: 'showChatbar', value: false });
       dispatch({ field: 'showPromptbar', value: false });
@@ -338,7 +455,6 @@ const Home = ({
       dispatch({ field: 'showPromptbar', value: showPromptbar === 'true' });
     }
 
-    // 获取并设置存储在本地的文件夹数据
     const folders = localStorage.getItem('folders');
     if (folders) {
       dispatch({ field: 'folders', value: JSON.parse(folders) });
@@ -349,7 +465,6 @@ const Home = ({
       dispatch({ field: 'prompts', value: JSON.parse(prompts) });
     }
 
-    // 获取并设置存储在本地的对话数据
     let savedConversations: Conversation[] = [];
     const conversationHistory = localStorage.getItem('conversationHistory');
     
@@ -359,15 +474,12 @@ const Home = ({
       dispatch({ field: 'conversations', value: savedConversations });
     }
 
-    // 获取上次选中的对话
     const selectedConversation = localStorage.getItem('selectedConversation');
     
     if (selectedConversation) {
-      // 如果有选中的对话，恢复它
       const parsedSelectedConversation: Conversation = JSON.parse(selectedConversation);
       const cleanedSelectedConversation = cleanSelectedConversation(parsedSelectedConversation);
       
-      // 确保选中的对话在会话列表中
       if (!savedConversations.find(conv => conv.id === cleanedSelectedConversation.id)) {
         savedConversations = [cleanedSelectedConversation, ...savedConversations];
         dispatch({ field: 'conversations', value: savedConversations });
@@ -376,11 +488,9 @@ const Home = ({
       
       dispatch({ field: 'selectedConversation', value: cleanedSelectedConversation });
     } else if (savedConversations.length > 0) {
-      // 如果有已保存的对话但没有选中的对话，选择第一个对话
       dispatch({ field: 'selectedConversation', value: savedConversations[0] });
       saveConversation(savedConversations[0]);
     } else {
-      // 只有当没有任何对话时，才创建新对话
       const newConversation: Conversation = {
         id: uuidv4(),
         name: t('New Conversation'),
@@ -410,7 +520,6 @@ const Home = ({
       const defaultData = user.length === 8 ? teacherChat : studentChat;
       console.log(user, user.length);
       
-      // 页面初始化时创建默认文件夹
       const chatFolders: FolderInterface[] = defaultData.Folders.map(
         (folder) => ({
           ...folder,
@@ -428,7 +537,6 @@ const Home = ({
       const defaultFolders = [...chatFolders, ...PromptFolders];
       dispatch({ field: 'folders', value: defaultFolders });
 
-      // 创建默认对话
       const defaultConversations: Conversation[] = defaultData.Chats.map(
         (chat) => ({
           ...chat,
@@ -441,10 +549,8 @@ const Home = ({
         }),
       );
 
-      // 检查是否有已保存的对话
       const savedConversations = localStorage.getItem('conversationHistory');
       if (!savedConversations) {
-        // 如果没有已保存的对话，创建一个新的空对话并放在默认对话之前
         const newConversation: Conversation = {
           id: uuidv4(),
           name: t('New Conversation'),
@@ -464,7 +570,6 @@ const Home = ({
         saveConversations(initialConversations);
         saveConversation(newConversation);
       } else {
-        // 如果有已保存的对话，保持现有的对话
         const parsedConversations = JSON.parse(savedConversations);
         dispatch({ field: 'conversations', value: parsedConversations });
       }
@@ -477,7 +582,6 @@ const Home = ({
     }
   }, [user]);
 
-  // 在return之前添加状态控制侧边栏显示
   const [showSidebar, setShowSidebar] = useState<boolean>(false);
 
   const toggleSidebar = () => {
@@ -485,13 +589,11 @@ const Home = ({
     localStorage.setItem('showSidebar', (!showSidebar).toString());
   };
 
-  // 在useEffect中加载侧边栏状态，默认为收起状态
   useEffect(() => {
     const savedShowSidebar = localStorage.getItem('showSidebar');
     if (savedShowSidebar !== null) {
       setShowSidebar(savedShowSidebar === 'true');
     } else {
-      // 默认为收起状态
       setShowSidebar(false);
       localStorage.setItem('showSidebar', 'false');
     }
@@ -502,12 +604,13 @@ const Home = ({
       value={{
         ...contextValue,
         handleNewConversation,
-        handleCreateFolder,
-        handleDeleteFolder,
-        handleUpdateFolder,
         handleSelectConversation,
         handleUpdateConversation,
         handleDeleteConversation,
+        handleCreateFolder,
+        handleDeleteFolder,
+        handleUpdateFolder,
+        startConversationFromActiveApp,
       }}
     >
       <Head>
@@ -521,7 +624,6 @@ const Home = ({
       {ready ? (
         selectedConversation && whitelist.includes(user) ? (
           <main className="flex h-screen w-screen flex-col text-sm text-black bg-white dark:text-white dark:bg-[#343541]">
-            {/* 移动端顶部导航栏 - 只在小屏幕显示 */}
             <div className="fixed top-0 w-full sm:hidden z-40">
               <div className="flex items-center h-12 px-4 bg-white dark:bg-[#202123] border-b border-neutral-200 dark:border-neutral-600">
                 <button
@@ -536,19 +638,16 @@ const Home = ({
             </div>
 
             <div className="flex h-full w-full pt-[48px] sm:pt-0">
-              {/* 侧边栏按钮层 - 在移动端隐藏 */}
               <div className="relative z-30 hidden sm:block">
                 <SidebarSlim onToggle={toggleSidebar} isSidebarOpen={showSidebar} />
               </div>
               
-              {/* 侧边导航层 - 在移动端全宽显示 */}
               <div 
                 className={`fixed sm:relative inset-0 bg-black/50 transition-opacity duration-300 ${
                   showSidebar ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 } sm:opacity-100 sm:pointer-events-auto`} 
                 onClick={toggleSidebar}
                 style={{
-                  // 使用内联样式，确保移动端和桌面端使用不同的z-index
                   zIndex: typeof window !== 'undefined' && window.innerWidth < 640 ? 9998 : 20
                 }}
               >
@@ -560,7 +659,6 @@ const Home = ({
                 </div>
               </div>
 
-              {/* 聊天区域 - 移动端全宽，桌面端条件宽度 */}
               <div className={`flex flex-1 transition-all duration-300 ${showSidebar ? 'sm:ml-[320px]' : 'sm:ml-[60px]'} ml-0`}>
                 <Chat stopConversationRef={stopConversationRef} showSidebar={showSidebar} />
               </div>

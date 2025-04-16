@@ -41,6 +41,13 @@ import { API_PATHS } from '@/services/dify/constants';
 // 添加主题类型定义
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
 
+// --- 导入应用页面组件 ---
+import { CampusAssistantAppPage } from '@/components/AppPages/CampusAssistantAppPage';
+import { CourseHelperAppPage } from '@/components/AppPages/CourseHelperAppPage';
+import { DeepSeekAppPage } from '@/components/AppPages/DeepSeekAppPage';
+import { TeacherAppPage } from '@/components/AppPages/TeacherAppPage';
+// --- END 导入 ---
+
 interface Props {
   stopConversationRef: MutableRefObject<boolean>;
   showSidebar?: boolean;
@@ -61,9 +68,12 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       prompts,
       user,
       lightMode,
+      activeAppId,
+      messageIsStreaming,
     },
     handleUpdateConversation,
     dispatch: homeDispatch,
+    startConversationFromActiveApp,
   } = useContext(HomeContext);
 
   // 类型断言确保 lightMode 的类型正确
@@ -74,7 +84,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showScrollDownButton, setShowScrollDownButton] =
     useState<boolean>(false);
-  const [messageIsStreaming, setMessageIsStreaming] = useState<boolean>(false);
   const [modelWaiting, setModelWaiting] = useState<boolean>(false);
   // 添加一个锁定变量，防止按钮状态在短时间内频繁变化
   const scrollButtonLockRef = useRef<boolean>(false);
@@ -420,7 +429,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
       // 无论是移动端还是电脑端，都统一设置状态，确保显示黑点
       // console.log('设置等待状态: messageIsStreaming=true, modelWaiting=true');
-      setMessageIsStreaming(true);
+      homeDispatch({ field: 'messageIsStreaming', value: true });
       setModelWaiting(true);
       
       // 强制滚动到底部，确保用户消息可见
@@ -465,7 +474,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         // --- END MODIFY ---
 
         // Original logic starts here
-        setMessageIsStreaming(true); // Ensure state is correct on first valid chunk
+        homeDispatch({ field: 'messageIsStreaming', value: true }); // Ensure state is correct on first valid chunk
         setModelWaiting(false); // Turn off the waiting indicator once we get data
         // console.log('接收到模型响应，设置modelWaiting=false');
         
@@ -568,7 +577,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         //    return;
         // }
         console.error('处理消息时错误:', error);
-        setMessageIsStreaming(false);
+        homeDispatch({ field: 'messageIsStreaming', value: false });
         setModelWaiting(false);
         
         // 如果是会话不存在的错误，清除会话ID并重试
@@ -600,7 +609,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         console.log('消息处理已完成');
         
         // 所有消息处理完成后，重置流状态
-        setMessageIsStreaming(false);
+        homeDispatch({ field: 'messageIsStreaming', value: false });
         setModelWaiting(false);
         
         // 将最终结果保存到对话列表中
@@ -947,7 +956,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
     } catch (error) {
       console.error('处理消息时错误:', error);
-      setMessageIsStreaming(false);
+      homeDispatch({ field: 'messageIsStreaming', value: false });
       toast.error(error instanceof Error ? error.message : '发送消息失败');
     }
   };
@@ -1319,7 +1328,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     console.log('Stop button clicked, setting stopConversationRef to true and updating UI state.');
     stopConversationRef.current = true;
     // Immediately update state for instant UI feedback
-    setMessageIsStreaming(false);
+    homeDispatch({ field: 'messageIsStreaming', value: false });
     setModelWaiting(false);
 
     // --- ADD Saving Logic ---
@@ -1356,7 +1365,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   useEffect(() => {
     const handleStopConversationEvent = () => {
       setModelWaiting(false);
-      setMessageIsStreaming(false);
+      homeDispatch({ field: 'messageIsStreaming', value: false });
     };
     
     // 添加自定义事件监听器
@@ -1377,6 +1386,10 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       }
     };
   }, []);
+
+  const isWelcomeScreen = activeAppId === null && !messagesLength;
+  const isStandardChat = activeAppId === null && messagesLength > 0;
+  const isAppMode = activeAppId !== null;
 
   return (
     <div
@@ -1435,7 +1448,18 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           className={`${!messagesLength ? 'h-full' : 'flex-1 overflow-y-auto'} chat-container-scrollbar`}
           ref={chatContainerRef}
         >
-          {!messagesLength ? (
+          {/* === 主要渲染逻辑 === */}
+          {isAppMode ? (
+            // *** 应用模式渲染 ***
+            <div className="flex-1 overflow-auto p-4 h-full"> 
+              {/* 应用组件 */} 
+              {activeAppId === 1 && <DeepSeekAppPage />} 
+              {activeAppId === 2 && <CourseHelperAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
+              {activeAppId === 3 && <CampusAssistantAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
+              {activeAppId === 4 && <TeacherAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
+            </div>
+          ) : isWelcomeScreen ? (
+            // ** 欢迎屏幕 **
             <>
               <div className="flex flex-col items-center justify-center h-full md:min-h-screen sm:overflow-hidden">
                 {/* 标题区域 */}
@@ -1485,36 +1509,34 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                     <FunctionCards />
                   </div>
                 </div>
-                
-                <div className="w-full mt-8 md:static md:bottom-auto md:left-auto md:right-auto md:mt-8 fixed bottom-0 left-0 right-0">
-                  <div className="w-full md:max-w-[800px] md:mx-auto px-0 mx-0">
-                    <div className="md:block">
-                      <ModernChatInput
-                        stopConversationRef={stopConversationRef}
-                        textareaRef={textareaRef}
-                        onSend={(message) => {
-                          onSend(message, 0);
-                        }}
-                        onScrollDownClick={handleScrollDown}
-                        onRegenerate={() => {
-                          if (currentMessage) {
-                            onSend(currentMessage, 2);
-                          }
-                        }}
-                        showScrollDownButton={showScrollDownButton}
-                        isCentered={window.innerWidth >= 768}
-                        showSidebar={showSidebar}
-                        isMobile={window.innerWidth < 768}
-                        handleStopConversation={handleStopConversation}
-                        messageIsStreaming={messageIsStreaming}
-                      />
-                    </div>
-                  </div>
-                </div>
+
+                {/* --- RESTORE Inner Input Box for Welcome Screen --- */}
+                <div className="w-full mt-8 md:static md:bottom-auto md:left-auto md:right-auto md:mt-8 fixed bottom-0 left-0 right-0"> 
+                  <div className="w-full md:max-w-[800px] md:mx-auto px-0 mx-0"> 
+                     <div className="md:block"> 
+                       <ModernChatInput 
+                         key="welcome-input" // Specific key for welcome
+                         stopConversationRef={stopConversationRef}
+                         textareaRef={textareaRef}
+                         onSend={(message) => { onSend(message, 0); }}
+                         onScrollDownClick={handleScrollDown}
+                         onRegenerate={() => { if (currentMessage && activeAppId === null) { onSend(currentMessage, 2); } }}
+                         showScrollDownButton={false} // Welcome screen never shows scroll down
+                         isCentered={true} // Welcome screen input is centered
+                         showSidebar={showSidebar}
+                         isMobile={isMobile}
+                         handleStopConversation={handleStopConversation}
+                         messageIsStreaming={messageIsStreaming} 
+                       /> 
+                     </div> 
+                   </div> 
+                 </div> 
+                {/* --- END RESTORE --- */} 
               </div>
             </>
           ) : (
-            <>
+            // ** 标准聊天消息列表 **
+            <div className="flex-1 overflow-y-auto">
               <div className="md:pt-6 pt-2">
                 {showSettings && (
                   <div className="flex flex-col space-y-10 md:mx-auto md:max-w-xl md:gap-6 md:py-3 md:pt-6 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
@@ -1525,11 +1547,10 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
                 {selectedConversation?.messages?.map((message, index) => (
                   <MemoizedChatMessage
-                    key={index}
+                    key={message.id || index}
                     message={message}
                     messageIndex={index}
                     onEdit={(editedMessage) => {
-                      // 安全地处理deleteCount
                       const deleteCount = messagesLength - index;
                       onSend(editedMessage, deleteCount - 1);
                     }}
@@ -1537,78 +1558,58 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                   />
                 ))}
 
-                {/* 显示加载中的黑点 - 确保在所有设备上统一显示 */}
+                {/* ChatLoader 使用全局状态 */}
                 {<ChatLoader messageIsStreaming={messageIsStreaming} modelWaiting={modelWaiting} />}
 
                 {/* 添加底部空白区域，确保内容可见性 */}
                 <div 
-                  style={{ 
-                    height: window.innerWidth < 768 
-                      ? `${Math.max(100, bottomInputHeight + 50)}px` // 移动端使用更小的底部空间
-                      : `${Math.max(120, bottomInputHeight + 60)}px`, // 桌面端减小底部空间，与输入框上方基本平齐
-                    transition: 'none' // 改为直接变化，移除平滑过渡
-                  }} 
+                  style={{ height: `${bottomInputHeight + 60}px`, transition: 'none' }} 
                   ref={messagesEndRef} 
-                />
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* 底部固定挡板区域 - 确保文字被遮挡，不会穿过输入框 */}
-        {messagesLength > 0 && (
-          <div 
-            className="absolute bottom-0 left-0 right-0 z-10 md:block hidden"
-            style={{
-              height: '85px', // 减少遮挡高度，与底部空白区域匹配
-              backgroundColor: currentTheme === 'red'
-                ? '#F2ECBE'
-                : currentTheme === 'blue'
-                ? '#F6F4EB'
-                : currentTheme === 'green'
-                ? '#FAF1E4'
-                : currentTheme === 'purple'
-                ? '#C5DFF8'
-                : currentTheme === 'brown'
-                ? '#F4EEE0'
-                : currentTheme === 'light'
-                ? '#FFFFFF'
-                : '#343541',
-              transition: 'none',
-              pointerEvents: 'none' // 确保不阻止鼠标事件
-            }}
-          ></div>
-        )}
-
-        {/* 输入框区域 */}
-        <div className="absolute bottom-0 left-0 w-full z-20">
-          {/* 只在有消息时显示底部输入框 */}
-          {messagesLength > 0 && (
-            <div className="w-full md:absolute md:bottom-0 md:left-0 md:right-auto fixed bottom-0 left-0 right-0">
-              <div className="w-full md:max-w-full px-0">
-                <ModernChatInput
-                  stopConversationRef={stopConversationRef}
-                  textareaRef={textareaRef}
-                  onSend={(message) => {
-                    onSend(message, 0);
-                  }}
-                  onScrollDownClick={handleScrollDown}
-                  onRegenerate={() => {
-                    if (currentMessage) {
-                      onSend(currentMessage, 2);
-                    }
-                  }}
-                  showScrollDownButton={showScrollDownButton}
-                  isCentered={false} // 底部输入框永远不是中心状态
-                  showSidebar={showSidebar}
-                  isMobile={window.innerWidth < 768}
-                  handleStopConversation={handleStopConversation}
-                  messageIsStreaming={messageIsStreaming}
                 />
               </div>
             </div>
           )}
+          {/* === END 主要渲染逻辑修改 === */}
         </div>
+
+        {/* 底部遮罩层 (只在标准聊天模式显示) */}
+        {isStandardChat && (
+          <div 
+             // ... styles ...
+          ></div>
+        )}
+
+        {/* === Bottom Fixed Input Box Area (NOT for Welcome Screen) === */}
+        {/* --- Add condition: Render only if NOT welcome screen --- */} 
+        {!isWelcomeScreen && (
+          <div className="absolute bottom-0 left-0 w-full z-20">
+               <div className={`w-full md:absolute md:bottom-0 md:left-0 md:right-auto fixed bottom-0 left-0 right-0 ${isAppMode ? 'app-input-mode' : ''}`}> 
+                <div className="w-full md:max-w-[800px] mx-auto px-0">
+                  {/* --- Bottom Input Instance --- */} 
+                  <ModernChatInput
+                    // Use key to differentiate from welcome input if needed, or based on convo/app id
+                    key={activeAppId !== null ? `app-${activeAppId}` : selectedConversation?.id || 'chat'}
+                    stopConversationRef={stopConversationRef}
+                    textareaRef={textareaRef}
+                    onSend={(message) => {
+                      onSend(message, 0);
+                    }}
+                    onScrollDownClick={handleScrollDown}
+                    onRegenerate={activeAppId === null ? () => {
+                      if (currentMessage) { onSend(currentMessage, 2); }
+                    } : () => {}} // Provide empty fn for apps
+                    showScrollDownButton={activeAppId === null && showScrollDownButton} // Only for standard chat
+                    isCentered={false} // Bottom input is never centered
+                    showSidebar={showSidebar}
+                    isMobile={isMobile}
+                    handleStopConversation={handleStopConversation}
+                    messageIsStreaming={messageIsStreaming}
+                  />
+                </div>
+              </div>
+          </div>
+        )}
+        {/* === END Bottom Fixed Input Box Area === */}
       </>
     </div>
   );
