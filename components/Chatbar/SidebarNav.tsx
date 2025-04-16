@@ -1,11 +1,86 @@
-import { IconMessagePlus, IconSearch, IconX, IconBrandChrome, IconSchool, IconBook, IconCode, IconBrain, IconRobot, IconBook2, IconUsers } from '@tabler/icons-react';
-import { FC, useContext, useEffect, useState, useRef } from 'react';
+import { IconMessagePlus, IconSearch, IconX, IconBrandChrome, IconSchool, IconBook, IconCode, IconBrain, IconRobot, IconBook2, IconUsers, IconGripVertical } from '@tabler/icons-react';
+import { FC, useContext, useEffect, useState, useRef, CSSProperties } from 'react';
 import { useTranslation } from 'next-i18next';
+import {
+  DndContext, 
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers';
 
 import HomeContext from '@/pages/api/home/home.context';
 import { Conversation } from '@/types/chat';
 import { ConversationComponent } from './components/Conversation';
 import Link from 'next/link';
+import { saveConversations } from '@/utils/app/conversation';
+
+// 可排序对话组件接口
+interface SortableConversationProps {
+  conversation: Conversation;
+  activeAppId: number | null;
+  appConfigs: Record<string, any>;
+  isDragging: boolean;
+}
+
+// 可排序对话组件
+const SortableConversation: FC<SortableConversationProps> = ({ conversation, activeAppId, appConfigs, isDragging }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition
+  } = useSortable({id: conversation.id});
+  
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    position: 'relative',
+    zIndex: isDragging ? 999 : 'auto'
+  };
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className="relative group cursor-grab active:cursor-grabbing" 
+      data-id={conversation.id}
+      {...attributes}
+      {...listeners}
+    >
+      <div className="flex w-full overflow-hidden">
+        <div className="flex-grow truncate">
+          <ConversationComponent 
+            key={conversation.id} 
+            conversation={conversation} 
+            activeAppId={activeAppId} 
+            appConfigs={appConfigs}
+          />
+        </div>
+      </div>
+      
+      {/* 辅助定位线 */}
+      <div className="drag-indicator hidden absolute left-0 right-0 -top-1 h-[1px] bg-gray-500 dark:bg-gray-400 rounded-full" />
+      <div className="drag-indicator hidden absolute left-0 right-0 -bottom-1 h-[1px] bg-gray-500 dark:bg-gray-400 rounded-full" />
+    </div>
+  );
+};
 
 interface Props {
   onToggle: () => void;
@@ -18,6 +93,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   
   const prevSelectedConversationRef = useRef<string | null>(null);
 
@@ -27,7 +103,20 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     handleSelectConversation,
     handleSelectOrStartAppConversation,
     appConfigs,
+    dispatch,
   } = useContext(HomeContext);
+  
+  // 设置拖拽传感器
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // 检测是否为移动设备
   useEffect(() => {
@@ -101,8 +190,76 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const stopPropagation = (e: React.MouseEvent) => {
     e.stopPropagation();
   };
+  
+  // 处理拖拽开始
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    setActiveDragId(active.id as string);
+    
+    // 添加全局拖拽状态类
+    document.body.classList.add('dragging-conversation');
+  };
+  
+  // 处理拖拽结束
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    
+    // 移除全局拖拽状态类
+    document.body.classList.remove('dragging-conversation');
+    
+    if (over && active.id !== over.id) {
+      // 找到拖拽项和目标项在数组中的索引
+      const oldIndex = conversations.findIndex(conv => conv.id === active.id);
+      const newIndex = conversations.findIndex(conv => conv.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        // 重新排序对话列表
+        const reorderedConversations = arrayMove(conversations, oldIndex, newIndex);
+        
+        // 更新Context和持久化存储
+        dispatch({ field: 'conversations', value: reorderedConversations });
+        saveConversations(reorderedConversations);
+      }
+    }
+    
+    // 隐藏所有指示器
+    const indicators = document.querySelectorAll('.drag-indicator');
+    indicators.forEach(ind => ind.classList.add('hidden'));
+  };
+  
+  // 处理拖拽过程中
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      // 获取所有指示器
+      const indicators = document.querySelectorAll('.drag-indicator');
+      indicators.forEach(ind => ind.classList.add('hidden'));
+      
+      // 获取拖拽方向
+      const activeRect = document.querySelector(`[data-id="${active.id}"]`)?.getBoundingClientRect();
+      const overRect = document.querySelector(`[data-id="${over.id}"]`)?.getBoundingClientRect();
+      
+      if (activeRect && overRect) {
+        const isMovingDown = activeRect.top < overRect.top;
+        
+        // 显示当前悬停项的相应指示器
+        const overElement = document.querySelector(`[data-id="${over.id}"]`);
+        if (overElement) {
+          const indicator = isMovingDown 
+            ? overElement.querySelector('.drag-indicator:last-child')
+            : overElement.querySelector('.drag-indicator:first-child');
+            
+          if (indicator) {
+            indicator.classList.remove('hidden');
+          }
+        }
+      }
+    }
+  };
 
-  // 应用列表数据 (确保 ID 与 home.tsx 一致: 1=DeepSeek, 2=Course, 3=Campus, 4=Teacher)
+  // 应用列表数据
   const applications = [
     { id: 1, name: 'DeepSeek', icon: <IconCode size={20} />, color: 'bg-blue-100 dark:bg-blue-900/30' },
     { id: 2, name: '课程助手', icon: <IconBook2 size={20} />, color: 'bg-yellow-100 dark:bg-yellow-900/30' },
@@ -164,7 +321,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
         </div>
       </div>
 
-      {/* 聊天记录区域 */}
+      {/* 聊天记录区域 - 使用DndKit包装 */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="px-4">
           {hasNoResults ? (
@@ -172,16 +329,44 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
               未找到相关聊天
             </div>
           ) : (
-            <div className="space-y-1">
-              {displayedConversations.map((conversation) => (
-                <ConversationComponent 
-                  key={conversation.id} 
-                  conversation={conversation} 
-                  activeAppId={activeAppId} 
-                  appConfigs={appConfigs}
-                />
-              ))}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragOver={handleDragOver}
+              modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+            >
+              <SortableContext
+                items={displayedConversations.map(c => c.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-1">
+                  {displayedConversations.map((conversation) => (
+                    <SortableConversation
+                      key={conversation.id}
+                      conversation={conversation}
+                      activeAppId={activeAppId}
+                      appConfigs={appConfigs}
+                      isDragging={conversation.id === activeDragId}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+              
+              {/* 拖拽叠加层 - 可选，但会增强用户体验 */}
+              <DragOverlay>
+                {activeDragId ? (
+                  <div className="p-1 bg-gray-100 dark:bg-gray-700 rounded-lg shadow-lg border border-gray-300 dark:border-gray-600 w-[230px]">
+                    <ConversationComponent
+                      conversation={conversations.find(c => c.id === activeDragId)!}
+                      activeAppId={activeAppId}
+                      appConfigs={appConfigs}
+                    />
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           )}
         </div>
       </div>

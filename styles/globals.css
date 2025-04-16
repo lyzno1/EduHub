@@ -5,6 +5,48 @@
 /* 导入深色模式样式 */
 @import 'dark-mode.css';
 
+/* 拖拽排序相关样式 */
+.dragging-conversation .drag-indicator {
+  display: block !important;
+}
+
+.dragging-conversation [data-id]:hover {
+  cursor: grabbing;
+}
+
+.drag-indicator {
+  transition: opacity 0.2s, background-color 0.2s;
+}
+
+[data-id] {
+  position: relative;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 聊天记录防止横向滚动 */
+.sortable-conversation-content {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 强制对话栏内容不产生横向滚动 */
+#mobile-sidebar-container .flex-1 {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+#mobile-sidebar-container .flex-1 > div {
+  max-width: 100%;
+}
+
+#mobile-sidebar-container .space-y-1 > div {
+  max-width: 100%;
+}
+
 /* Tooltip 样式定义 */
 [data-tooltip] {
   position: relative;
