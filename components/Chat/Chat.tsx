@@ -483,6 +483,10 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         
         // 保存后端返回的conversationId，并更新全局状态
         if (chatStream.conversationId && (!conversationId || conversationId === '')) {
+          // --- 新增日志记录点 ---
+          console.log(`[Dify] 收到新对话的 Conversation ID: ${chatStream.conversationId}`); 
+          // ----------------------
+          
           const newConversationId = chatStream.conversationId;
           conversationId = newConversationId; // Update local variable
 
@@ -1317,6 +1321,29 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     // Immediately update state for instant UI feedback
     setMessageIsStreaming(false);
     setModelWaiting(false);
+
+    // --- ADD Saving Logic ---
+    // Save the current state immediately when stopping
+    if (selectedConversation) {
+      // Get the most recent state directly (assuming context updates are reasonably fast)
+      const conversationToSave = { ...selectedConversation }; 
+      
+      // Ensure the last message (potentially partial assistant response) is included
+      // Note: The state might not capture the *absolute* last chunk if clicked extremely fast,
+      // but this captures the state at the time of the click event.
+      
+      saveConversation(conversationToSave);
+
+      // Update the conversations list as well
+      const updatedConversations = conversations.map(conv =>
+        conv.id === conversationToSave.id ? conversationToSave : conv
+      );
+      // Use homeDispatch directly as it's available in the component scope
+      homeDispatch({ field: 'conversations', value: updatedConversations }); 
+      saveConversations(updatedConversations);
+      console.log('Conversation state saved upon stopping.');
+    }
+    // --- END ADD ---
 
     setTimeout(() => {
       stopConversationRef.current = false;
