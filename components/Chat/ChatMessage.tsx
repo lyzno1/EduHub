@@ -180,11 +180,12 @@ const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({
   }, [content]); // Depend only on content
 
   // Determine where to place the streaming indicator
-  const streamingIndicator = isStreaming ? '▍' : '';
+  const streamingIndicator = isStreaming ? '' : ''; // Always empty string now
   let beforeSuffix = '';
   let thinkSuffix = '';
   let afterSuffix = '';
 
+  // This block becomes redundant but harmless
   if (isStreaming) {
     if (parts.after) {
       afterSuffix = streamingIndicator;
