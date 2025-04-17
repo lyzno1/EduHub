@@ -43,14 +43,14 @@ const ReasoningBox: FC<ReasoningBoxProps> = ({ children, lightMode }) => {
 
   return (
     <div
-      className={`reasoning-box-container my-2 overflow-hidden bg-white rounded-lg border border-gray-200 shadow-sm`}
+      className={`reasoning-box-container my-2 bg-white rounded-lg border border-gray-200 shadow-sm dark:bg-gray-850 dark:border-gray-700/40`}
     >
       {/* Clickable Summary part */}
       <div
         className="reasoning-box-header flex items-center justify-between px-3 py-2 cursor-pointer list-none 
-                   bg-gray-50 hover:bg-gray-100 dark:hover:bg-gray-700/50 
-                   border-b border-gray-200 
-                   font-medium text-sm text-gray-600 transition-colors rounded-t-md 
+                   bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/30 dark:hover:bg-gray-700/50 
+                   border-b border-gray-200 dark:border-gray-700/40 
+                   font-medium text-sm text-gray-600 dark:text-gray-300 transition-colors rounded-t-md 
                    select-none"
         onClick={handleToggle}
       >
@@ -61,21 +61,24 @@ const ReasoningBox: FC<ReasoningBoxProps> = ({ children, lightMode }) => {
         {isOpen ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
       </div>
 
-      {/* Conditionally rendered Content area */}
-      {isOpen && (
-        <div 
-          className={`reasoning-box-content pl-5 pr-5 py-2 border-l-4 border-gray-300 
-                     prose prose-sm dark:prose-invert max-w-none 
-                     prose-p:my-0 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 
-                     [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 
-                     bg-transparent 
-                     transition-all duration-300 
-                     mt-1 mb-1 ml-1`}
-        >
-          {children}
-        </div>
-      )}
+      {/* Content area - Apply animation classes here */}
+      <div 
+        className={`reasoning-box-content overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out 
+                   ${isOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'} 
+                   /* Keep original styles below, including padding/margin */
+                   pl-5 pr-5 py-2 border-l-4 border-gray-300 dark:border-gray-600 
+                   prose prose-sm dark:prose-invert max-w-none 
+                   [&_p]:text-gray-500 dark:[&_p]:text-gray-400 
+                   [&_li]:text-gray-500 dark:[&_li]:text-gray-400 
+                   prose-p:my-0 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 
+                   [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 
+                   bg-transparent dark:bg-transparent 
+                   mt-1 mb-1 ml-1`}
+                   // Reverted: py-2, mt-1, mb-1 are back in static classes
+      >
+        {children}
       </div>
+    </div>
   );
 };
 
@@ -201,7 +204,7 @@ const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({
       {/* Render part before think block */} 
       {parts.before && (
         <MemoizedReactMarkdown
-          className="prose dark:prose-invert max-w-none w-full"
+          className="prose dark:prose-invert max-w-none w-full text-gray-900 dark:text-gray-100"
           remarkPlugins={[remarkGfm, remarkMath]}
           rehypePlugins={[rehypeRaw as any, rehypeMathjax]}
           components={components}
@@ -214,7 +217,7 @@ const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({
       {parts.think !== null && (
         <ReasoningBox lightMode={lightMode}>
           <MemoizedReactMarkdown
-            className="prose dark:prose-invert max-w-none w-full"
+            className="prose dark:prose-invert max-w-none w-full text-gray-900 dark:text-gray-100"
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeRaw as any, rehypeMathjax]}
             components={components}
@@ -227,7 +230,7 @@ const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({
       {/* Render part after think block */} 
       {parts.after && (
         <MemoizedReactMarkdown
-          className="prose dark:prose-invert max-w-none w-full"
+          className="prose dark:prose-invert max-w-none w-full text-gray-900 dark:text-gray-100"
           remarkPlugins={[remarkGfm, remarkMath]}
           rehypePlugins={[rehypeRaw as any, rehypeMathjax]}
           components={components}
