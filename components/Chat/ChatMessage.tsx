@@ -7,8 +7,8 @@ import {
   IconChevronDown
 } from '@tabler/icons-react';
 
-import React, { useState } from 'react';
-import { FC, memo, useContext, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { FC, memo, useContext, useRef } from 'react';
 
 import { useTranslation } from 'next-i18next';
 
@@ -31,13 +31,42 @@ import ReactMarkdown, { Options, Components as ReactMarkdownComponents } from 'r
 interface ReasoningBoxProps {
   children?: React.ReactNode;
   lightMode: string;
+  isStreaming: boolean;
 }
 
-const ReasoningBox: FC<ReasoningBoxProps> = ({ children, lightMode }) => {
+const ReasoningBox: FC<ReasoningBoxProps> = ({ children, lightMode, isStreaming }) => {
   const [isOpen, setIsOpen] = useState(true);
-  const titleText = "推理过程";
+  const [ellipsis, setEllipsis] = useState('');
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (isStreaming) {
+      intervalRef.current = setInterval(() => {
+        setEllipsis(prev => {
+          if (prev.length >= 3) return '.';
+          return prev + '.';
+        });
+      }, 500);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setEllipsis('');
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isStreaming]);
 
   const handleToggle = () => {
+    if (isStreaming) {
+      return;
+    }
     setIsOpen(!isOpen);
   };
 
@@ -47,18 +76,23 @@ const ReasoningBox: FC<ReasoningBoxProps> = ({ children, lightMode }) => {
     >
       {/* Clickable Summary part */}
       <div
-        className="reasoning-box-header flex items-center justify-between px-3 py-2 cursor-pointer list-none 
-                   bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/30 dark:hover:bg-gray-700/50 
+        className={`reasoning-box-header flex items-center justify-between px-3 py-2 list-none 
+                   ${isStreaming ? 'cursor-default' : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50'} 
+                   bg-gray-50 dark:bg-gray-700/30 
                    border-b border-gray-200 dark:border-gray-700/40 
                    font-medium text-sm text-gray-600 dark:text-gray-300 transition-colors rounded-t-md 
-                   select-none"
+                   select-none`}
         onClick={handleToggle}
       >
         <span className="flex items-center gap-2">
           <IconAtom size={16} className="text-blue-500" />
-          {titleText}
+          {isStreaming ? (
+            `正在推理${ellipsis}`
+          ) : (
+            "已完成推理"
+          )}
         </span>
-        {isOpen ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+        {!isStreaming && (isOpen ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />)}
       </div>
 
       {/* Content area - Apply animation classes here */}
@@ -215,7 +249,7 @@ const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({
 
       {/* Render think block if it exists */} 
       {parts.think !== null && (
-        <ReasoningBox lightMode={lightMode}>
+        <ReasoningBox lightMode={lightMode} isStreaming={isStreaming}>
           <MemoizedReactMarkdown
             className="prose dark:prose-invert max-w-none w-full text-gray-900 dark:text-gray-100"
             remarkPlugins={[remarkGfm, remarkMath]}
@@ -377,7 +411,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
         (child) => !(React.isValidElement(child) && child.type === 'summary')
       );
       return (
-        <ReasoningBox lightMode={lightMode}>
+        <ReasoningBox lightMode={lightMode} isStreaming={isCurrentStreamingMessage}>
           {contentWithoutSummary}
         </ReasoningBox>
       );
@@ -483,7 +517,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
               <StreamingMarkdownRenderer 
                 content={message.content || ''} 
                 isStreaming={isCurrentStreamingMessage}
-                      lightMode={lightMode}
+                lightMode={lightMode}
                 components={markdownComponents}
               />
 
