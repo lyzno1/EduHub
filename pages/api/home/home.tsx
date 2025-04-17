@@ -56,6 +56,7 @@ export interface AppConfig {
   name: string;
   apiKey: string;
   apiUrl?: string; // Optional app-specific API URL
+  icon: JSX.Element;
 }
 
 // Define Dify related types
@@ -75,37 +76,39 @@ interface UpdateConversationData {
   value: any;
 }
 
-// 定义应用配置数据
+// 定义应用配置数据 (Use string keys to access difyKeysData)
 const appConfigs: Record<number, AppConfig> = {
-  // ID 1: DeepSeek (假设)
+  // ID 1: DeepSeek 
   1: {
     id: 1,
     name: 'DeepSeek',
-    // Fallback: env -> json -> empty string
-    apiKey: process.env.NEXT_PUBLIC_DIFY_APP_DEEPSEEK_API_KEY || difyKeysData['1']?.apiKey || '',
-    // Fallback: env -> json -> undefined (will use global later)
-    apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_DEEPSEEK_API_URL || difyKeysData['1']?.apiUrl
+    apiKey: process.env.NEXT_PUBLIC_DIFY_APP_DEEPSEEK_API_KEY || difyKeysData['deepseek']?.apiKey || '', // Use 'deepseek'
+    apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_DEEPSEEK_API_URL || difyKeysData['deepseek']?.apiUrl, // Use 'deepseek'
+    icon: <IconMenu2 size={24} />, // Assuming IconMenu2 is defined/imported
   },
   // ID 2: Course Helper
   2: {
     id: 2,
     name: '课程助手',
-    apiKey: process.env.NEXT_PUBLIC_DIFY_APP_COURSE_API_KEY || difyKeysData['2']?.apiKey || '',
-    apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_COURSE_API_URL || difyKeysData['2']?.apiUrl
+    apiKey: process.env.NEXT_PUBLIC_DIFY_APP_COURSE_API_KEY || difyKeysData['courseHelper']?.apiKey || '', // Use 'courseHelper'
+    apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_COURSE_API_URL || difyKeysData['courseHelper']?.apiUrl, // Use 'courseHelper'
+    icon: <IconMenu2 size={24} />,
   },
   // ID 3: Campus Assistant
   3: {
     id: 3,
     name: '校园助理',
-    apiKey: process.env.NEXT_PUBLIC_DIFY_APP_CAMPUS_API_KEY || difyKeysData['3']?.apiKey || '',
-    apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_CAMPUS_API_URL || difyKeysData['3']?.apiUrl
+    apiKey: process.env.NEXT_PUBLIC_DIFY_APP_CAMPUS_API_KEY || difyKeysData['campusAssistant']?.apiKey || '', // Use 'campusAssistant'
+    apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_CAMPUS_API_URL || difyKeysData['campusAssistant']?.apiUrl, // Use 'campusAssistant'
+    icon: <IconMenu2 size={24} />,
   },
   // ID 4: Teacher Assistant
   4: {
     id: 4,
     name: '教师助手',
-    apiKey: process.env.NEXT_PUBLIC_DIFY_APP_TEACHER_API_KEY || difyKeysData['4']?.apiKey || '',
-    apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_TEACHER_API_URL || difyKeysData['4']?.apiUrl
+    apiKey: process.env.NEXT_PUBLIC_DIFY_APP_TEACHER_API_KEY || difyKeysData['teacherAssistant']?.apiKey || '', // Use 'teacherAssistant'
+    apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_TEACHER_API_URL || difyKeysData['teacherAssistant']?.apiUrl, // Use 'teacherAssistant'
+    icon: <IconMenu2 size={24} />,
   },
 };
 

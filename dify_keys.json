@@ -3,19 +3,19 @@
     "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
     "apiUrl": "https://api.dify.ai/v1"
   },
-  "1": {
-    "apiKey": "app-tYxHItA1xubaH6jEAQqCVfCy",
+  "deepseek": {
+    "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
     "apiUrl": "https://api.dify.ai/v1"
   },
-  "2": {
-    "apiKey": "app-tYxHItA1xubaH6jEAQqCVfCy",
+  "courseHelper": {
+    "apiKey": "app-8q49z7W7g5QkAv9Aq3P4quuH",
     "apiUrl": "https://api.dify.ai/v1"
   },
-  "3": {
-    "apiKey": "app-tYxHItA1xubaH6jEAQqCVfCy",
+  "campusAssistant": {
+    "apiKey": "app-jUTkly1jWHq74R9qRkeRlZnG",
     "apiUrl": "https://api.dify.ai/v1"
   },
-  "4": {
+  "teacherAssistant": {
     "apiKey": "app-tYxHItA1xubaH6jEAQqCVfCy",
     "apiUrl": "https://api.dify.ai/v1"
   }
