@@ -1237,8 +1237,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           {/* === Rendering Logic End === */} 
         </div>
 
-        {/* 底部遮罩层 (只在标准聊天模式显示) */}
-        {isStandardChat && (
+        {/* 底部遮罩层 (在非欢迎界面时显示，修复条件) */}
+        {!isWelcomeScreen && (
           <div  
             className="absolute bottom-0 left-0 right-[17px] z-10 h-[80px] pointer-events-none bg-gradient-to-t from-white dark:from-[#343541]"
             style={{ 
