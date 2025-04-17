@@ -157,8 +157,8 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs }:
           onDragStart={(e) => handleDragStart(e, conversation)}
         >
           {icon}
-        <div className="relative flex-1 overflow-hidden whitespace-nowrap text-left text-[13px] leading-5 py-0.5 text-ellipsis flex items-center">
-          <span>{conversation.name}</span>
+        <div className="relative flex-1 overflow-hidden text-left text-[13px] leading-5 py-0.5 flex items-center min-w-0">
+          <span className="block overflow-hidden whitespace-nowrap text-ellipsis">{conversation.name}</span>
           {appName && (
             <span className="ml-1.5 inline-block whitespace-nowrap rounded bg-blue-100 px-1.5 py-0.5 text-center align-baseline text-[10px] font-bold uppercase leading-none text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
               {appName} 
