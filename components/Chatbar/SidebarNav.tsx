@@ -35,10 +35,12 @@ interface SortableConversationProps {
   activeAppId: number | null;
   appConfigs: Record<string, any>;
   isDragging: boolean;
+  modalOpen: boolean;
+  onSetModalOpen: (conversationId: string | null) => void;
 }
 
 // 可排序对话组件
-const SortableConversation: FC<SortableConversationProps> = ({ conversation, activeAppId, appConfigs, isDragging }) => {
+const SortableConversation: FC<SortableConversationProps> = ({ conversation, activeAppId, appConfigs, isDragging, modalOpen, onSetModalOpen }) => {
   const {
     attributes,
     listeners,
@@ -62,7 +64,7 @@ const SortableConversation: FC<SortableConversationProps> = ({ conversation, act
       className="relative group cursor-grab active:cursor-grabbing" 
       data-id={conversation.id}
       {...attributes}
-      {...listeners}
+      {...(!modalOpen ? listeners : {})}
     >
       <div className="flex w-full overflow-hidden">
         <div className="flex-grow truncate">
@@ -71,6 +73,7 @@ const SortableConversation: FC<SortableConversationProps> = ({ conversation, act
             conversation={conversation} 
             activeAppId={activeAppId} 
             appConfigs={appConfigs}
+            onSetModalOpen={onSetModalOpen}
           />
         </div>
       </div>
@@ -94,6 +97,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [modalOpenConversationId, setModalOpenConversationId] = useState<string | null>(null);
   
   const prevSelectedConversationRef = useRef<string | null>(null);
 
@@ -280,6 +284,11 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   };
   // --- End New Handler ---
 
+  // 新增：处理来自 ConversationComponent 的回调
+  const handleSetModalOpen = (conversationId: string | null) => {
+    setModalOpenConversationId(conversationId);
+  };
+
   return (
     <div 
       id="mobile-sidebar-container"
@@ -349,6 +358,8 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
                       activeAppId={activeAppId}
                       appConfigs={appConfigs}
                       isDragging={conversation.id === activeDragId}
+                      modalOpen={modalOpenConversationId === conversation.id}
+                      onSetModalOpen={handleSetModalOpen}
                     />
                   ))}
                 </div>
@@ -362,6 +373,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
                       conversation={conversations.find(c => c.id === activeDragId)!}
                       activeAppId={activeAppId}
                       appConfigs={appConfigs}
+                      onSetModalOpen={() => {}}
                     />
                   </div>
                 ) : null}

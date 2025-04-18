@@ -43,10 +43,12 @@ interface Props {
   conversation: Conversation;
   activeAppId: number | null; // <-- 接收 activeAppId
   appConfigs: Record<number, AppConfig>; // <-- 接收 appConfigs
+  modalOpen?: boolean; // <-- 新增：接收模态框状态 (可选)
+  onSetModalOpen: (conversationId: string | null) => void; // 新增：传递设置模态框打开状态的回调
 }
 
 // 单个会话的删除、重命名等操作
-export const ConversationComponent = ({ conversation, activeAppId, appConfigs }: Props) => {
+export const ConversationComponent = ({ conversation, activeAppId, appConfigs, modalOpen, onSetModalOpen }: Props) => {
   const {
     state: { selectedConversation, messageIsStreaming }, // 不再需要 lightMode?
     handleSelectConversation,
@@ -66,6 +68,19 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs }:
   useEffect(() => {
     setRenameValue(conversation.name);
   }, [conversation.name]);
+
+  // 监听模态框状态变化，并通知父组件
+  useEffect(() => {
+    if (showRenameModal || showDeleteModal) {
+      onSetModalOpen(conversation.id);
+    } else {
+      // 如果当前打开的模态框是这个对话的，则在关闭时通知父组件清除状态
+      // 需要一种方式访问 SidebarNav 的 modalOpenConversationId，或者让父组件自己处理
+      // 暂时先只通知打开
+      // onSetModalOpen(null); // 这行逻辑需要在父组件处理
+    }
+    // 依赖项中加入 onSetModalOpen 和 conversation.id 确保回调和ID正确
+  }, [showRenameModal, showDeleteModal, onSetModalOpen, conversation.id]);
 
   const handleMenuClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -101,12 +116,14 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs }:
     setShowMenu(false);
     setMenuPosition(null);
     setShowRenameModal(true);
+    onSetModalOpen(conversation.id); // 打开时立即通知
   };
 
   const handleDelete = () => {
     setShowMenu(false);
     setMenuPosition(null);
     setShowDeleteModal(true);
+    onSetModalOpen(conversation.id); // 打开时立即通知
   };
 
   const handleConfirmRename = () => {
@@ -115,6 +132,7 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs }:
       handleUpdateConversation(conversation, { key: 'name', value: renameValue });
       // 立即关闭对话框
       setShowRenameModal(false);
+      onSetModalOpen(null); // 关闭时通知
       
       // 使用setTimeout确保UI更新完成后再进行API调用
       setTimeout(() => {
@@ -149,6 +167,7 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs }:
   const handleConfirmDelete = () => {
     // 立即关闭模态框
     setShowDeleteModal(false);
+    onSetModalOpen(null); // 关闭时通知
     
     // 使用setTimeout确保UI更新完成后再进行删除操作
     setTimeout(() => {
@@ -251,12 +270,13 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs }:
                   handleConfirmRename();
                 }
               }}
+              onMouseDown={(e) => e.stopPropagation()}
               autoFocus
             />
             <div className="flex justify-end gap-2 mt-4">
               <button
                 className="px-3 py-1 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                onClick={() => setShowRenameModal(false)}
+                onClick={() => { setShowRenameModal(false); onSetModalOpen(null); }}
               >
                 取消
               </button>
@@ -283,7 +303,7 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs }:
             <div className="flex justify-end gap-2">
               <button
                 className="px-3 py-1 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                onClick={() => setShowDeleteModal(false)}
+                onClick={() => { setShowDeleteModal(false); onSetModalOpen(null); }}
               >
                 取消
               </button>
