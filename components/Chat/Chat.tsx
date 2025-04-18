@@ -1324,61 +1324,86 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           ></div>
         )}
 
-        {/* --- 条件渲染：只在非欢迎屏幕渲染底部输入框 --- */} 
-        {!isWelcomeScreen && (
-        <div className="absolute bottom-0 left-0 w-full z-20">
-               <div className={`w-full md:absolute md:bottom-0 md:left-0 md:right-auto fixed bottom-0 left-0 right-0 ${isAppMode ? 'app-input-mode' : ''}`}> 
-                <div className="w-full md:max-w-[800px] mx-auto px-0">
-                <ModernChatInput
-                    key={activeAppId !== null ? `app-${activeAppId}` : selectedConversation?.id || 'chat'}
-                  content={content}
-                  setContent={setContent}
-                  stopConversationRef={stopConversationRef}
-                  textareaRef={textareaRef}
-                  onSend={(message) => {
-                    onSend(message, 0);
-                  }}
-                  onScrollDownClick={handleScrollDown}
-                    onRegenerate={activeAppId === null ? () => {
-                      if (currentMessage) { onSend(currentMessage, 2); }
-                    } : () => {}} // 应用模式提供空函数
-                    showScrollDownButton={activeAppId === null && showScrollDownButton} // 只标准聊天
-                    isCentered={false} // 底部输入框永不居中
-                  showSidebar={showSidebar}
-                    isMobile={isMobile}
-                  handleStopConversation={handleStopConversation}
-                    messageIsStreaming={messageIsStreaming} // <-- 使用 context 状态
-                />
+        {/* === 重构输入区渲染逻辑 START === */}
+        {isMobile ? (
+          // --- 移动端渲染 (始终固定底部) ---
+          <div className="fixed bottom-0 left-0 right-0 w-full z-20">
+            <div className="w-full"> {/* 移动端不需要宽度限制或居中容器 */}
+              <ModernChatInput
+                key={isWelcomeScreen ? "welcome-input-mobile" : (activeAppId !== null ? `app-${activeAppId}-mobile` : selectedConversation?.id || 'chat-mobile')}
+                content={content}
+                setContent={setContent}
+                stopConversationRef={stopConversationRef}
+                textareaRef={textareaRef}
+                onSend={(message) => { onSend(message, 0); }}
+                onScrollDownClick={handleScrollDown}
+                // 移动端欢迎界面不重新生成
+                onRegenerate={isWelcomeScreen ? () => {} : (activeAppId === null ? () => { if (currentMessage) { onSend(currentMessage, 2); }} : () => {})}
+                // 移动端欢迎界面不显示滚动按钮
+                showScrollDownButton={!isWelcomeScreen && activeAppId === null && showScrollDownButton}
+                isCentered={false} // 移动端输入框永远不居中
+                showSidebar={showSidebar}
+                isMobile={isMobile}
+                handleStopConversation={handleStopConversation}
+                messageIsStreaming={messageIsStreaming}
+              />
+            </div>
+          </div>
+        ) : (
+          // --- 桌面端渲染 (保持原有逻辑) ---
+          <>
+            {!isWelcomeScreen ? (
+              // 桌面端 - 对话状态输入框 (原 !isWelcomeScreen 逻辑)
+              <div className="absolute bottom-0 left-0 w-full z-20">
+                <div className={`w-full md:absolute md:bottom-0 md:left-0 md:right-auto ${isAppMode ? 'app-input-mode' : ''}`}> 
+                  <div className="w-full md:max-w-[800px] mx-auto px-0">
+                    <ModernChatInput
+                      key={activeAppId !== null ? `app-${activeAppId}` : selectedConversation?.id || 'chat'}
+                      content={content}
+                      setContent={setContent}
+                      stopConversationRef={stopConversationRef}
+                      textareaRef={textareaRef}
+                      onSend={(message) => { onSend(message, 0); }}
+                      onScrollDownClick={handleScrollDown}
+                      onRegenerate={activeAppId === null ? () => { if (currentMessage) { onSend(currentMessage, 2); }} : () => {}}
+                      showScrollDownButton={activeAppId === null && showScrollDownButton}
+                      isCentered={false}
+                      showSidebar={showSidebar}
+                      isMobile={isMobile}
+                      handleStopConversation={handleStopConversation}
+                      messageIsStreaming={messageIsStreaming}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        {/* --- 欢迎屏幕输入框单独处理 --- */} 
-        {isWelcomeScreen && (
-             <div className="w-full mt-8 md:static md:bottom-auto md:left-auto md:right-auto md:mt-8 fixed bottom-0 left-0 right-0"> 
-                  <div className="w-full md:max-w-[800px] md:mx-auto px-0 mx-0"> 
-                     <div className="md:block"> 
-                       <ModernChatInput 
-                         key="welcome-input"
-                         content={content}
-                         setContent={setContent}
-                         stopConversationRef={stopConversationRef}
-                         textareaRef={textareaRef}
-                         onSend={(message) => { onSend(message, 0); }}
-                         onScrollDownClick={handleScrollDown}
-                         onRegenerate={() => { /* Welcome 不重新生成 */ }}
-                         showScrollDownButton={false}
-                         isCentered={true} // Welcome 输入框居中
-                         showSidebar={showSidebar}
-                         isMobile={isMobile}
-                         handleStopConversation={handleStopConversation}
-                         messageIsStreaming={messageIsStreaming} // <-- 使用 context 状态
-                       /> 
-        </div>
-                   </div> 
-             </div> 
+            ) : (
+              // 桌面端 - 欢迎状态输入框 (原 isWelcomeScreen 逻辑)
+              <div className="w-full mt-8 md:static md:bottom-auto md:left-auto md:right-auto md:mt-8"> 
+                <div className="w-full md:max-w-[800px] md:mx-auto px-0 mx-0">
+                  <div className="md:block">
+                    <ModernChatInput
+                      key="welcome-input-desktop"
+                      content={content}
+                      setContent={setContent}
+                      stopConversationRef={stopConversationRef}
+                      textareaRef={textareaRef}
+                      onSend={(message) => { onSend(message, 0); }}
+                      onScrollDownClick={handleScrollDown}
+                      onRegenerate={() => { /* Welcome 不重新生成 */ }}
+                      showScrollDownButton={false}
+                      isCentered={true} // 桌面欢迎居中
+                      showSidebar={showSidebar}
+                      isMobile={isMobile}
+                      handleStopConversation={handleStopConversation}
+                      messageIsStreaming={messageIsStreaming}
+                    /> 
+                  </div>
+                </div> 
+              </div> 
+            )}
+          </>
         )}
-        {/* === END Input Area === */}
+        {/* === 重构输入区渲染逻辑 END === */}
       </>
     </div>
   );
