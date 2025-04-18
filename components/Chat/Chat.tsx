@@ -351,7 +351,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       container.removeEventListener('mouseup', handleInteractionEnd);
       container.removeEventListener('scroll', handleScroll);
     };
-  }, [selectedConversation]);
+  }, [chatContainerRef, messagesLength]);
 
   // 优化消息流更新
   useEffect(() => {
@@ -523,7 +523,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
              field: 'conversations',
              value: updatedConversationsWithId
            });
-           saveConversations(updatedConversationsWithId);
            // Update conversationID of the currently selected conversation in closure
            updatedConversation.conversationID = conversationId;
         }
