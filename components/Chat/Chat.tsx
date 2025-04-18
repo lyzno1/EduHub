@@ -456,7 +456,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
       // 保存 chatStream 引用以便可以中止
       chatStreamRef.current = chatStream;
-      
+
       let fullResponse = '';
       let isStreamHalted = false;
       
@@ -507,45 +507,51 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
         // --- Modification: Title generation also needs to use the correct API Key ---
         const isPotentiallyNewConversationResponse = currentMessages.length === 2;
-        if (isPotentiallyNewConversationResponse && !titleGenerationInitiated.current && chatStream.conversationId) {
-            if (!conversationId || conversationId === '') {
-          conversationId = chatStream.conversationId;
-                console.log(`[Dify] Received new Conversation ID: ${conversationId}`);
-                // Immediately update conversationID in HomeContext and localStorage
-          const updatedConversationsWithId = conversations.map(conv => 
-            conv.id === selectedConversation.id 
-                    ? { ...conv, conversationID: conversationId }
-              : conv
-          );
-          homeDispatch({
-            field: 'conversations',
-            value: updatedConversationsWithId
-          });
-          saveConversations(updatedConversationsWithId);
-                // Update conversationID of the currently selected conversation in closure
-                updatedConversation.conversationID = conversationId;
-            }
 
+        // 1. Ensure conversationId is updated if received
+        if (chatStream.conversationId && (!conversationId || conversationId === '')) {
+           conversationId = chatStream.conversationId;
+           console.log(`[Dify] Received/Confirmed Conversation ID: ${conversationId}`);
+           // Immediately update conversationID in HomeContext and localStorage
+           const updatedConversationsWithId = conversations.map(conv => 
+             conv.id === selectedConversation.id 
+               ? { ...conv, conversationID: conversationId }
+               : conv
+           );
+           homeDispatch({
+             field: 'conversations',
+             value: updatedConversationsWithId
+           });
+           saveConversations(updatedConversationsWithId);
+           // Update conversationID of the currently selected conversation in closure
+           updatedConversation.conversationID = conversationId;
+        }
+
+        // 2. Trigger title generation ONLY if it's the first response, ID is confirmed, and not initiated yet
+        if (isPotentiallyNewConversationResponse && !titleGenerationInitiated.current) {
             // Check again if conversationId is now valid before proceeding
             if (conversationId) {
                 titleGenerationInitiated.current = true;
-                console.log(`[Parallel] Conversation ID (${conversationId}) confirmed for new convo. Starting title generation...`);
+                // console.log(`[Parallel] Conversation ID (${conversationId}) confirmed for new convo. Starting title generation...`);
+
+                // Determine API Key and URL here (ensure context is correct or pass necessary values)
+                const titleApiUrl = targetApiUrl; // Reuse the URL determined for main chat
+                const titleApiKey = targetApiKey; // Reuse the Key determined for main chat
+                const titleUser = user || 'unknown'; // Get user from onSend context
 
                 titlePromise.current = (async () => {
                   try {
-                    const titleApiUrl = targetApiUrl; // Reuse the URL determined for main chat
-                    const titleApiKey = targetApiKey; // Reuse the Key determined for main chat
-                    console.log(`[Debug] Title Gen - Using titleApiUrl: ${titleApiUrl}`);
-                    console.log(`[Debug] Title Gen - Using titleApiKey is empty: ${titleApiKey === ''}`);
+                    // console.log(`[Debug] Title Gen (onMessage) - Using titleApiUrl: ${titleApiUrl}`);
+                    // console.log(`[Debug] Title Gen (onMessage) - Using titleApiKey is empty: ${titleApiKey === ''}`);
 
                     const titleDifyClient = new DifyClient({
                       apiUrl: titleApiUrl,
                       debug: true
                     });
                     const generatedName = await titleDifyClient.generateConversationName(
-                      conversationId,
+                      conversationId, // Use the confirmed ID
                       titleApiKey,
-                      user || 'unknown'
+                      titleUser
                     );
                     console.log('[Parallel] Parallel title generation successful:', generatedName);
                     return generatedName || null;
@@ -1336,7 +1342,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                     isCentered={false} // 底部输入框永不居中
                   showSidebar={showSidebar}
                     isMobile={isMobile}
-                    handleStopConversation={handleStopConversation}
+                  handleStopConversation={handleStopConversation}
                     messageIsStreaming={messageIsStreaming} // <-- 使用 context 状态
                 />
                 </div>
