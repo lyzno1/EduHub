@@ -27,6 +27,8 @@ import { Conversation } from '@/types/chat';
 import HomeContext from '@/pages/api/home/home.context';
 
 import SidebarActionButton from '@/components/Buttons/SidebarActionButton';
+import { DifyClient } from '@/services/dify/client';
+import { getApiKey } from '@/utils/app/api';
 
 // --- 定义 AppConfig 接口 (与 home.tsx/home.context.tsx 一致) ---
 interface AppConfig {
@@ -109,14 +111,49 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs }:
 
   const handleConfirmRename = () => {
     if (renameValue.trim().length > 0) {
+      // 先更新前端状态
       handleUpdateConversation(conversation, { key: 'name', value: renameValue });
+      // 立即关闭对话框
       setShowRenameModal(false);
+      
+      // 使用setTimeout确保UI更新完成后再进行API调用
+      setTimeout(() => {
+        // 如果有会话ID，异步更新到后端
+        if (conversation.id && conversation.conversationID) {
+          try {
+            const apiKey = getApiKey();
+            const client = new DifyClient();
+            const user = 'unknown';
+            
+            // 异步调用API，不阻塞UI
+            client.renameConversation(
+              conversation.conversationID,
+              renameValue,
+              apiKey,
+              user
+            )
+            .then(() => {
+              console.log(`会话 "${conversation.id}" 名称已更新为: "${renameValue}"`);
+            })
+            .catch((error) => {
+              console.error('后端更新会话名称失败:', error);
+            });
+          } catch (error) {
+            console.error('调用重命名API失败:', error);
+          }
+        }
+      }, 0);
     }
   };
 
   const handleConfirmDelete = () => {
-    handleDeleteConversation(conversation.id);
+    // 立即关闭模态框
     setShowDeleteModal(false);
+    
+    // 使用setTimeout确保UI更新完成后再进行删除操作
+    setTimeout(() => {
+      handleDeleteConversation(conversation.id);
+    }, 0);
   };
 
   const handleDragStart = (e: DragEvent<HTMLButtonElement>, conversation: Conversation) => {

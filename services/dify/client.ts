@@ -897,4 +897,64 @@ export class DifyClient {
       throw error;
     }
   }
+
+  // 添加手动重命名对话的方法
+  public async renameConversation(conversationId: string, name: string, key: string, user: string = 'unknown'): Promise<any> {
+    if (!conversationId) {
+      throw new Error('会话ID不能为空');
+    }
+
+    if (!name || name.trim() === '') {
+      throw new Error('对话名称不能为空');
+    }
+
+    try {
+      // 直接使用环境变量中的API URL，确保和其他请求一致
+      const apiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || '';
+      // 从apiUrl提取基础URL，去掉可能的chat-messages路径
+      const baseUrlParts = apiUrl.split('/');
+      const chatMessagesIndex = baseUrlParts.indexOf('chat-messages');
+      const baseApiUrl = chatMessagesIndex > 0 
+        ? baseUrlParts.slice(0, chatMessagesIndex).join('/') 
+        : apiUrl.replace('/chat-messages', '');
+      
+      const apiEndpoint = `${baseApiUrl}/conversations/${conversationId}/name`;
+      
+      if (this.debug) {
+        console.log('手动重命名对话 - 请求信息:', {
+          endpoint: apiEndpoint,
+          conversationId,
+          name
+        });
+      }
+
+      const response = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify({
+          name: name,
+          auto_generate: false,
+          user: user
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.message || `重命名对话失败: ${response.status}`);
+        } catch (e) {
+          throw new Error(`重命名对话请求失败: ${response.status}`);
+        }
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      console.error('重命名对话错误:', error);
+      throw error;
+    }
+  }
 }
