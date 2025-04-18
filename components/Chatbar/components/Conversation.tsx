@@ -165,13 +165,44 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
   };
 
   const handleConfirmDelete = () => {
-    // 立即关闭模态框
+    // 立即关闭模态框，并通知父组件
     setShowDeleteModal(false);
     onSetModalOpen(null); // 关闭时通知
     
-    // 使用setTimeout确保UI更新完成后再进行删除操作
+    // 使用setTimeout确保UI更新完成后再进行操作
     setTimeout(() => {
+      // 1. 先从前端移除（乐观UI）
       handleDeleteConversation(conversation.id);
+
+      // 2. 再异步调用后端API删除
+      if (conversation.id && conversation.conversationID) {
+        try {
+          const apiKey = getApiKey();
+          const client = new DifyClient();
+          const user = 'unknown';
+          
+          client.deleteConversation(
+            conversation.conversationID,
+            apiKey,
+            user
+          )
+          .then((response) => {
+            // 检查后端返回结果
+            if (response && response.result === 'success') {
+              console.log(`会话 "${conversation.conversationID}" 已在后端删除`);
+            } else {
+              // 如果后端删除失败，可以考虑添加错误提示或恢复UI（目前仅打印错误）
+              console.error('后端删除会话失败，但前端已移除:', response);
+            }
+          })
+          .catch((error) => {
+            // 如果后端删除失败，可以考虑添加错误提示或恢复UI（目前仅打印错误）
+            console.error('后端删除会话API调用失败，但前端已移除:', error);
+          });
+        } catch (error) {
+          console.error('调用删除API准备失败:', error);
+        }
+      }
     }, 0);
   };
 

@@ -957,4 +957,59 @@ export class DifyClient {
       throw error;
     }
   }
+
+  // 新增：删除对话的方法
+  public async deleteConversation(conversationId: string, key: string, user: string = 'unknown'): Promise<any> {
+    if (!conversationId) {
+      throw new Error('会话ID不能为空');
+    }
+
+    try {
+      // 同样使用环境变量构建基础URL
+      const apiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || '';
+      const baseUrlParts = apiUrl.split('/');
+      const chatMessagesIndex = baseUrlParts.indexOf('chat-messages');
+      const baseApiUrl = chatMessagesIndex > 0 
+        ? baseUrlParts.slice(0, chatMessagesIndex).join('/') 
+        : apiUrl.replace('/chat-messages', '');
+        
+      const apiEndpoint = `${baseApiUrl}/conversations/${conversationId}`; // 注意：路径只到 conversationId
+
+      if (this.debug) {
+        console.log('删除对话 - 请求信息:', {
+          endpoint: apiEndpoint,
+          conversationId,
+          user
+        });
+      }
+
+      const response = await fetch(apiEndpoint, {
+        method: 'DELETE', // 使用 DELETE 方法
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`
+        },
+        // 根据文档，DELETE 请求也需要 user 在 body 中
+        body: JSON.stringify({ 
+          user: user
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.message || `删除对话失败: ${response.status}`);
+        } catch (e) {
+          throw new Error(`删除对话请求失败: ${response.status}`);
+        }
+      }
+
+      // API 成功时返回 { result: "success" }
+      return await response.json(); 
+    } catch (error: any) {
+      console.error('删除对话错误:', error);
+      throw error;
+    }
+  }
 }
