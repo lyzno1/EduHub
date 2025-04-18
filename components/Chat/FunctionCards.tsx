@@ -99,9 +99,9 @@ export const FunctionCards: React.FC<FunctionCardsProps> = ({ scrollToBottom, se
       // 准备要插入的文本
       const promptText = `作为${selectedCategory?.name}中的${selectedFunction.name}，请帮我：`;
       
-      // 使用React状态更新方式追加内容
+      // 使用React状态更新方式设置内容 (替换)
       if (setContent) {
-        setContent(prevContent => prevContent + promptText); // 修改为追加
+        setContent(promptText); // 修改为直接设置 (替换)
         
         // 如果输入框获取焦点（可选，但体验更好）
         const textarea = document.querySelector('textarea');
