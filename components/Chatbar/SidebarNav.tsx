@@ -22,6 +22,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers';
+import { useDrag } from '@use-gesture/react';
 
 import HomeContext from '@/pages/api/home/home.context';
 import { Conversation } from '@/types/chat';
@@ -90,6 +91,8 @@ interface Props {
   isOpen: boolean;
 }
 
+const SIDEBAR_WIDTH = 260; // 定义侧边栏宽度常量
+
 export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const { t } = useTranslation('sidebar');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -100,6 +103,12 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const [modalOpenConversationId, setModalOpenConversationId] = useState<string | null>(null);
   
   const prevSelectedConversationRef = useRef<string | null>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null); // Ref for the sidebar itself
+  
+  // --- Swipe Gesture State ---
+  const [translateX, setTranslateX] = useState(0); // 当前拖拽的 X 位移
+  const [isDraggingSidebar, setIsDraggingSidebar] = useState(false); // 是否正在拖拽侧边栏
+  // --- End Swipe Gesture State ---
 
   const {
     state: { conversations, selectedConversation, activeAppId },
@@ -122,18 +131,15 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     })
   );
 
-  // 检测是否为移动设备
+  // 检测是否为移动设备 (使用 768 断点保持一致)
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640);
+      // 使用 768px 作为移动端判断标准，与之前适配保持一致
+      setIsMobile(window.innerWidth < 768); 
     };
-    
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-    };
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   useEffect(() => {
@@ -288,14 +294,69 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     setModalOpenConversationId(conversationId);
   };
 
+  // --- Swipe Gesture Logic --- 
+  const bind = useDrag(
+    ({ down, movement: [mx], velocity: [vx], direction: [dx], cancel, last }) => {
+      setIsDraggingSidebar(down); // 更新拖拽状态
+      
+      // 如果向右滑动，则取消手势 (我们只关心向左滑关闭)
+      if (dx > 0) {
+        if(cancel) cancel();
+        // 如果不是最后一次事件 (手指还在屏幕上)，则将位移重置为0
+        if (!last) setTranslateX(0);
+        return;
+      } 
+      
+      // 实时更新 X 位移，限制在 [-SIDEBAR_WIDTH, 0] 范围内
+      // 使用 Math.max 确保不会向右滑超过0，Math.min 确保不会向左滑超过负宽度
+      let newTranslateX = Math.min(0, Math.max(-SIDEBAR_WIDTH, mx));
+      setTranslateX(newTranslateX);
+
+      // 手指/鼠标抬起时判断
+      if (last) {
+        // 计算关闭阈值
+        const closeThreshold = SIDEBAR_WIDTH / 3; // 滑动超过 1/3 宽度则关闭
+        const velocityThreshold = 0.5; // 或者速度足够快也关闭
+
+        // 判断是否应该关闭：向左滑动超过阈值，或者向左滑动速度足够快
+        if ((Math.abs(mx) > closeThreshold || Math.abs(vx) > velocityThreshold) && dx < 0) {
+          console.log("Swipe close triggered");
+          onToggle(); // 调用父组件的关闭函数
+        } 
+        // 否则，弹回打开状态 (动画将在 style 中通过 transition 实现)
+        setTranslateX(0);
+      }
+    },
+    {
+      axis: 'x', // 只关心水平轴
+      enabled: isMobile && isOpen, // 只在移动端且侧边栏打开时启用
+      filterTaps: true, // 忽略点击
+      // bounds: { left: -SIDEBAR_WIDTH, right: 0 }, // 使用 clamp 手动处理边界更灵活
+      // rubberband: 0.1, // 轻微的橡皮筋效果
+      pointer: { touch: true }, // 确保在触摸设备上工作
+    }
+  );
+  // --- End Swipe Gesture Logic ---
+
   return (
     <div 
       id="mobile-sidebar-container"
-      className={`fixed top-0 flex h-full w-[260px] max-w-[85vw] flex-col border-r border-gray-200 bg-[#f5f5f5] transition-transform duration-300 ease-in-out dark:border-gray-800 dark:bg-[#202123] ${
-        isOpen ? 'translate-x-0' : '-translate-x-full'
-      } left-0 sm:left-[60px]`}
+      ref={sidebarRef} // 添加 ref
+      {...(isMobile && isOpen ? bind() : {})} // 在移动端且打开时绑定手势
+      className={`fixed top-0 flex h-full w-[${SIDEBAR_WIDTH}px] max-w-[85vw] flex-col border-r border-gray-200 bg-[#f5f5f5] dark:border-gray-800 dark:bg-[#202123] left-0 sm:left-[60px] touch-pan-y ${ // 添加 touch-pan-y 允许垂直滚动
+        isOpen 
+          ? 'translate-x-0' 
+          : '-translate-x-full'
+      } ${
+        // 拖拽时禁用 transition，结束时或状态改变时启用
+        isDraggingSidebar ? '' : 'transition-transform duration-300 ease-in-out'
+      }`}
       onClick={stopPropagation}
-      style={{ zIndex: isMobile ? 9999 : 40 }}
+      style={{
+        zIndex: isMobile ? 9999 : 40,
+        // 应用实时位移，但只在移动端拖拽时生效
+        transform: isMobile && isDraggingSidebar ? `translateX(${translateX}px)` : (isOpen ? 'translateX(0)' : `translateX(-${SIDEBAR_WIDTH}px)`),
+      }}
     >
       {/* 顶部区域 */}
       <div className="sticky top-0 z-10 bg-[#f5f5f5] dark:bg-[#202123]">
