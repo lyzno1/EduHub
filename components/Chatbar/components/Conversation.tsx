@@ -56,13 +56,19 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
     handleUpdateConversation,
   } = useContext(HomeContext);
 
-  const [showMenu, setShowMenu] = useState(false);
+  // --- State Management ---
+  const [showMenu, setShowMenu] = useState(false); // For desktop popover
+  const [showMobileBottomSheet, setShowMobileBottomSheet] = useState(false); // For mobile bottom sheet
+  const [isClosingBottomSheet, setIsClosingBottomSheet] = useState(false); // <-- 新增关闭状态
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameValue, setRenameValue] = useState(conversation.name);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null); // Ref for desktop menu & mobile sheet content
   const buttonRef = useRef<HTMLDivElement>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  
+  // 检测是否为移动设备
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   // 监听 conversation.name 的变化
   useEffect(() => {
@@ -82,50 +88,94 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
     // 依赖项中加入 onSetModalOpen 和 conversation.id 确保回调和ID正确
   }, [showRenameModal, showDeleteModal, onSetModalOpen, conversation.id]);
 
+  // --- Event Handlers ---
   const handleMenuClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!showMenu) {
-      const rect = buttonRef.current?.getBoundingClientRect();
-      if (rect) {
-        setMenuPosition({
-          top: rect.top + window.scrollY,
-          left: rect.right + window.scrollX + 8
-        });
+    if (isMobile) {
+      // 移动端：打开底部操作表
+      setShowMobileBottomSheet(true);
+      // 移动端不需要计算 menuPosition 或显示 showMenu
+      setShowMenu(false); 
+      setMenuPosition(null);
+    } else {
+      // 桌面端：计算位置并显示浮动菜单
+      if (!showMenu) {
+        const rect = buttonRef.current?.getBoundingClientRect();
+        if (rect) {
+          setMenuPosition({
+            top: rect.top + window.scrollY,
+            left: rect.right + window.scrollX + 8
+          });
+        }
       }
+      setShowMenu(!showMenu);
+      // 桌面端不需要显示底部操作表
+      setShowMobileBottomSheet(false);
     }
-    setShowMenu(!showMenu);
   };
 
-  // 点击外部关闭菜单
+  // 外部点击关闭 - 需要同时处理桌面菜单和移动底部菜单
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // menuRef 现在可能指向桌面菜单或移动菜单的内容区域
+      // buttonRef 始终指向触发按钮
       if (menuRef.current && !menuRef.current.contains(event.target as Node) &&
           buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
+        // 如果点击发生在菜单和按钮之外，关闭两者
         setShowMenu(false);
-        setMenuPosition(null);
+        // 注意：移动端底部菜单的关闭通常通过点击遮罩层处理，这里可以保留以防万一
+        // 或者将移动端菜单的关闭逻辑完全交给遮罩层点击事件
+        // setShowMobileBottomSheet(false); // 暂时注释掉，依赖遮罩层关闭
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, []); // 保持空依赖，一直监听
 
+  // 开始关闭动画 (替代直接关闭)
+  const triggerCloseMobileSheet = () => {
+    if (showMobileBottomSheet) {
+      setIsClosingBottomSheet(true);
+    }
+  };
+
+  // 监听关闭状态，在动画结束后卸载组件
+  useEffect(() => {
+    if (isClosingBottomSheet) {
+      const timer = setTimeout(() => {
+        setShowMobileBottomSheet(false); // 动画结束后隐藏
+        setIsClosingBottomSheet(false); // 重置状态
+      }, 300); // 匹配动画时长 (0.3s)
+      return () => clearTimeout(timer);
+    }
+  }, [isClosingBottomSheet]);
+
+  // 打开重命名模态框 - 调用 triggerCloseMobileSheet
   const handleRename = () => {
-    setShowMenu(false);
+    triggerCloseMobileSheet(); // 开始关闭动画
+    setShowMenu(false); 
     setMenuPosition(null);
-    setShowRenameModal(true);
-    onSetModalOpen(conversation.id); // 打开时立即通知
+    // 延迟打开模态框，等待关闭动画
+    setTimeout(() => {
+        setShowRenameModal(true);
+        onSetModalOpen(conversation.id); 
+    }, 50); // 短暂延迟
   };
 
+  // 打开删除模态框 - 调用 triggerCloseMobileSheet
   const handleDelete = () => {
-    setShowMenu(false);
+    triggerCloseMobileSheet(); // 开始关闭动画
+    setShowMenu(false); 
     setMenuPosition(null);
-    setShowDeleteModal(true);
-    onSetModalOpen(conversation.id); // 打开时立即通知
+    // 延迟打开模态框
+    setTimeout(() => {
+        setShowDeleteModal(true);
+        onSetModalOpen(conversation.id); 
+    }, 50);
   };
-
+  
   const handleConfirmRename = () => {
     if (renameValue.trim().length > 0) {
       // 先更新前端状态
@@ -256,9 +306,6 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
   // 使用默认图标
   const icon = <IconMessage size={18} />;
 
-  // 检测是否为移动设备
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-
   // --- 获取应用名称 (如果存在) --- 
   const appName = conversation.appId !== null ? appConfigs[conversation.appId]?.name : null;
   // --- END 获取 ---
@@ -295,8 +342,8 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
         </div>
       </button>
 
-      {/* 操作按钮 */}
-      <div className="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      {/* 操作按钮 - 移动端常亮，桌面端悬停显示 */}
+      <div className="absolute right-2 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
         <div ref={buttonRef} className="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer">
           <IconDotsVertical size={16} className="text-gray-500 dark:text-gray-400" onClick={handleMenuClick} />
         </div>
@@ -327,10 +374,11 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
         document.body
       )}
 
-      {/* 重命名模态框 */}
+      {/* 重命名模态框 - 提高 z-index 到最高 */}
       {showRenameModal && createPortal(
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-[300px]">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10010]" onClick={(e) => { if (e.target === e.currentTarget) { setShowRenameModal(false); onSetModalOpen(null); } }}>
+          {/* 模态框内容 div */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-full max-w-md mx-4 md:mx-0 md:w-[300px] shadow-xl animate-fadeIn" onClick={(e) => e.stopPropagation()}> 
             <div className="text-lg font-medium mb-4">重命名对话</div>
             <input
               type="text"
@@ -364,10 +412,11 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
         document.body
       )}
 
-      {/* 删除确认模态框 */}
+      {/* 删除确认模态框 - 提高 z-index 到最高 */}
       {showDeleteModal && createPortal(
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-[300px]">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10010]" onClick={(e) => { if (e.target === e.currentTarget) { setShowDeleteModal(false); onSetModalOpen(null); } }}>
+          {/* 模态框内容 div */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-full max-w-md mx-4 md:mx-0 md:w-[300px] shadow-xl animate-fadeIn" onClick={(e) => e.stopPropagation()}> 
             <div className="text-lg font-medium mb-4">删除对话</div>
             <div className="text-gray-600 dark:text-gray-400 mb-4">
               确定要删除这个对话吗？此操作无法撤销。
@@ -389,7 +438,43 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
           </div>
         </div>,
         document.body
-        )}
+      )}
+
+      {/* --- 移动端底部操作菜单 --- */}
+      {showMobileBottomSheet && createPortal(
+        <>
+          {/* 背景遮罩层 - 条件动画 */}
+          <div 
+            className={`fixed inset-0 bg-black/60 z-[9999] ${isClosingBottomSheet ? 'animate-fadeOut' : 'animate-fadeIn'}`}
+            onClick={triggerCloseMobileSheet} // 点击遮罩开始关闭
+          ></div>
+          {/* 操作表内容 - 条件动画 */}
+          <div 
+            ref={menuRef} 
+            className={`fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 rounded-t-lg shadow-lg p-4 z-[10000] ${isClosingBottomSheet ? 'animate-slide-down' : 'animate-slide-up'}`}
+            onClick={(e) => e.stopPropagation()} 
+          >
+            {/* 可选的拖动指示器 */}
+            <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-3"></div>
+            {/* 操作按钮 */}
+            <button 
+              className="w-full flex items-center gap-3 px-3 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+              onClick={handleDelete}
+            >
+              <IconTrash size={20} />
+              <span>删除对话</span>
+            </button>
+            <button 
+              className="w-full flex items-center gap-3 px-3 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md mt-2"
+              onClick={handleRename}
+            >
+              <IconPencil size={20} />
+              <span>重命名对话</span>
+            </button>
+          </div>
+        </>,
+        document.body
+      )}
     </div>
   );
 };
