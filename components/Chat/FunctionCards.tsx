@@ -26,9 +26,10 @@ interface FunctionCardProps {
 // 添加可选的scrollToBottom属性
 interface FunctionCardsProps {
   scrollToBottom?: () => void;
+  setContent?: React.Dispatch<React.SetStateAction<string>>;
 }
 
-export const FunctionCards: React.FC<FunctionCardsProps> = ({ scrollToBottom }) => {
+export const FunctionCards: React.FC<FunctionCardsProps> = ({ scrollToBottom, setContent }) => {
   const {
     state: { lightMode },
   } = useContext(HomeContext);
@@ -98,48 +99,25 @@ export const FunctionCards: React.FC<FunctionCardsProps> = ({ scrollToBottom }) 
       // 准备要插入的文本
       const promptText = `作为${selectedCategory?.name}中的${selectedFunction.name}，请帮我：`;
       
-      // 获取输入框
-      const textarea = document.querySelector('textarea');
-      if (!textarea) return;
-      
-      // 检查是否在移动设备上
-      const isMobileDevice = window.innerWidth < 640;
-      
-      if (isMobileDevice) {
-        // 移动端只使用一种方法设置值
-        try {
-          // 先清空文本框避免重复
-          textarea.value = '';
-          
-          // 尝试使用 execCommand 插入文本（这种方法不会关闭键盘）
-          textarea.focus();
-          document.execCommand('insertText', false, promptText);
-          
-          // 确保textarea获得了文本，如果没有，使用value属性
-          if (textarea.value !== promptText) {
-            textarea.value = promptText;
-            // 触发React的onChange事件
-            textarea.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-        } catch (e) {
-          console.error("移动端设置文本失败", e);
-          // 回退方案
-          textarea.value = promptText;
-          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      // 使用React状态更新方式追加内容
+      if (setContent) {
+        setContent(prevContent => prevContent + promptText); // 修改为追加
+        
+        // 如果输入框获取焦点（可选，但体验更好）
+        const textarea = document.querySelector('textarea');
+        if (textarea) {
           textarea.focus();
         }
+        
+        // 滚动到底部（如果提供了这个功能）
+        if (scrollToBottom) {
+          setTimeout(() => {
+            scrollToBottom();
+          }, 100); // 保持延迟以确保内容更新后滚动
+        }
       } else {
-        // 桌面端保持简单逻辑
-        textarea.value = promptText;
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-        textarea.focus();
-      }
-      
-      // 滚动到底部
-      if (scrollToBottom) {
-        setTimeout(() => {
-          scrollToBottom();
-        }, 100);
+        console.warn('setContent function was not provided to FunctionCards');
+        // 如果没有 setContent，可以选择提供一个备用方案或提示错误
       }
     }
   };

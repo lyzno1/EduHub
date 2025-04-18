@@ -76,6 +76,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   // 类型断言确保 lightMode 的类型正确
   const currentTheme = lightMode as ThemeMode;
 
+  const [content, setContent] = useState<string>('');
   const [currentMessage, setCurrentMessage] = useState<Message>();
   const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(true);
   const [showSettings, setShowSettings] = useState<boolean>(false);
@@ -689,6 +690,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
         console.log('Conversation saved:', finalConversation.id, finalConversation.name);
 
+        // Clear input after successful send
+        setContent(''); 
       });
 
     } catch (error: any) {
@@ -1280,7 +1283,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                   {/* Function cards */} 
                   <div className="w-full px-0">
                     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-                      <FunctionCards />
+                      <FunctionCards scrollToBottom={handleScrollDown} setContent={setContent} />
                     </div>
                   </div>
                 </div>
@@ -1296,7 +1299,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                   }}
                 >
                   <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-                    <FunctionCards />
+                    <FunctionCards scrollToBottom={handleScrollDown} setContent={setContent} />
                   </div>
                     </div>
                   </div>
@@ -1329,6 +1332,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 <div className="w-full md:max-w-[800px] mx-auto px-0">
                 <ModernChatInput
                     key={activeAppId !== null ? `app-${activeAppId}` : selectedConversation?.id || 'chat'}
+                  content={content}
+                  setContent={setContent}
                   stopConversationRef={stopConversationRef}
                   textareaRef={textareaRef}
                   onSend={(message) => {
@@ -1356,6 +1361,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                      <div className="md:block"> 
                        <ModernChatInput 
                          key="welcome-input"
+                         content={content}
+                         setContent={setContent}
                          stopConversationRef={stopConversationRef}
                          textareaRef={textareaRef}
                          onSend={(message) => { onSend(message, 0); }}

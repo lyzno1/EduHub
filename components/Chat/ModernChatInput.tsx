@@ -17,6 +17,8 @@ import { Plugin } from '@/types/plugin';
 import HomeContext from '@/pages/api/home/home.context';
 
 interface Props {
+  content: string;
+  setContent: React.Dispatch<React.SetStateAction<string>>;
   onSend: (message: Message, plugin: Plugin | null) => void;
   onRegenerate: () => void;
   onScrollDownClick: () => void;
@@ -31,6 +33,8 @@ interface Props {
 }
 
 export const ModernChatInput = ({
+  content,
+  setContent,
   onSend,
   onRegenerate,
   onScrollDownClick,
@@ -52,7 +56,6 @@ export const ModernChatInput = ({
     },
   } = useContext(HomeContext);
 
-  const [content, setContent] = useState<string>('');
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [showPluginSelect, setShowPluginSelect] = useState<boolean>(false);
   const [activePlugin, setActivePlugin] = useState<Plugin | null>(null);
@@ -88,11 +91,11 @@ export const ModernChatInput = ({
     setContent(value);
     
     // 调整高度
-    adjustHeight();
+    adjustHeight(value);
   };
 
   // 创建一个辅助函数来处理调整高度
-  const adjustHeight = useCallback(() => {
+  const adjustHeight = useCallback((currentContent: string) => {
     // 移除延迟，直接调整高度
     if (textareaRef.current) {
       // 使用更稳定的方式重置高度，避免闪烁
@@ -105,7 +108,7 @@ export const ModernChatInput = ({
       
       // 如果内容为空，设置一个统一的最小高度
       // 由于增加了字体大小，最小高度也适当增加
-      const newHeight = content.trim() === '' 
+      const newHeight = currentContent.trim() === '' 
         ? 28  // 最小高度增加到28px，适应更大的字体
         : Math.min(scrollHeight, maxHeight);
       
@@ -130,7 +133,7 @@ export const ModernChatInput = ({
       const newContainerHeight = Math.max(isMobile ? 60 : 69, newHeight + containerPadding); 
       setInputHeight(newContainerHeight);
     }
-  }, [textareaRef, content, isMobile]);
+  }, [textareaRef, isMobile]);
 
   // 重置输入框
   const resetHeight = useCallback(() => {
@@ -182,12 +185,13 @@ export const ModernChatInput = ({
 
   // 初始化高度设置和调整窗口大小时重新计算高度
   useEffect(() => {
-    adjustHeight();
+    adjustHeight(content);
     
+    const handleResize = () => adjustHeight(content);
     // 添加窗口大小变化监听器
-    window.addEventListener('resize', adjustHeight);
+    window.addEventListener('resize', handleResize);
     return () => {
-      window.removeEventListener('resize', adjustHeight);
+      window.removeEventListener('resize', handleResize);
     };
   }, [content, adjustHeight]);
 
@@ -514,7 +518,7 @@ export const ModernChatInput = ({
             onCompositionEnd={() => setIsTyping(false)}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            onInput={adjustHeight}
+            onInput={() => adjustHeight(content)}
             onWheel={handleWheel}
             onTouchMove={handleTextareaTouchMove}
             onFocus={handleFocus}
