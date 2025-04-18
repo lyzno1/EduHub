@@ -273,7 +273,6 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
 
   // --- New simplified click handler --- 
   const handleAppClick = (appId: number) => {
-     console.log("SidebarNav: App button clicked, calling handleSelectOrStartAppConversation with appId:", appId); 
      handleSelectOrStartAppConversation(appId); // Call the context function
      // Mobile toggle logic
      if (isMobile) {

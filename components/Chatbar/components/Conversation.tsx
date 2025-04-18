@@ -139,7 +139,26 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
         // 如果有会话ID，异步更新到后端
         if (conversation.id && conversation.conversationID) {
           try {
-            const apiKey = getApiKey();
+            // --- 确定要使用的 API Key --- 
+            let apiKeyToUse: string | undefined;
+            if (conversation.appId !== null && appConfigs[conversation.appId]) {
+              // 优先使用当前会话所属应用的 API Key
+              apiKeyToUse = appConfigs[conversation.appId]?.apiKey;
+              console.log(`重命名: 使用 App ID ${conversation.appId} 的 API Key`);
+            } else {
+              // 否则，使用全局默认的 API Key
+              apiKeyToUse = getApiKey(); 
+              console.log("重命名: 使用全局 API Key");
+            }
+            // --- API Key 确定结束 ---
+
+            // 检查是否成功获取到 API Key
+            if (!apiKeyToUse) {
+              console.error('无法确定有效的 API Key 进行重命名');
+              // 这里可以抛出错误或采取其他错误处理措施
+              return; 
+            }
+
             const client = new DifyClient();
             const user = 'unknown';
             
@@ -147,7 +166,7 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
             client.renameConversation(
               conversation.conversationID,
               renameValue,
-              apiKey,
+              apiKeyToUse, // 使用动态确定的 API Key
               user
             )
             .then(() => {
@@ -177,13 +196,33 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
       // 2. 再异步调用后端API删除
       if (conversation.id && conversation.conversationID) {
         try {
-          const apiKey = getApiKey();
+          // --- 确定要使用的 API Key --- 
+          let apiKeyToUse: string | undefined;
+          if (conversation.appId !== null && appConfigs[conversation.appId]) {
+            // 优先使用当前会话所属应用的 API Key
+            apiKeyToUse = appConfigs[conversation.appId]?.apiKey;
+            console.log(`删除: 使用 App ID ${conversation.appId} 的 API Key`);
+          } else {
+            // 否则，使用全局默认的 API Key
+            apiKeyToUse = getApiKey();
+            console.log("删除: 使用全局 API Key");
+          }
+          // --- API Key 确定结束 ---
+
+          // 检查是否成功获取到 API Key
+          if (!apiKeyToUse) {
+            console.error('无法确定有效的 API Key 进行删除');
+            // 考虑是否需要恢复前端状态，因为后端调用无法进行
+            // 例如: dispatch({ type: 'ADD_CONVERSATION', payload: conversation });
+            return; 
+          }
+
           const client = new DifyClient();
           const user = 'unknown';
           
           client.deleteConversation(
             conversation.conversationID,
-            apiKey,
+            apiKeyToUse, // 使用动态确定的 API Key
             user
           )
           .then((response) => {
@@ -198,9 +237,11 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
           .catch((error) => {
             // 如果后端删除失败，可以考虑添加错误提示或恢复UI（目前仅打印错误）
             console.error('后端删除会话API调用失败，但前端已移除:', error);
+            // 考虑恢复前端状态
           });
         } catch (error) {
           console.error('调用删除API准备失败:', error);
+          // 考虑恢复前端状态
         }
       }
     }, 0);
