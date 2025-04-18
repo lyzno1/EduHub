@@ -18,6 +18,8 @@ export interface DifyStream {
   onError: (callback: ErrorCallback) => void;
   onComplete: (callback: CompleteCallback) => void;
   conversationId?: string;
+  abort: () => void;
+  taskId?: string;
 }
 
 export interface RequestBody {
@@ -198,6 +200,10 @@ export class DifyClient {
       let errorCallback: ErrorCallback | undefined;
       let completeCallback: CompleteCallback | undefined;
       let streamConversationId = this.validateConversationId(conversationId);
+      let streamTaskId: string | undefined;
+      
+      // 添加 AbortController 用于中止请求
+      const abortController = new AbortController();
 
       const stream: DifyStream = {
         onMessage: (callback: MessageCallback) => {
@@ -211,6 +217,12 @@ export class DifyClient {
         },
         get conversationId() {
           return streamConversationId;
+        },
+        get taskId() {
+          return streamTaskId;
+        },
+        abort: () => {
+          abortController.abort('用户中止请求');
         }
       };
 
@@ -301,6 +313,12 @@ export class DifyClient {
               let buffer = '';
               
               while (true) {
+                // 在每次读取之前检查是否已被中止
+                if (abortController.signal.aborted) {
+                  handleComplete();
+                  break;
+                }
+                
                 const { done, value } = await reader.read();
                 
                 if (done) {
@@ -317,6 +335,10 @@ export class DifyClient {
                             const data = JSON.parse(dataMatch[1].trim());
                             if (data.conversation_id && (!streamConversationId || streamConversationId === '')) {
                               streamConversationId = data.conversation_id;
+                            }
+                            // 捕获task_id
+                            if (data.task_id && !streamTaskId) {
+                              streamTaskId = data.task_id;
                             }
                             if (data.answer !== undefined) {
                               handleMessage(data.answer);
@@ -355,6 +377,11 @@ export class DifyClient {
                       // 提取会话ID
                       if (data.conversation_id && (!streamConversationId || streamConversationId === '')) {
                         streamConversationId = data.conversation_id;
+                      }
+                      
+                      // 捕获task_id
+                      if (data.task_id && !streamTaskId) {
+                        streamTaskId = data.task_id;
                       }
                       
                       // 处理消息内容
@@ -659,7 +686,8 @@ export class DifyClient {
     response: Response,
     onMessage: (message: string) => void,
     isMobile: boolean = false,
-    onConversationId?: (conversationId: string) => void
+    onConversationId?: (conversationId: string) => void,
+    onTaskId?: (taskId: string) => void
   ) {
     const reader = response.body?.getReader();
     if (!reader) {
@@ -677,7 +705,7 @@ export class DifyClient {
         if (done) {
           // 处理缓冲区中可能的最后一条消息
           if (buffer.trim()) {
-            this.processBufferedData(buffer, onMessage, localConversationId, onConversationId);
+            this.processBufferedData(buffer, onMessage, localConversationId, onConversationId, onTaskId);
           }
           break;
         }
@@ -702,7 +730,7 @@ export class DifyClient {
           this.processEventData(line, onMessage, localConversationId, (id) => {
             localConversationId = id;
             if (onConversationId) onConversationId(id);
-          });
+          }, onTaskId);
         }
       }
     } catch (error: any) {
@@ -715,7 +743,8 @@ export class DifyClient {
   }
   
   private processEventData(line: string, onMessage: (message: string) => void, 
-                          currentId: string, onNewId?: (id: string) => void) {
+                          currentId: string, onNewId?: (id: string) => void, 
+                          onTaskId?: (taskId: string) => void) {
     // 提取data部分
     if (!line.includes('data:')) return;
     
@@ -730,6 +759,11 @@ export class DifyClient {
         onNewId(data.conversation_id);
       }
       
+      // 处理任务ID
+      if (data.task_id && onTaskId) {
+        onTaskId(data.task_id);
+      }
+      
       // 处理消息内容 - 支持多种事件类型
       if (data.event === 'message' && data.answer !== undefined) {
         onMessage(data.answer);
@@ -742,7 +776,8 @@ export class DifyClient {
   }
   
   private processBufferedData(buffer: string, onMessage: (message: string) => void, 
-                            currentId: string, onConversationId?: (id: string) => void) {
+                            currentId: string, onConversationId?: (id: string) => void, 
+                            onTaskId?: (taskId: string) => void) {
     // 尝试从buffer中提取有效数据
     const dataMatches = buffer.match(/data:(.*)/g);
     if (!dataMatches) return;
@@ -759,6 +794,11 @@ export class DifyClient {
           onConversationId(data.conversation_id);
         }
         
+        // 处理任务ID
+        if (data.task_id && onTaskId) {
+          onTaskId(data.task_id);
+        }
+        
         // 处理消息内容
         if ((data.event === 'message' || !data.event) && data.answer !== undefined) {
           onMessage(data.answer);
@@ -766,6 +806,48 @@ export class DifyClient {
       } catch (e) {
         // 忽略解析错误，继续处理
       }
+    }
+  }
+
+  /**
+   * 停止正在进行的聊天流
+   * @param taskId 任务ID
+   * @param key API Key
+   * @param user 用户ID
+   * @returns 操作结果
+   */
+  public async stopChatStream(taskId: string, key: string, user: string): Promise<{ result: string; message?: string }> {
+    if (!taskId) {
+      return { result: 'failed', message: '任务ID不能为空' };
+    }
+
+    const apiEndpoint = `${this.baseUrl}/chat-messages/${taskId}/stop`;
+
+    try {
+      const response = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`,
+        },
+        body: JSON.stringify({ user }),
+      });
+
+      if (!response.ok) {
+        let errorText = '未知错误';
+        try {
+          const errorData = await response.json();
+          errorText = errorData.message || `HTTP ${response.status}`;
+        } catch (e) {
+          errorText = `HTTP ${response.status} ${response.statusText}`;
+        }
+        return { result: 'failed', message: `停止请求失败: ${errorText}` };
+      }
+      
+      return { result: 'success' };
+
+    } catch (error: any) {
+      return { result: 'failed', message: error.message || '网络错误' };
     }
   }
 

@@ -98,6 +98,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // 添加 chatStreamRef 来跟踪当前活跃的 chat stream
+  const chatStreamRef = useRef<any>(null);
 
   // 添加状态来跟踪输入框高度
   const [inputBoxHeight, setInputBoxHeight] = useState<number>(65);
@@ -381,6 +383,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     
     titleGenerationInitiated.current = false;
     titlePromise.current = null;
+    // 重置当前任务ID
+    setCurrentTaskId(null);
 
     try {
       // --- Start modification: Determine API URL and Key based on appId ---
@@ -388,7 +392,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       let targetApiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || '/api/dify'; // Default global URL (or reverse proxy)
       let targetApiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || ''; // Default global Key
 
-      if (currentAppId !== null && appConfigs && appConfigs[currentAppId]) {
+      if (currentAppId !== null && currentAppId !== undefined && appConfigs && appConfigs[currentAppId]) {
         const appConfig = appConfigs[currentAppId];
         console.log(`[Chat Send] Detected App Conversation (appId: ${currentAppId}). Using App Config:`, appConfig);
         targetApiKey = appConfig.apiKey;
@@ -423,12 +427,12 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       updatedMessages.push(message);
       // Add an empty assistant message for streaming output, with a unique ID
       updatedMessages.push({ role: 'assistant', content: '', id: uuidv4() });
-
+      
       const updatedConversation = {
         ...selectedConversation,
         messages: updatedMessages
       };
-
+      
       homeDispatch({ field: 'selectedConversation', value: updatedConversation });
 
       homeDispatch({ field: 'messageIsStreaming', value: true });
@@ -450,23 +454,39 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       });
       // --- End modification ---
 
+      // 保存 chatStream 引用以便可以中止
+      chatStreamRef.current = chatStream;
+      
       let fullResponse = '';
       let isStreamHalted = false;
-
+      
+      // 监听 task_id 变化并保存
+      let taskIdCheck = setInterval(() => {
+        if (chatStream.taskId) {
+          setCurrentTaskId(chatStream.taskId);
+          clearInterval(taskIdCheck);
+        }
+      }, 500); // 每500ms检查一次
+      
+      // 确保组件卸载时清除interval
+      setTimeout(() => {
+        clearInterval(taskIdCheck);
+      }, 10000); // 最多尝试10秒
+      
       chatStream.onMessage((chunk: string) => {
         if (isStreamHalted) return;
         if (stopConversationRef.current) {
           console.log('Stop signal detected inside onMessage. Halting stream permanently for this request.');
           isStreamHalted = true;
           homeDispatch({ field: 'messageIsStreaming', value: false });
-          setModelWaiting(false);
+        setModelWaiting(false);
           stopConversationRef.current = false; // Reset stop flag
           return;
         }
-
+        
         homeDispatch({ field: 'messageIsStreaming', value: true }); // Ensure streaming state is true
         setModelWaiting(false); // Received message, no longer waiting
-
+        
         const currentMessages = [...updatedConversation.messages]; // Use a fresh copy from closure
         fullResponse += chunk;
         const assistantMessageIndex = currentMessages.length - 1;
@@ -475,9 +495,9 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         if(currentMessages[assistantMessageIndex] && currentMessages[assistantMessageIndex].role === 'assistant') {
             currentMessages[assistantMessageIndex] = {
               ...currentMessages[assistantMessageIndex],
-              role: 'assistant',
-              content: fullResponse
-            };
+          role: 'assistant',
+          content: fullResponse
+        };
         } else {
             // Should theoretically not happen, but as a safeguard
             console.error("Error updating message stream: Cannot find assistant message placeholder.");
@@ -489,19 +509,19 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         const isPotentiallyNewConversationResponse = currentMessages.length === 2;
         if (isPotentiallyNewConversationResponse && !titleGenerationInitiated.current && chatStream.conversationId) {
             if (!conversationId || conversationId === '') {
-                conversationId = chatStream.conversationId;
+          conversationId = chatStream.conversationId;
                 console.log(`[Dify] Received new Conversation ID: ${conversationId}`);
                 // Immediately update conversationID in HomeContext and localStorage
-                const updatedConversationsWithId = conversations.map(conv =>
-                  conv.id === selectedConversation.id
+          const updatedConversationsWithId = conversations.map(conv => 
+            conv.id === selectedConversation.id 
                     ? { ...conv, conversationID: conversationId }
-                    : conv
-                );
-                homeDispatch({
-                  field: 'conversations',
-                  value: updatedConversationsWithId
-                });
-                saveConversations(updatedConversationsWithId);
+              : conv
+          );
+          homeDispatch({
+            field: 'conversations',
+            value: updatedConversationsWithId
+          });
+          saveConversations(updatedConversationsWithId);
                 // Update conversationID of the currently selected conversation in closure
                 updatedConversation.conversationID = conversationId;
             }
@@ -539,18 +559,18 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             }
         }
         // --- End title generation logic modification ---
-
+        
         const streamUpdatedConversation = {
           ...updatedConversation,
           messages: currentMessages, // Use the locally updated messages
           conversationID: conversationId // Ensure conversationID is updated
         };
-
+        
         homeDispatch({
           field: 'selectedConversation',
           value: streamUpdatedConversation
         });
-
+        
         if (autoScrollEnabled) {
           setTimeout(() => {
             if (chatContainerRef.current) {
@@ -593,11 +613,11 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
            saveConversations(updatedConversationsReset);
 
            setTimeout(() => {
-             onSend(message, deleteCount);
+          onSend(message, deleteCount);
            }, 500);
-           return;
+          return;
         }
-
+        
         toast.error(`Message processing error: ${error.message}`);
       });
 
@@ -612,7 +632,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
         homeDispatch({ field: 'messageIsStreaming', value: false });
         setModelWaiting(false);
-
+        
         let finalConversationName = selectedConversation.name;
         if (titlePromise.current) {
           try {
@@ -638,22 +658,22 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         const lastMessageIndex = finalMessages.length - 1;
          if (finalMessages[lastMessageIndex] && finalMessages[lastMessageIndex].role === 'assistant') {
             finalMessages[lastMessageIndex].content = fullResponse; // Ensure final content is set
-         }
-
+        }
+        
         const finalConversation = {
           ...updatedConversation, // Contains potentially updated conversationID from stream
           name: finalConversationName,
           messages: finalMessages,
           // conversationID: conversationId // Already in updatedConversation if updated
         };
-
+        
         homeDispatch({
           field: 'selectedConversation',
           value: finalConversation
         });
-
+        
         saveConversation(finalConversation);
-
+        
         // Update the main conversations list in context and localStorage
         const finalConversationsList = conversations.map(conv =>
           conv.id === finalConversation.id ? finalConversation : conv
@@ -1038,18 +1058,59 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
   // --- handleStopConversation (Keep API call commented out) --- 
   const handleStopConversation = async () => { 
-    console.log('Stop button clicked, setting stopConversationRef to true and updating UI state.');
+    console.log('停止按钮被点击，中止生成');
     stopConversationRef.current = true;
     homeDispatch({ field: 'messageIsStreaming', value: false });
     setModelWaiting(false);
 
-    // --- Call Dify Stop API (Remains Commented out) ---
-    // if (currentTaskId) { /* ... API call logic ... */ }
+    // 使用 chatStreamRef 中止当前流请求
+    if (chatStreamRef.current) {
+      try {
+        chatStreamRef.current.abort();
+      } catch (error) {
+        console.error('中止流请求时发生错误:', error);
+      }
+      // 清除引用
+      chatStreamRef.current = null;
+    }
+
+    // --- Call Dify Stop API ---
+    if (currentTaskId) {
+      try {
+        // 获取当前对话的API Key和URL
+        const currentAppId = selectedConversation?.appId;
+        let targetApiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || '/api/dify';
+        let targetApiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || '';
+
+        if (currentAppId !== null && currentAppId !== undefined && appConfigs && appConfigs[currentAppId]) {
+          const appConfig = appConfigs[currentAppId];
+          targetApiKey = appConfig.apiKey;
+          if (appConfig.apiUrl) {
+            targetApiUrl = appConfig.apiUrl;
+          }
+        }
+
+        // 创建新的DifyClient实例并调用停止API
+        const difyClient = new DifyClient({
+          apiUrl: targetApiUrl,
+          debug: false
+        });
+
+        const result = await difyClient.stopChatStream(
+          currentTaskId,
+          targetApiKey,
+          user || 'unknown'
+        );
+      } catch (error) {
+        console.error('调用停止API时发生错误:', error);
+      }
+      // 清除任务ID
+      setCurrentTaskId(null);
+    }
     // --- END Call Dify Stop API ---
 
     setTimeout(() => {
       stopConversationRef.current = false;
-      console.log('Resetting stopConversationRef to false after timeout.');
     }, 1000);
   };
   // --- END handleStopConversation ---
@@ -1087,7 +1148,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
   return (
     <div
-      className={`relative flex-1 flex flex-col overflow-y-auto bg-white dark:bg-[#343541] ${ 
+      className={`relative flex-1 flex flex-col overflow-y-auto bg-white dark:bg-[#343541] ${
         /* Theme classes based on currentTheme */ 
         currentTheme === 'red' ? 'bg-[#F2ECBE]' : 
         currentTheme === 'blue' ? 'bg-[#F6F4EB]' : 
@@ -1096,7 +1157,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         currentTheme === 'brown' ? 'bg-[#F4EEE0]' : 
         'bg-white dark:bg-[#343541]' 
       }`}
-      style={{ 
+      style={{
         /* CSS variables for theme */ 
         '--bg-color': currentTheme === 'red' ? '#F2ECBE' : 
                       currentTheme === 'blue' ? '#F6F4EB' : 
@@ -1104,15 +1165,15 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                       currentTheme === 'purple' ? '#C5DFF8' : 
                       currentTheme === 'brown' ? '#F4EEE0' : 
                       '#FFFFFF', 
-        '--dark-bg-color': '#343541' 
+        '--dark-bg-color': '#343541'
       } as React.CSSProperties}
     >
       <>
         {/* Top padding/mask, only shown when there are messages */} 
         {messagesLength > 0 && (
-          <div  
-            className="absolute top-0 left-0 right-[17px] z-10 h-[30px] md:block hidden bg-white dark:bg-[#343541]" 
-            style={{ 
+          <div 
+            className="absolute top-0 left-0 right-[17px] z-10 h-[30px] md:block hidden bg-white dark:bg-[#343541]"
+            style={{
                /* Background color based on theme */ 
               backgroundColor: currentTheme === 'red' ? '#F2ECBE' : 
                                 currentTheme === 'blue' ? '#F6F4EB' : 
@@ -1125,7 +1186,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           ></div>
         )}
 
-        <div 
+        <div
           className={`${messagesLength === 0 ? 'h-full' : 'flex-1 overflow-y-auto'} chat-container-scrollbar`} 
           ref={chatContainerRef}
         >
@@ -1182,66 +1243,66 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             </div>
           ) : (
             // *** 3. Render General Welcome Screen (if no messages and no appId) ***
-            <div className="flex flex-col items-center justify-center h-full md:min-h-screen sm:overflow-hidden">
+              <div className="flex flex-col items-center justify-center h-full md:min-h-screen sm:overflow-hidden">
               {/* Title Area */} 
-              <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 welcome-text welcome-text-container" 
-                  style={{ 
+                <div className="flex flex-col items-center text-center max-w-3xl w-full px-4 sm:px-8 welcome-text welcome-text-container"
+                  style={{
                     /* Dynamic margin based on input expansion */ 
-                    marginTop: !isInputExpanded 
-                      ? window.innerWidth < 768 ? '-20vh' : '-25vh' 
-                      : window.innerWidth < 768 
-                        ? `calc(-20vh - ${(inputBoxHeight - 65) / 2}px)` 
-                        : `calc(-25vh - ${(inputBoxHeight - 65) / 2}px)` 
+                    marginTop: !isInputExpanded
+                      ? window.innerWidth < 768 ? '-20vh' : '-25vh'
+                      : window.innerWidth < 768
+                        ? `calc(-20vh - ${(inputBoxHeight - 65) / 2}px)`
+                        : `calc(-25vh - ${(inputBoxHeight - 65) / 2}px)`
                   }}
                 >
                  {/* Logo and Title */} 
-                 <div className="relative">
+                  <div className="relative">
                     <div className="absolute -inset-1 bg-gradient-to-r from-[#CEFBFA] to-[#FCCD5E] rounded-lg blur-xl opacity-75 dark:opacity-60"></div>
                     <h1 className="relative text-4xl font-bold tracking-tight mb-4 md:mb-4 bg-gradient-to-r from-[#272727] to-[#696969] dark:from-[#CEFBFA] dark:to-[#FCCD5E] bg-clip-text text-transparent drop-shadow-sm welcome-text" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '-0.5px' }}>eduhub.chat</h1>
                   </div>
                   <p className="text-lg font-medium md:mb-20 mb-0 md:block hidden text-[#333333] dark:text-[hsl(205deg,16%,77%)] welcome-text" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '0.2px' }}>基于大语言模型的智能知识助手</p>
-              </div>
-              
+                </div>
+                
                {/* Mobile specific content */} 
-              <div className="md:hidden flex flex-col items-center justify-center mt-12 static">
+                <div className="md:hidden flex flex-col items-center justify-center mt-12 static">
                  {/* Guide text */} 
-                 <div className="max-w-md mx-auto px-4 text-center mb-6">
+                  <div className="max-w-md mx-auto px-4 text-center mb-6">
                     <p className="text-lg text-[#666666] dark:text-[#A0AEC0] font-medium welcome-text" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '0.1px' }}>
                       有什么可以帮到你？
                     </p>
                   </div>
                   {/* Function cards */} 
-                 <div className="w-full px-0">
+                  <div className="w-full px-0">
                     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
                       <FunctionCards />
                     </div>
                   </div>
-              </div>
-              
+                </div>
+                
                {/* Desktop function cards area */} 
-              <div className="w-full absolute bottom-[18vh] px-4 hidden md:block" 
-                  style={{ 
+                <div className="w-full absolute bottom-[18vh] px-4 hidden md:block"
+                  style={{
                     /* Dynamic bottom position based on input expansion */ 
-                    bottom: !isInputExpanded 
-                      ? '18vh' 
-                      : `calc(18vh - ${(inputBoxHeight - 65) / 2}px)`, 
+                    bottom: !isInputExpanded
+                      ? '18vh'
+                      : `calc(18vh - ${(inputBoxHeight - 65) / 2}px)`,
                     transition: 'none' 
                   }}
                 >
-                 <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+                  <div style={{ maxWidth: '800px', margin: '0 auto' }}>
                     <FunctionCards />
                   </div>
-              </div>
-            </div>
-          )} 
+                    </div>
+                  </div>
+                )}
           {/* === Rendering Logic End === */} 
         </div>
 
         {/* 底部遮罩层 (在非欢迎界面时显示，修复条件) */}
         {!isWelcomeScreen && (
-          <div  
+          <div 
             className="absolute bottom-0 left-0 right-[17px] z-10 h-[80px] pointer-events-none bg-gradient-to-t from-white dark:from-[#343541]"
-            style={{ 
+            style={{
               backgroundImage: `linear-gradient(to top, ${
                 currentTheme === 'red' ? '#F2ECBE' : 
                 currentTheme === 'blue' ? '#F6F4EB' : 
@@ -1257,31 +1318,31 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
         {/* --- 条件渲染：只在非欢迎屏幕渲染底部输入框 --- */} 
         {!isWelcomeScreen && (
-          <div className="absolute bottom-0 left-0 w-full z-20">
+        <div className="absolute bottom-0 left-0 w-full z-20">
                <div className={`w-full md:absolute md:bottom-0 md:left-0 md:right-auto fixed bottom-0 left-0 right-0 ${isAppMode ? 'app-input-mode' : ''}`}> 
                 <div className="w-full md:max-w-[800px] mx-auto px-0">
-                  <ModernChatInput
+                <ModernChatInput
                     key={activeAppId !== null ? `app-${activeAppId}` : selectedConversation?.id || 'chat'}
-                    stopConversationRef={stopConversationRef}
-                    textareaRef={textareaRef}
-                    onSend={(message) => {
-                      onSend(message, 0);
-                    }}
-                    onScrollDownClick={handleScrollDown}
+                  stopConversationRef={stopConversationRef}
+                  textareaRef={textareaRef}
+                  onSend={(message) => {
+                    onSend(message, 0);
+                  }}
+                  onScrollDownClick={handleScrollDown}
                     onRegenerate={activeAppId === null ? () => {
                       if (currentMessage) { onSend(currentMessage, 2); }
                     } : () => {}} // 应用模式提供空函数
                     showScrollDownButton={activeAppId === null && showScrollDownButton} // 只标准聊天
                     isCentered={false} // 底部输入框永不居中
-                    showSidebar={showSidebar}
+                  showSidebar={showSidebar}
                     isMobile={isMobile}
                     handleStopConversation={handleStopConversation}
                     messageIsStreaming={messageIsStreaming} // <-- 使用 context 状态
-                  />
+                />
                 </div>
               </div>
-          </div>
-        )}
+            </div>
+          )}
         {/* --- 欢迎屏幕输入框单独处理 --- */} 
         {isWelcomeScreen && (
              <div className="w-full mt-8 md:static md:bottom-auto md:left-auto md:right-auto md:mt-8 fixed bottom-0 left-0 right-0"> 
@@ -1301,7 +1362,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                          handleStopConversation={handleStopConversation}
                          messageIsStreaming={messageIsStreaming} // <-- 使用 context 状态
                        /> 
-                     </div> 
+        </div>
                    </div> 
              </div> 
         )}
