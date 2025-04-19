@@ -405,14 +405,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     // 判断是否是从应用首页卡片发送的消息
     // 条件: 有激活的应用ID，有选中的卡片ID，正在使用卡片的默认提示
     if (currentActiveAppId !== null && currentSelectedCardId !== null) {
-      // ===== 日志点 1: 进入分支 =====
-      console.log('--- 进入从卡片发送分支 ---');
-      console.log('当前 activeAppId:', currentActiveAppId);
-      console.log('当前 selectedCardId:', currentSelectedCardId);
-      // 在这个分支，selectedConversation 理论上是 null 或 undefined，或者是指向旧对话的
-      console.log('当前 selectedConversation (进入分支时):', homeContext.state.selectedConversation);
-      console.log('用户输入:', message.content);
-      // ===== 日志点 1 结束 =====
+
 
       console.log(`[Card Send] Detected new conversation from card: ${currentSelectedCardId} in app: ${currentActiveAppId}`);
       
@@ -444,18 +437,12 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         cardId: currentSelectedCardId, // 保存卡片ID
       };
 
-      // ===== 日志点 2: 新对话对象创建后 =====
-      console.log('新创建的对话对象:', JSON.parse(JSON.stringify(newConversation)));
-      // ===== 日志点 2 结束 =====
       
       // 3. 添加到对话列表并选中
       const updatedConversations = [newConversation, ...conversations];
       homeDispatch({ field: 'conversations', value: updatedConversations });
       homeDispatch({ field: 'selectedConversation', value: newConversation });
 
-      // ===== 日志点 3: Dispatch 后 =====
-      console.log('Dispatch addConversation 和 selectConversation');
-      // ===== 日志点 3 结束 =====
       
       // 4. 清除应用首页状态
       homeDispatch({ field: 'activeAppId', value: null });
@@ -508,9 +495,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           }
         }, 50);
 
-        // ===== 日志点 4: 调用 Dify API 前 =====
-        console.log('调用 Dify API 创建聊天流，参数:', { query: message.content, conversationId: '', user: user || 'unknown', key: targetApiKey, inputs: {}, autoGenerateName: true });
-        // ===== 日志点 4 结束 =====
 
         // 调用Dify API
         const chatStream = await difyClient.createChatStream({
@@ -539,16 +523,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         setTimeout(() => { clearInterval(taskIdCheck); }, 10000);
 
         chatStream.onMessage((chunk: string) => {
-          // ===== 日志点 5: 进入 onMessage =====
-          console.log('--- 进入 onMessage 回调 ---');
-          console.log('接收到的 chunk:', chunk);
-          console.log('onMessage 执行时，新对话ID (newConversation.id):', newConversation.id);
-          // 使用 try-catch 避免 map 可能因空 conversations 出错
-          try {
-            // console.log('onMessage 执行时，HomeContext conversations IDs:', homeContext.state.conversations.map(c => c.id));
-          } catch (e) { console.log('onMessage 执行时，获取 conversations IDs 出错:', e); }
-          console.log('onMessage 执行时，HomeContext selectedConversation ID:', latestHomeContextStateRef.current.selectedConversation?.id); // 使用 Ref
-          // ===== 日志点 5 结束 =====
+        
 
           if (isStreamHalted) return;
           if (stopConversationRef.current) {
@@ -569,9 +544,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           const currentConversationsList = latestHomeContextStateRef.current.conversations; // 使用 Ref
           const targetConvIndex = currentConversationsList.findIndex(conv => conv.id === newConversation.id);
           
-          // ===== 日志点 5.1: 查找索引结果 =====
-          console.log('onMessage 执行时，查找目标对话的索引 (targetConvIndex):', targetConvIndex);
-          // ===== 日志点 5.1 结束 =====
+
           
           if (targetConvIndex === -1) {
               // 这理论上不应该发生，因为我们刚添加了它
@@ -648,15 +621,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         });
 
         chatStream.onComplete(async () => {
-          // ===== 日志点 6: 进入 onComplete =====
-          console.log('### onComplete 回调被调用了！ (Card Send) ###'); // 确认回调执行
-          console.log('onComplete 执行时，isStreamHalted 的值:', isStreamHalted); // 检查 isStreamHalted
-          console.log('onComplete 执行时，新对话ID (newConversation.id):', newConversation.id);
-          try {
-            console.log('onComplete 执行时，HomeContext conversations IDs:', latestHomeContextStateRef.current.conversations.map(c => c.id));
-          } catch (e) { console.log('onComplete 执行时，获取 conversations IDs 出错:', e); }
-          console.log('onComplete 执行时，HomeContext selectedConversation ID:', latestHomeContextStateRef.current.selectedConversation?.id); // 使用 Ref
-          // ===== 日志点 6 结束 =====
 
           if (isStreamHalted) {
              console.log('[Card Send Stream] Stream was halted, skipping final updates.');
@@ -668,18 +632,12 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           homeDispatch({ field: 'messageIsStreaming', value: false });
           setModelWaiting(false);
 
-          // ===== 日志点 6.0: 确认状态更新调用 =====
-          console.log('onComplete 尝试设置 messageIsStreaming 为 false');
-          // ===== 日志点 6.0 结束 =====
 
           // ===== 修改开始: 使用 Ref 访问 conversations =====
           const finalConversationsList = latestHomeContextStateRef.current.conversations; // 使用 Ref
           const finalTargetConvIndex = finalConversationsList.findIndex(conv => conv.id === newConversation.id);
           // ===== 修改结束 =====
 
-          // ===== 日志点 6.1: 查找索引结果 =====
-          console.log('onComplete 执行时，查找最终目标对话的索引 (finalTargetConvIndex):', finalTargetConvIndex);
-          // ===== 日志点 6.1 结束 =====
 
           if (finalTargetConvIndex === -1) {
               console.error("[Card Send Complete] Error: Cannot find the conversation in the list! ID:", newConversation.id);
@@ -725,12 +683,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           console.log('[Card Send Complete] Conversation saved:', finalConversationToSave.id, finalConversationToSave.name);
           // 清除输入框内容 (如果需要)
           // setContent(''); 
-
-          // ===== 日志点 6.2: 延迟检查状态 =====
-          setTimeout(() => {
-            console.log('延迟检查 (Card Send)：Context messageIsStreaming 是否为 false:', latestHomeContextStateRef.current.messageIsStreaming);
-          }, 100);
-          // ===== 日志点 6.2 结束 =====
         });
         // ===== 复制流处理逻辑结束 =====
 
