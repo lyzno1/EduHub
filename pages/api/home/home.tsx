@@ -231,7 +231,6 @@ const Home = ({
       return;
     }
 
-    console.log(`[App Click] Handling click for App: ${appConfig.name} (ID: ${appId})`);
 
     // 先保存当前对话的状态 (如果存在且有消息)
     if (selectedConversation && selectedConversation.messages.length > 0) {
@@ -240,7 +239,6 @@ const Home = ({
 
     // 修改: 无论是否存在该应用的对话，都只设置 activeAppId 并清除 selectedConversation
     // 这样就会显示应用初始界面，而不是直接显示对话
-    console.log(`[App Click] Setting activeAppId to ${appId} and clearing selectedConversation`);
     dispatch({ field: 'selectedConversation', value: undefined }); // 清除选中的对话
     dispatch({ field: 'activeAppId', value: appId }); // 设置激活的应用ID
 
