@@ -14,6 +14,7 @@ import {
   useEffect,
   useState,
   useRef,
+  useCallback,
 } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -30,6 +31,42 @@ import SidebarActionButton from '@/components/Buttons/SidebarActionButton';
 import { DifyClient } from '@/services/dify/client';
 import { getApiKey } from '@/utils/app/api';
 
+// ===== 临时添加卡片定义 START =====
+// (理想情况下应从共享位置导入)
+import { IconWorldWww, IconDatabase, IconMessageChatbot, IconUsers as IconUsersDs, IconTestPipe, IconCode as IconCodeCh, IconInfoCircle, IconUsers as IconUsersCa, IconHelp, IconMoodBoy, IconMessageCircleQuestion, IconBulb, IconPresentation, IconListDetails, IconCheckbox, IconMessageReport } from '@tabler/icons-react';
+
+interface TempAppCard {
+  id: string;
+  name: string;
+  appId: number;
+}
+
+const allCards: TempAppCard[] = [
+  // DeepSeek (appId: 1)
+  { id: 'ds-network-search', name: '网络搜索', appId: 1 },
+  { id: 'ds-campus-kb', name: '校园知识库', appId: 1 },
+  { id: 'ds-academic-search', name: '学术检索', appId: 1 },
+  { id: 'ds-ai-tutor', name: 'AI辅导员', appId: 1 },
+  { id: 'ds-logistics-assistant', name: '后勤助手', appId: 1 },
+  // Course Helper (appId: 2)
+  { id: 'ch-swe-test', name: '软件工程测试', appId: 2 },
+  { id: 'ch-oss-dev', name: '开源软件开发技术', appId: 2 },
+  // Campus Assistant (appId: 3)
+  { id: 'ca-network-qa', name: '信息网络问答', appId: 3 },
+  { id: 'ca-teacher-qa', name: '教师问答', appId: 3 },
+  { id: 'ca-student-qa', name: '学生问答', appId: 3 },
+  { id: 'ca-freshman-helper', name: '新生助手', appId: 3 },
+  // Teacher Assistant (appId: 4)
+  { id: 'ta-assignment-ideas', name: '作业构思', appId: 4 },
+  { id: 'ta-student-tutoring', name: '学生辅导', appId: 4 },
+  { id: 'ta-concept-explanation', name: '概念解释', appId: 4 },
+  { id: 'ta-lecture-design', name: '讲座设计', appId: 4 },
+  { id: 'ta-lesson-plan', name: '课程计划', appId: 4 },
+  { id: 'ta-quiz-generation', name: '测验生成', appId: 4 },
+  { id: 'ta-meeting-summary', name: '会议总结', appId: 4 },
+];
+// ===== 临时添加卡片定义 END =====
+
 // --- 定义 AppConfig 接口 (与 home.tsx/home.context.tsx 一致) ---
 interface AppConfig {
   id: number;
@@ -39,12 +76,15 @@ interface AppConfig {
 }
 // --- END 定义 ---
 
+// 定义 ModalType
+type ModalType = 'rename' | 'delete';
+
 interface Props {
   conversation: Conversation;
-  activeAppId: number | null; // <-- 接收 activeAppId
-  appConfigs: Record<number, AppConfig>; // <-- 接收 appConfigs
-  modalOpen?: boolean; // <-- 新增：接收模态框状态 (可选)
-  onSetModalOpen: (conversationId: string | null) => void; // 新增：传递设置模态框打开状态的回调
+  activeAppId: number | null;
+  appConfigs: Record<number, AppConfig>; // 确保 appConfigs 是 Record 类型
+  modalOpen: ModalType | null;
+  onSetModalOpen: (modalOpen: ModalType | null) => void;
 }
 
 // 单个会话的删除、重命名等操作
@@ -306,9 +346,25 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
   // 使用默认图标
   const icon = <IconMessage size={18} />;
 
-  // --- 获取应用名称 (如果存在) --- 
-  const appName = conversation.appId !== null ? appConfigs[conversation.appId]?.name : null;
-  // --- END 获取 ---
+  // --- 修改：计算指示器文本 --- 
+  let indicatorText: string | null = null;
+  if (conversation.appId !== null && appConfigs) { // 确保 appConfigs 存在
+    const currentAppConfig = appConfigs[conversation.appId]; // 先获取配置
+    if (conversation.cardId !== null) {
+      // 优先查找卡片名称
+      const card = allCards.find(c => c.appId === conversation.appId && c.id === conversation.cardId);
+      if (card) {
+        indicatorText = card.name; // 只显示卡片名称
+      } else if (currentAppConfig) {
+        // 如果找不到卡片，作为后备显示应用名称 (如果存在)
+        indicatorText = currentAppConfig.name;
+      }
+    } else if (currentAppConfig) {
+       // 如果只有 appId 没有 cardId (理论不应发生，但作为后备)
+       indicatorText = currentAppConfig.name;
+    }
+  }
+  // --- 修改结束 ---
 
   return (
     <div 
@@ -334,11 +390,13 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
           {icon}
         <div className="relative flex-1 overflow-hidden text-left text-[13px] leading-5 py-0.5 flex items-center min-w-0">
           <span className="block overflow-hidden whitespace-nowrap text-ellipsis">{conversation.name}</span>
-          {appName && (
+          {/* --- 修改：使用计算好的 indicatorText --- */}
+          {indicatorText && (
             <span className="ml-1.5 inline-block whitespace-nowrap rounded bg-blue-100 px-1.5 py-0.5 text-center align-baseline text-[10px] font-bold uppercase leading-none text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-              {appName} 
+              {indicatorText} 
             </span>
           )}
+          {/* --- 修改结束 --- */}
         </div>
       </button>
 

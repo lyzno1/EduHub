@@ -639,27 +639,33 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
         chatStream.onComplete(async () => {
           // ===== 日志点 6: 进入 onComplete =====
-          console.log('--- 进入 onComplete 回调 ---');
+          console.log('### onComplete 回调被调用了！ (Card Send) ###'); // 确认回调执行
+          console.log('onComplete 执行时，isStreamHalted 的值:', isStreamHalted); // 检查 isStreamHalted
           console.log('onComplete 执行时，新对话ID (newConversation.id):', newConversation.id);
           try {
-            console.log('onComplete 执行时，HomeContext conversations IDs:', homeContext.state.conversations.map(c => c.id));
+            console.log('onComplete 执行时，HomeContext conversations IDs:', latestHomeContextStateRef.current.conversations.map(c => c.id));
           } catch (e) { console.log('onComplete 执行时，获取 conversations IDs 出错:', e); }
           console.log('onComplete 执行时，HomeContext selectedConversation ID:', latestHomeContextStateRef.current.selectedConversation?.id); // 使用 Ref
           // ===== 日志点 6 结束 =====
 
           if (isStreamHalted) {
-            console.log('[Card Send Stream] Stream was halted, skipping final updates.');
-            homeDispatch({ field: 'messageIsStreaming', value: false });
-            setModelWaiting(false);
+             console.log('[Card Send Stream] Stream was halted, skipping final updates.');
+             homeDispatch({ field: 'messageIsStreaming', value: false });
+             setModelWaiting(false);
             return;
           }
           console.log('[Card Send Stream] Message processing complete');
           homeDispatch({ field: 'messageIsStreaming', value: false });
           setModelWaiting(false);
 
-          // ===== 修改开始: 通过 ID 在列表中查找最终对话 =====
+          // ===== 日志点 6.0: 确认状态更新调用 =====
+          console.log('onComplete 尝试设置 messageIsStreaming 为 false');
+          // ===== 日志点 6.0 结束 =====
+
+          // ===== 修改开始: 使用 Ref 访问 conversations =====
           const finalConversationsList = latestHomeContextStateRef.current.conversations; // 使用 Ref
           const finalTargetConvIndex = finalConversationsList.findIndex(conv => conv.id === newConversation.id);
+          // ===== 修改结束 =====
 
           // ===== 日志点 6.1: 查找索引结果 =====
           console.log('onComplete 执行时，查找最终目标对话的索引 (finalTargetConvIndex):', finalTargetConvIndex);
@@ -709,6 +715,12 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           console.log('[Card Send Complete] Conversation saved:', finalConversationToSave.id, finalConversationToSave.name);
           // 清除输入框内容 (如果需要)
           // setContent(''); 
+
+          // ===== 日志点 6.2: 延迟检查状态 =====
+          setTimeout(() => {
+            console.log('延迟检查 (Card Send)：Context messageIsStreaming 是否为 false:', latestHomeContextStateRef.current.messageIsStreaming);
+          }, 100);
+          // ===== 日志点 6.2 结束 =====
         });
         // ===== 复制流处理逻辑结束 =====
 
@@ -1645,7 +1657,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                     </div>
                   </div>
                 )}
-          {/* === Rendering Logic End === */} 
+          {/* === Rendering Logic End === */ }
         </div>
 
         {/* 底部遮罩层 (在非欢迎界面时显示，修复条件) */}
