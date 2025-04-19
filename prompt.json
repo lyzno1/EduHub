@@ -50,30 +50,30 @@
   ],
   "appCardPrompts": {
     "deepseek": {
-      "ds-network-search": "请帮我搜索关于 ",
-      "ds-campus-kb": "校园知识库中关于 ",
-      "ds-academic-search": "查找关于 的学术论文",
-      "ds-ai-tutor": "请辅导我关于 ",
-      "ds-logistics-assistant": "关于后勤问题 "
+      "ds-network-search": "请帮我搜索关于...",
+      "ds-campus-kb": "请查询校园知识库中关于...",
+      "ds-academic-search": "请查找关于以下主题的学术论文：",
+      "ds-ai-tutor": "请辅导我学习以下知识点：",
+      "ds-logistics-assistant": "咨询后勤相关问题："
     },
     "courseHelper": {
-      "ch-swe-test": "关于软件工程测试的问题 ",
-      "ch-oss-dev": "关于开源软件开发技术 "
+      "ch-swe-test": "请提出软件工程测试方面的问题：",
+      "ch-oss-dev": "请提出开源软件开发技术方面的问题："
     },
     "campusAssistant": {
-      "ca-network-qa": "关于校园网/信息系统的问题 ",
-      "ca-teacher-qa": "咨询教师相关问题 ",
-      "ca-student-qa": "咨询学生相关问题 ",
-      "ca-freshman-helper": "新生入学指南 "
+      "ca-network-qa": "咨询校园网/信息系统问题：",
+      "ca-teacher-qa": "咨询教师相关问题：",
+      "ca-student-qa": "咨询学生相关问题：",
+      "ca-freshman-helper": "咨询新生入学相关问题："
     },
     "teacherAssistant": {
-      "ta-assignment-ideas": "帮我构思一个关于 的作业",
-      "ta-student-tutoring": "如何辅导在 方面有困难的学生？",
-      "ta-concept-explanation": "请用简单的语言解释 ",
-      "ta-lecture-design": "帮我设计一个关于 的讲座大纲",
-      "ta-lesson-plan": "为 课程制定一个教学计划",
-      "ta-quiz-generation": "生成一个关于 的测验题目",
-      "ta-meeting-summary": "根据以下会议记录生成总结 "
+      "ta-assignment-ideas": "请为我构思一个关于以下主题的作业：",
+      "ta-student-tutoring": "请指导我如何辅导在...方面有困难的学生：",
+      "ta-concept-explanation": "请用简单的语言解释以下概念：",
+      "ta-lecture-design": "请为我设计一个关于以下主题的讲座大纲：",
+      "ta-lesson-plan": "请为以下课程制定一个教学计划：",
+      "ta-quiz-generation": "请根据以下内容生成测验题目：",
+      "ta-meeting-summary": "请根据以下会议记录生成总结："
     }
   },
   "generalPrompts": {
