@@ -238,6 +238,13 @@ const Home = ({
       saveConversation(selectedConversation);
     }
 
+    // 修改: 无论是否存在该应用的对话，都只设置 activeAppId 并清除 selectedConversation
+    // 这样就会显示应用初始界面，而不是直接显示对话
+    console.log(`[App Click] Setting activeAppId to ${appId} and clearing selectedConversation`);
+    dispatch({ field: 'selectedConversation', value: undefined }); // 清除选中的对话
+    dispatch({ field: 'activeAppId', value: appId }); // 设置激活的应用ID
+
+    /* 移除原有逻辑
     // 查找是否已存在该应用的对话 (可以允许多个同 appId 对话，这里只找第一个)
     const existingAppConversation = conversations.find(conv => conv.appId === appId);
 
@@ -261,6 +268,7 @@ const Home = ({
       // saveConversation(newAppConversation);
       // console.log('[App Click] New app conversation creation skipped. Active app set.');
     }
+    */
   };
   // --- End New Function ---
 

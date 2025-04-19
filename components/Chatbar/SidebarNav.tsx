@@ -70,12 +70,11 @@ const SortableConversation: FC<SortableConversationProps> = ({ conversation, act
       <div className="flex w-full overflow-hidden">
         <div className="flex-grow truncate">
           <ConversationComponent 
-            key={conversation.id} 
-            conversation={conversation} 
-            activeAppId={activeAppId} 
+            key={conversation.id}
+            conversation={conversation}
+            activeAppId={activeAppId}
             appConfigs={appConfigs}
-            onSetModalOpen={onSetModalOpen}
-          />
+            onSetModalOpen={onSetModalOpen} modalOpen={null}          />
         </div>
       </div>
       
@@ -430,11 +429,10 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
                 {activeDragId ? (
                   <div className="p-1 bg-gray-100 dark:bg-gray-700 rounded-lg shadow-lg border border-gray-300 dark:border-gray-600 w-[230px]">
                     <ConversationComponent
-                      conversation={conversations.find(c => c.id === activeDragId)!}
-                      activeAppId={activeAppId}
-                      appConfigs={appConfigs}
-                      onSetModalOpen={() => {}}
-                    />
+                        conversation={conversations.find(c => c.id === activeDragId)!}
+                        activeAppId={activeAppId}
+                        appConfigs={appConfigs}
+                        onSetModalOpen={() => { } } modalOpen={null}                    />
                   </div>
                 ) : null}
               </DragOverlay>
