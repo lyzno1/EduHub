@@ -6,7 +6,7 @@ import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import Head from 'next/head';
 
-import { useCreateReducer, ActionType } from '@/hooks/useCreateReducer';
+import { useCreateReducer } from '@/hooks/useCreateReducer';
 
 import useErrorService from '@/services/errorService';
 import useApiService from '@/services/useApiService';
@@ -112,32 +112,6 @@ const appConfigs: Record<number, AppConfig> = {
   },
 };
 
-// --- Define Custom Reducer --- 
-const homeReducer = (state: HomeInitialState, action: ActionType<HomeInitialState>): HomeInitialState => {
-  switch (action.type) {
-    case 'set_field':
-      // Handle updates for existing and new fields
-      if (action.field === 'selectedCardId' || action.field === 'cardInputPrompt') {
-        return { ...state, [action.field]: action.value };
-      }
-      // Default handling for other fields (you might need to expand this based on useCreateReducer implementation)
-      // Assuming the default reducer handles other fields correctly
-      // If useCreateReducer doesn't have a default fallback, list all known fields:
-      /*
-      case 'apiKey':
-      case 'pluginKeys':
-      // ... list all other fields from HomeInitialState
-        return { ...state, [action.field]: action.value };
-      */
-      // Let's assume a simple merge is the default behavior or sufficient for now
-      return { ...state, [action.field]: action.value };
-    // Add other action types if your useCreateReducer supports them
-    default:
-      return state;
-  }
-};
-// --- End Custom Reducer --- 
-
 const Home = ({
   serverSideApiKeyIsSet,
   serverSidePluginKeysSet,
@@ -154,7 +128,6 @@ const Home = ({
   const [ready, setReady] = useState<boolean>(false);
   const contextValue = useCreateReducer<HomeInitialState>({
     initialState,
-    reducer: homeReducer, // Pass the custom reducer here
   });
 
   const {
@@ -275,31 +248,18 @@ const Home = ({
       // 可选: 更新 activeAppId 用于高亮，但主要依赖 selectedConversation.appId
       dispatch({ field: 'activeAppId', value: appId }); 
     } else {
-      console.log(`[App Click] No existing conversation found for appId ${appId}. Creating a new one.`);
-      // 如果不存在，创建一个新的应用对话
-      const newAppConversation: Conversation = {
-        id: uuidv4(),
-        name: appConfig.name, // 使用应用名称作为默认名称
-        originalName: appConfig.name,
-        messages: [], // 初始为空
-        prompt: DEFAULT_SYSTEM_PROMPT, // 可以考虑应用特定 prompt
-        temperature: DEFAULT_TEMPERATURE,
-        folderId: null,
-        conversationID: '', // Dify 后端 ID 初始为空
-        deletable: true,
-        appId: appId, // 关键：设置 appId
-      };
-
-      // 将新对话添加到列表开头
-      const updatedConversations = [newAppConversation, ...conversations];
-
-      // 保存并更新状态
-      saveConversations(updatedConversations);
-      dispatch({ field: 'conversations', value: updatedConversations });
-      dispatch({ field: 'selectedConversation', value: newAppConversation });
-      dispatch({ field: 'activeAppId', value: appId }); // 同时更新 activeAppId
-      saveConversation(newAppConversation);
-      console.log('[App Click] New app conversation created and selected:', newAppConversation.id);
+      console.log(`[App Click] No existing conversation found for appId ${appId}. Setting activeAppId.`);
+      // 如果不存在，只设置 activeAppId 并清除 selectedConversation
+      dispatch({ field: 'selectedConversation', value: undefined }); // 清除选中的对话
+      dispatch({ field: 'activeAppId', value: appId }); // 设置激活的应用ID
+      // 移除创建新对话的逻辑
+      // const newAppConversation: Conversation = { ... };
+      // const updatedConversations = [newAppConversation, ...conversations];
+      // saveConversations(updatedConversations);
+      // dispatch({ field: 'conversations', value: updatedConversations });
+      // dispatch({ field: 'selectedConversation', value: newAppConversation });
+      // saveConversation(newAppConversation);
+      // console.log('[App Click] New app conversation creation skipped. Active app set.');
     }
   };
   // --- End New Function ---

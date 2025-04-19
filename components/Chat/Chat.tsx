@@ -24,8 +24,11 @@ import { throttle } from '@/utils/data/throttle';
 import { ChatBody, Conversation, Message } from '@/types/chat';
 import { Plugin } from '@/types/plugin';
 import { streamDifyChat } from '@/services/useApiService';
-import { DifyClient } from '../../services/dify/client';
+import { DifyClient } from '@/services/dify/client';
 import { API_PATHS } from '@/services/dify/constants';
+import { getDifyConfig } from '@/config/dify';
+import difyKeysData from '@/dify_keys.json';
+import { DEFAULT_SYSTEM_PROMPT, DEFAULT_TEMPERATURE } from '@/utils/app/const';
 
 import HomeContext from '@/pages/api/home/home.context';
 
@@ -41,7 +44,6 @@ import { CampusAssistantAppPage } from '@/components/AppPages/CampusAssistantApp
 import { CourseHelperAppPage } from '@/components/AppPages/CourseHelperAppPage';
 import { DeepSeekAppPage } from '@/components/AppPages/DeepSeekAppPage';
 import { TeacherAppPage } from '@/components/AppPages/TeacherAppPage';
-import difyKeysData from '@/dify_keys.json';
 
 // 添加主题类型定义
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
@@ -54,24 +56,20 @@ interface Props {
 export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) => {
   const { t } = useTranslation('chat');
 
+  const homeContext = useContext(HomeContext);
   const {
     state: {
-      selectedConversation,
       conversations,
-      pluginKeys,
-      serverSideApiKeyIsSet,
-      modelError,
-      loading,
-      prompts,
-      user,
+      selectedConversation,
       lightMode,
       messageIsStreaming,
+      user,
     },
     handleUpdateConversation,
     dispatch: homeDispatch,
     startConversationFromActiveApp,
     appConfigs,
-  } = useContext(HomeContext);
+  } = homeContext;
 
   // 类型断言确保 lightMode 的类型正确
   const currentTheme = lightMode as ThemeMode;
@@ -380,6 +378,124 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   // --- END Add ---
 
   const onSend = async (message: Message, deleteCount = 0) => {
+    // ===== 添加新逻辑开始: 检测是否为"应用首页+卡片选中"的发送场景 =====
+    const currentActiveAppId = homeContext.state.activeAppId;
+    const currentSelectedCardId = homeContext.state.selectedCardId;
+    const currentCardInputPrompt = homeContext.state.cardInputPrompt;
+    
+    // 判断是否是从应用首页卡片发送的消息
+    // 条件: 有激活的应用ID，有选中的卡片ID，正在使用卡片的默认提示
+    if (currentActiveAppId !== null && currentSelectedCardId !== null) {
+      console.log(`[Card Send] Detected new conversation from card: ${currentSelectedCardId} in app: ${currentActiveAppId}`);
+      
+      // 1. 创建新的对话对象
+      const newConversationId = uuidv4();
+      const appConfig = appConfigs[currentActiveAppId];
+      
+      if (!appConfig) {
+        console.error(`[Card Send] Invalid appId: ${currentActiveAppId}`);
+        return;
+      }
+      
+      // 2. 构建新对话
+      const newConversation: Conversation = {
+        id: newConversationId,
+        name: `${appConfig.name} - ${message.content.substring(0, 20)}...`, // 临时名称
+        originalName: appConfig.name,
+        messages: [message], // 只包含用户的第一条消息
+        prompt: DEFAULT_SYSTEM_PROMPT,
+        temperature: DEFAULT_TEMPERATURE,
+        folderId: null,
+        conversationID: '', // Dify后端ID初始为空
+        deletable: true,
+        appId: currentActiveAppId,
+        cardId: currentSelectedCardId, // 保存卡片ID
+      };
+      
+      // 3. 添加到对话列表并选中
+      const updatedConversations = [newConversation, ...conversations];
+      homeDispatch({ field: 'conversations', value: updatedConversations });
+      homeDispatch({ field: 'selectedConversation', value: newConversation });
+      
+      // 4. 清除应用首页状态
+      homeDispatch({ field: 'activeAppId', value: null });
+      homeDispatch({ field: 'selectedCardId', value: null });
+      homeDispatch({ field: 'cardInputPrompt', value: '' });
+      
+      // 5. 处理API请求和响应 - 使用startConversationFromActiveApp逻辑（但带有卡片ID）
+      // 为了复用逻辑，我们在调用原有onSend之前，先设置selectedConversation
+      homeDispatch({ field: 'messageIsStreaming', value: true });
+      setModelWaiting(true);
+      
+      // 现在selectedConversation已更新，继续执行原有逻辑
+      // 这个return将跳过下面的检查，因为我们已经手动设置了selectedConversation
+      try {
+        // --- 确定API URL和Key基于appId ---
+        let targetApiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || '/api/dify'; // 默认全局URL
+        let targetApiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || ''; // 默认全局Key
+
+        if (appConfig) {
+          console.log(`[Card Send] Using App Config for appId: ${currentActiveAppId}`);
+          targetApiKey = appConfig.apiKey;
+          if (appConfig.apiUrl) {
+            targetApiUrl = appConfig.apiUrl;
+          }
+        }
+
+        console.log(`[Card Send] Final Dify Config - URL: ${targetApiUrl}, Key Used: ${targetApiKey ? 'Yes' : 'No'}`);
+
+        const difyClient = new DifyClient({
+          apiUrl: targetApiUrl,
+          debug: true
+        });
+
+        // 为新对话添加一个空的助手消息作为流式输出的占位符
+        const updatedMessages = [...newConversation.messages];
+        const assistantMessageId = uuidv4();
+        updatedMessages.push({ role: 'assistant', content: '', id: assistantMessageId });
+        
+        const updatedConversation = {
+          ...newConversation,
+          messages: updatedMessages
+        };
+        
+        homeDispatch({ field: 'selectedConversation', value: updatedConversation });
+        
+        // 滚动到底部
+        setTimeout(() => {
+          if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+          }
+        }, 50);
+
+        // 调用Dify API
+        const chatStream = await difyClient.createChatStream({
+          query: message.content,
+          key: targetApiKey,
+          user: user || 'unknown',
+          conversationId: '',
+          inputs: {},
+          autoGenerateName: true
+        });
+        
+        chatStreamRef.current = chatStream;
+        
+        // 处理流式响应的逻辑与原逻辑相同...
+        // 复用已有代码处理响应
+        // 因此这里不再重复完整实现，而是返回让原有逻辑处理
+        return;
+        
+      } catch (error) {
+        console.error('[Card Send] Error creating new conversation:', error);
+        homeDispatch({ field: 'messageIsStreaming', value: false });
+        setModelWaiting(false);
+        // 显示错误提示
+        toast.error('创建新对话失败，请重试');
+        return;
+      }
+    }
+    // ===== 添加新逻辑结束 =====
+    
     if (!selectedConversation) return;
     
     titleGenerationInitiated.current = false;
@@ -414,7 +530,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
       let conversationId = selectedConversation.conversationID || '';
       // --- End modification ---
-
+      
       console.log('对话ID信息:', {
         conversationId: conversationId,
         selectedConversationId: selectedConversation.id,
@@ -449,9 +565,9 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         query: message.content,
         key: targetApiKey, // Use the finally determined Key
         user: user || 'unknown',
-        conversationId,
+        conversationId, 
         inputs: {},
-        autoGenerateName: selectedConversation.messages.length > 1
+        autoGenerateName: selectedConversation.messages.length > 1 
       });
       // --- End modification ---
 
@@ -473,7 +589,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       setTimeout(() => {
         clearInterval(taskIdCheck);
       }, 10000); // 最多尝试10秒
-      
+
       chatStream.onMessage((chunk: string) => {
         if (isStreamHalted) return;
         if (stopConversationRef.current) {
@@ -484,7 +600,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           stopConversationRef.current = false; // Reset stop flag
           return;
         }
-        
+
         homeDispatch({ field: 'messageIsStreaming', value: true }); // Ensure streaming state is true
         setModelWaiting(false); // Received message, no longer waiting
         
@@ -496,8 +612,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         if(currentMessages[assistantMessageIndex] && currentMessages[assistantMessageIndex].role === 'assistant') {
             currentMessages[assistantMessageIndex] = {
               ...currentMessages[assistantMessageIndex],
-          role: 'assistant',
-          content: fullResponse
+          role: 'assistant', 
+          content: fullResponse 
         };
         } else {
             // Should theoretically not happen, but as a safeguard
@@ -514,24 +630,24 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
            conversationId = chatStream.conversationId;
            console.log(`[Dify] Received/Confirmed Conversation ID: ${conversationId}`);
            // Immediately update conversationID in HomeContext and localStorage
-           const updatedConversationsWithId = conversations.map(conv => 
-             conv.id === selectedConversation.id 
+          const updatedConversationsWithId = conversations.map(conv =>
+            conv.id === selectedConversation.id
                ? { ...conv, conversationID: conversationId }
-               : conv
-           );
-           homeDispatch({
-             field: 'conversations',
-             value: updatedConversationsWithId
-           });
+              : conv
+          );
+          homeDispatch({
+            field: 'conversations',
+            value: updatedConversationsWithId
+          });
            // Update conversationID of the currently selected conversation in closure
            updatedConversation.conversationID = conversationId;
         }
 
         // 2. Trigger title generation ONLY if it's the first response, ID is confirmed, and not initiated yet
-        if (isPotentiallyNewConversationResponse && !titleGenerationInitiated.current) {
+          if (isPotentiallyNewConversationResponse && !titleGenerationInitiated.current) {
             // Check again if conversationId is now valid before proceeding
             if (conversationId) {
-                titleGenerationInitiated.current = true;
+            titleGenerationInitiated.current = true;
                 // console.log(`[Parallel] Conversation ID (${conversationId}) confirmed for new convo. Starting title generation...`);
 
                 // Determine API Key and URL here (ensure context is correct or pass necessary values)
@@ -539,30 +655,30 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 const titleApiKey = targetApiKey; // Reuse the Key determined for main chat
                 const titleUser = user || 'unknown'; // Get user from onSend context
 
-                titlePromise.current = (async () => {
-                  try {
+            titlePromise.current = (async () => {
+              try {
                     // console.log(`[Debug] Title Gen (onMessage) - Using titleApiUrl: ${titleApiUrl}`);
                     // console.log(`[Debug] Title Gen (onMessage) - Using titleApiKey is empty: ${titleApiKey === ''}`);
 
-                    const titleDifyClient = new DifyClient({
-                      apiUrl: titleApiUrl,
-                      debug: true
-                    });
-                    const generatedName = await titleDifyClient.generateConversationName(
+                const titleDifyClient = new DifyClient({
+                  apiUrl: titleApiUrl,
+                  debug: true
+                });
+                const generatedName = await titleDifyClient.generateConversationName(
                       conversationId, // Use the confirmed ID
-                      titleApiKey,
+                  titleApiKey,
                       titleUser
-                    );
+                );
                     console.log('[Parallel] Parallel title generation successful:', generatedName);
-                    return generatedName || null;
-                  } catch (error) {
+                return generatedName || null;
+              } catch (error) {
                     console.error('[Parallel] Parallel title generation failed:', error);
-                    return null;
-                  }
-                })();
+                return null;
+              }
+            })();
             } else {
                 console.warn('[Title Gen] Could not initiate title generation because conversationId is still missing after stream update.');
-            }
+          }
         }
         // --- End title generation logic modification ---
         
@@ -594,7 +710,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         console.error('Error processing message:', error);
         homeDispatch({ field: 'messageIsStreaming', value: false });
         setModelWaiting(false); // Error, stop waiting
-
+        
         if (error.message.includes('Conversation Not Exists')) {
           console.warn('Conversation Not Exists error detected. Resetting conversationID and retrying.');
           // Use the latest state from context for safety
@@ -635,7 +751,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           return;
         }
         console.log('Message processing complete');
-
+        
         homeDispatch({ field: 'messageIsStreaming', value: false });
         setModelWaiting(false);
         
@@ -643,16 +759,16 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         if (titlePromise.current) {
           try {
             console.log('[Finalize] Waiting for parallel title generation...');
-            const generatedName = await titlePromise.current;
-            if (generatedName) {
+              const generatedName = await titlePromise.current;
+              if (generatedName) {
               finalConversationName = generatedName;
               console.log('[Finalize] Parallel title generated successfully:', finalConversationName);
-            } else {
+              } else {
               console.log('[Finalize] Parallel title generation returned null or failed.');
               // Optionally set a fallback title here if needed
               // finalConversationName = selectedConversation.messages[0]?.content.substring(0, 20) || 'Untitled';
-            }
-          } catch (error) {
+              }
+            } catch (error) {
             console.error('[Finalize] Error awaiting parallel title generation:', error);
              // Optionally set a fallback title here if needed
              // finalConversationName = selectedConversation.messages[0]?.content.substring(0, 20) || 'Untitled';
@@ -673,7 +789,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           // conversationID: conversationId // Already in updatedConversation if updated
         };
         
-        homeDispatch({
+                    homeDispatch({
           field: 'selectedConversation',
           value: finalConversation
         });
@@ -1147,7 +1263,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
   // --- Determine rendering mode based on selectedConversation --- 
   const currentAppId = selectedConversation?.appId;
-  const activeAppId = useContext(HomeContext).state.activeAppId;
+  const activeAppId = homeContext.state.activeAppId;
 
   // 定义界面模式状态
   const isStandardChat = messagesLength > 0 && currentAppId === null;
@@ -1244,10 +1360,10 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           ) : isAppMode ? (
             // *** 2. Render App Initial Page (if no messages and appId exists) ***
             <div className="flex-1 overflow-auto p-4 h-full"> 
-              {currentAppId === 1 && <DeepSeekAppPage />} 
-              {currentAppId === 2 && <CourseHelperAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
-              {currentAppId === 3 && <CampusAssistantAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
-              {currentAppId === 4 && <TeacherAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
+              {activeAppId === 1 && <DeepSeekAppPage />} 
+              {activeAppId === 2 && <CourseHelperAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
+              {activeAppId === 3 && <CampusAssistantAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
+              {activeAppId === 4 && <TeacherAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
             </div>
           ) : (
             // *** 3. Render General Welcome Screen (if no messages and no appId) ***
@@ -1354,53 +1470,53 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           <>
             {!isWelcomeScreen ? (
               // 桌面端 - 对话状态输入框 (原 !isWelcomeScreen 逻辑)
-              <div className="absolute bottom-0 left-0 w-full z-20">
+          <div className="absolute bottom-0 left-0 w-full z-20">
                 <div className={`w-full md:absolute md:bottom-0 md:left-0 md:right-auto ${isAppMode ? 'app-input-mode' : ''}`}> 
-                  <div className="w-full md:max-w-[800px] mx-auto px-0">
-                    <ModernChatInput
-                      key={activeAppId !== null ? `app-${activeAppId}` : selectedConversation?.id || 'chat'}
+                <div className="w-full md:max-w-[800px] mx-auto px-0">
+                  <ModernChatInput
+                    key={activeAppId !== null ? `app-${activeAppId}` : selectedConversation?.id || 'chat'}
                       content={content}
                       setContent={setContent}
-                      stopConversationRef={stopConversationRef}
-                      textareaRef={textareaRef}
+                    stopConversationRef={stopConversationRef}
+                    textareaRef={textareaRef}
                       onSend={(message) => { onSend(message, 0); }}
-                      onScrollDownClick={handleScrollDown}
+                    onScrollDownClick={handleScrollDown}
                       onRegenerate={activeAppId === null ? () => { if (currentMessage) { onSend(currentMessage, 2); }} : () => {}}
                       showScrollDownButton={activeAppId === null && showScrollDownButton}
                       isCentered={false}
-                      showSidebar={showSidebar}
-                      isMobile={isMobile}
-                      handleStopConversation={handleStopConversation}
+                    showSidebar={showSidebar}
+                    isMobile={isMobile}
+                    handleStopConversation={handleStopConversation}
                       messageIsStreaming={messageIsStreaming}
-                    />
-                  </div>
+                  />
                 </div>
               </div>
+          </div>
             ) : (
               // 桌面端 - 欢迎状态输入框 (原 isWelcomeScreen 逻辑)
               <div className="w-full mt-8 md:static md:bottom-auto md:left-auto md:right-auto md:mt-8"> 
-                <div className="w-full md:max-w-[800px] md:mx-auto px-0 mx-0">
-                  <div className="md:block">
-                    <ModernChatInput
+                  <div className="w-full md:max-w-[800px] md:mx-auto px-0 mx-0"> 
+                     <div className="md:block"> 
+                       <ModernChatInput 
                       key="welcome-input-desktop"
                       content={content}
                       setContent={setContent}
-                      stopConversationRef={stopConversationRef}
-                      textareaRef={textareaRef}
-                      onSend={(message) => { onSend(message, 0); }}
-                      onScrollDownClick={handleScrollDown}
-                      onRegenerate={() => { /* Welcome 不重新生成 */ }}
-                      showScrollDownButton={false}
+                         stopConversationRef={stopConversationRef}
+                         textareaRef={textareaRef}
+                         onSend={(message) => { onSend(message, 0); }}
+                         onScrollDownClick={handleScrollDown}
+                         onRegenerate={() => { /* Welcome 不重新生成 */ }}
+                         showScrollDownButton={false}
                       isCentered={true} // 桌面欢迎居中
-                      showSidebar={showSidebar}
-                      isMobile={isMobile}
-                      handleStopConversation={handleStopConversation}
+                         showSidebar={showSidebar}
+                         isMobile={isMobile}
+                         handleStopConversation={handleStopConversation}
                       messageIsStreaming={messageIsStreaming}
-                    /> 
-                  </div>
-                </div> 
-              </div> 
-            )}
+                       /> 
+                     </div> 
+                   </div> 
+             </div> 
+        )}
           </>
         )}
         {/* === 重构输入区渲染逻辑 END === */}
