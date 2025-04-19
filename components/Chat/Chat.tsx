@@ -402,6 +402,14 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     const currentSelectedCardId = homeContext.state.selectedCardId;
     const currentCardInputPrompt = homeContext.state.cardInputPrompt;
     
+    // 前置判断：如果用户在应用页面但未选择卡片，则中断发送流程并提示
+    if (currentActiveAppId !== null && currentSelectedCardId === null) {
+      // 显示提示信息
+      toast.error('请先选择一个应用卡片');
+      // 中断函数执行，保留用户输入
+      return;
+    }
+    
     // 判断是否是从应用首页卡片发送的消息
     // 条件: 有激活的应用ID，有选中的卡片ID，正在使用卡片的默认提示
     if (currentActiveAppId !== null && currentSelectedCardId !== null) {
@@ -993,8 +1001,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           field: 'selectedConversation',
           value: finalConversation
         });
-        
-        saveConversation(finalConversation);
         
         // Update the main conversations list in context and localStorage
         const finalConversationsList = conversations.map(conv =>
