@@ -51,25 +51,25 @@ export const CourseHelperAppPage: React.FC<Props> = ({ inputBoxHeight, isInputEx
   const handleCardClick = (card: AppCard & { defaultPrompt: string }) => {
     if (activeAppId !== card.appId) return;
 
-    console.log(`[Card Click - App ${card.appName}] Clicked card: ${card.id}. Current selected: ${selectedCardId}`);
+    // console.log(`[Card Click - App ${card.appName}] Clicked card: ${card.id}. Current selected: ${selectedCardId}`);
 
     const existingConv = conversations.find(conv => conv.appId === card.appId && conv.cardId === card.id);
     if (existingConv) {
-      console.log(`[Card Click - App ${card.appName}] Found existing conversation ${existingConv.id}. Selecting it.`);
+      // console.log(`[Card Click - App ${card.appName}] Found existing conversation ${existingConv.id}. Selecting it.`);
       handleSelectConversation(existingConv);
       dispatch({ field: 'selectedCardId', value: null });
       dispatch({ field: 'cardInputPrompt', value: '' });
     } else {
-      console.log(`[Card Click - App ${card.appName}] No existing conversation found. Handling card selection.`);
+      // console.log(`[Card Click - App ${card.appName}] No existing conversation found. Handling card selection.`);
       if (selectedCardId === card.id) {
-        console.log(`[Card Click - App ${card.appName}] Deselecting card: ${card.id}`);
+        // console.log(`[Card Click - App ${card.appName}] Deselecting card: ${card.id}`);
         dispatch({ field: 'selectedCardId', value: null });
         dispatch({ field: 'cardInputPrompt', value: '' });
       } else {
-        console.log(`[Card Click - App ${card.appName}] Selecting card: ${card.id}`);
+        // console.log(`[Card Click - App ${card.appName}] Selecting card: ${card.id}`);
         dispatch({ field: 'selectedCardId', value: card.id });
         dispatch({ field: 'cardInputPrompt', value: card.defaultPrompt });
-        console.log(`[Card Click - App ${card.appName}] Setting cardInputPrompt to: ${card.defaultPrompt}`);
+        // console.log(`[Card Click - App ${card.appName}] Setting cardInputPrompt to: ${card.defaultPrompt}`);
       }
     }
   };

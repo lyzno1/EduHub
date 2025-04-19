@@ -421,7 +421,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       // 2. 构建新对话
       const newConversation: Conversation = {
         id: newConversationId,
-        name: `${appConfig.name} - ${message.content.substring(0, 20)}...`, // 临时名称
+        name: `${appConfig.name}`, // 临时名称
         originalName: appConfig.name,
         // 修改：添加空的助手消息占位符
         messages: [
