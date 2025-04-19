@@ -1476,6 +1476,16 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const isAppMode = currentAppId !== null || activeAppId !== null;
   const isWelcomeScreen = !messagesLength && !isAppMode;
 
+  // ===== 添加：计算传递给输入框的实际内容 =====
+  const homeState = homeContext.state; // 获取当前 context state
+  // 计算应该传递给 ModernChatInput 的 content 值
+  const inputContentValue =
+    // 如果当前是应用模式 (activeAppId 不为 null) 且没有选中卡片 (selectedCardId 为 null)
+    (homeState.activeAppId !== null && homeState.selectedCardId === null)
+    ? '' // 则强制传递空字符串
+    : content; // 否则，使用 Chat 组件自己的 content state (用于普通对话输入、卡片选中后的输入等)
+  // ===== 添加结束 =====
+
   return (
     <div
       className={`relative flex-1 flex flex-col overflow-y-auto bg-white dark:bg-[#343541] ${
@@ -1653,7 +1663,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             <div className="w-full"> {/* 移动端不需要宽度限制或居中容器 */}
               <ModernChatInput
                 key={isWelcomeScreen ? "welcome-input-mobile" : (activeAppId !== null ? `app-${activeAppId}-mobile` : selectedConversation?.id || 'chat-mobile')}
-                content={content}
+                content={inputContentValue}
                 setContent={setContent}
                 stopConversationRef={stopConversationRef}
                 textareaRef={textareaRef}
@@ -1681,7 +1691,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 <div className="w-full md:max-w-[800px] mx-auto px-0">
                   <ModernChatInput
                     key={activeAppId !== null ? `app-${activeAppId}` : selectedConversation?.id || 'chat'}
-                      content={content}
+                      content={inputContentValue}
                       setContent={setContent}
                     stopConversationRef={stopConversationRef}
                     textareaRef={textareaRef}
@@ -1705,7 +1715,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                      <div className="md:block"> 
                        <ModernChatInput 
                       key="welcome-input-desktop"
-                      content={content}
+                      content={inputContentValue}
                       setContent={setContent}
                          stopConversationRef={stopConversationRef}
                          textareaRef={textareaRef}

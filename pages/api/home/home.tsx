@@ -241,6 +241,10 @@ const Home = ({
     // 这样就会显示应用初始界面，而不是直接显示对话
     dispatch({ field: 'selectedConversation', value: undefined }); // 清除选中的对话
     dispatch({ field: 'activeAppId', value: appId }); // 设置激活的应用ID
+    // ===== 重新添加：清空卡片和提示词状态 =====
+    dispatch({ field: 'selectedCardId', value: null });
+    dispatch({ field: 'cardInputPrompt', value: '' });
+    // ===== 添加结束 =====
 
     /* 移除原有逻辑
     // 查找是否已存在该应用的对话 (可以允许多个同 appId 对话，这里只找第一个)
