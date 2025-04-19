@@ -6,7 +6,7 @@ import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import Head from 'next/head';
 
-import { useCreateReducer } from '@/hooks/useCreateReducer';
+import { useCreateReducer, ActionType } from '@/hooks/useCreateReducer';
 
 import useErrorService from '@/services/errorService';
 import useApiService from '@/services/useApiService';
@@ -112,6 +112,32 @@ const appConfigs: Record<number, AppConfig> = {
   },
 };
 
+// --- Define Custom Reducer --- 
+const homeReducer = (state: HomeInitialState, action: ActionType<HomeInitialState>): HomeInitialState => {
+  switch (action.type) {
+    case 'set_field':
+      // Handle updates for existing and new fields
+      if (action.field === 'selectedCardId' || action.field === 'cardInputPrompt') {
+        return { ...state, [action.field]: action.value };
+      }
+      // Default handling for other fields (you might need to expand this based on useCreateReducer implementation)
+      // Assuming the default reducer handles other fields correctly
+      // If useCreateReducer doesn't have a default fallback, list all known fields:
+      /*
+      case 'apiKey':
+      case 'pluginKeys':
+      // ... list all other fields from HomeInitialState
+        return { ...state, [action.field]: action.value };
+      */
+      // Let's assume a simple merge is the default behavior or sufficient for now
+      return { ...state, [action.field]: action.value };
+    // Add other action types if your useCreateReducer supports them
+    default:
+      return state;
+  }
+};
+// --- End Custom Reducer --- 
+
 const Home = ({
   serverSideApiKeyIsSet,
   serverSidePluginKeysSet,
@@ -128,6 +154,7 @@ const Home = ({
   const [ready, setReady] = useState<boolean>(false);
   const contextValue = useCreateReducer<HomeInitialState>({
     initialState,
+    reducer: homeReducer, // Pass the custom reducer here
   });
 
   const {

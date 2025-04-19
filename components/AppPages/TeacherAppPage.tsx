@@ -1,5 +1,26 @@
-import React from 'react';
-import { IconUsers, IconPresentationAnalytics, IconReportMedical, IconMessageCircle } from '@tabler/icons-react';
+import React, { useContext } from 'react';
+import HomeContext from '@/pages/api/home/home.context';
+import { IconPencil, IconMessageCircleQuestion, IconBulb, IconPresentation, IconListDetails, IconCheckbox, IconMessageReport } from '@tabler/icons-react'; // Choose appropriate icons
+
+// Define Card Type
+interface AppCard {
+  id: string;
+  name: string;
+  icon: JSX.Element;
+  defaultPrompt: string;
+  appId: number;
+}
+
+// Define Cards for Teacher Assistant (appId: 4)
+const teacherAssistantCards: AppCard[] = [
+  { id: 'ta-assignment-ideas', name: '作业构思', icon: <IconPencil size={24} />, defaultPrompt: '帮我构思一个关于 的作业', appId: 4 },
+  { id: 'ta-student-tutoring', name: '学生辅导', icon: <IconMessageCircleQuestion size={24} />, defaultPrompt: '如何辅导在 方面有困难的学生？', appId: 4 },
+  { id: 'ta-concept-explanation', name: '概念解释', icon: <IconBulb size={24} />, defaultPrompt: '请用简单的语言解释 ', appId: 4 },
+  { id: 'ta-lecture-design', name: '讲座设计', icon: <IconPresentation size={24} />, defaultPrompt: '帮我设计一个关于 的讲座大纲', appId: 4 },
+  { id: 'ta-lesson-plan', name: '课程计划', icon: <IconListDetails size={24} />, defaultPrompt: '为 课程制定一个教学计划', appId: 4 },
+  { id: 'ta-quiz-generation', name: '测验生成', icon: <IconCheckbox size={24} />, defaultPrompt: '生成一个关于 的测验题目', appId: 4 },
+  { id: 'ta-meeting-summary', name: '会议总结', icon: <IconMessageReport size={24} />, defaultPrompt: '根据以下会议记录生成总结 ', appId: 4 },
+];
 
 interface Props {
   inputBoxHeight: number;
@@ -7,36 +28,50 @@ interface Props {
 }
 
 export const TeacherAppPage: React.FC<Props> = ({ inputBoxHeight, isInputExpanded }) => {
+  const {
+    state: { conversations, selectedCardId, activeAppId, cardInputPrompt },
+    handleSelectConversation,
+    dispatch,
+  } = useContext(HomeContext);
+
+  const handleCardClick = (card: AppCard) => {
+    if (activeAppId !== card.appId) return;
+    const existingConv = conversations.find(conv => conv.appId === card.appId && conv.cardId === card.id);
+    if (existingConv) {
+      handleSelectConversation(existingConv);
+      dispatch({ field: 'selectedCardId', value: null });
+      dispatch({ field: 'cardInputPrompt', value: '' });
+    } else {
+      if (selectedCardId === card.id) {
+        dispatch({ field: 'selectedCardId', value: null });
+        dispatch({ field: 'cardInputPrompt', value: '' });
+      } else {
+        dispatch({ field: 'selectedCardId', value: card.id });
+        dispatch({ field: 'cardInputPrompt', value: card.defaultPrompt });
+      }
+    }
+  };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-4">
-      {/* App Icon and Title - Same structure as DeepSeek */}
-      <div className="mb-6 flex items-center justify-center h-16 w-16 rounded-full bg-purple-100 dark:bg-purple-900/30">
-        <IconUsers size={32} className="text-purple-600 dark:text-purple-400" />
-      </div>
-      <h1 className="text-3xl font-bold mb-2 text-gray-800 dark:text-gray-100">教师教学助手</h1>
-      <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">辅助备课、教学与管理</p>
-
-      {/* App Specific Cards Area - Same grid structure as DeepSeek */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl w-full">
-        {/* Card 1 */}
-        <div className="bg-white dark:bg-gray-800/50 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col items-center text-center">
-          <IconPresentationAnalytics size={24} className="mb-2 text-indigo-500" />
-          <h3 className="font-semibold mb-1 text-gray-700 dark:text-gray-200">备课辅助</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">快速生成教案大纲、查找教学资源或设计课堂活动。</p>
-        </div>
-        {/* Card 2 */}
-        <div className="bg-white dark:bg-gray-800/50 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col items-center text-center">
-          <IconReportMedical size={24} className="mb-2 text-pink-500" />
-          <h3 className="font-semibold mb-1 text-gray-700 dark:text-gray-200">作业与评估</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">生成不同难度的练习题、试卷或提供作文评分建议。</p>
-        </div>
-        {/* Card 3 */}
-        <div className="bg-white dark:bg-gray-800/50 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col items-center text-center">
-          <IconMessageCircle size={24} className="mb-2 text-rose-500" />
-          <h3 className="font-semibold mb-1 text-gray-700 dark:text-gray-200">家校沟通</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">辅助撰写家长通知、学生评语或沟通邮件草稿。</p>
-        </div>
+    <div className="p-4 h-full flex flex-col justify-center items-center">
+      <h2 className="text-2xl font-semibold mb-6 text-center dark:text-gray-200">教师助手</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-3xl">
+        {teacherAssistantCards.map((card) => (
+          <button
+            key={card.id}
+            onClick={() => handleCardClick(card)}
+            className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 
+              ${selectedCardId === card.id
+                ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30 shadow-md' 
+                : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }
+            `}
+            style={{ minHeight: '120px' }} // Ensure consistent card height
+          >
+            <div className="mb-2 text-purple-600 dark:text-purple-400">{card.icon}</div>
+            <span className="text-sm font-medium text-center dark:text-gray-300">{card.name}</span>
+          </button>
+        ))}
       </div>
     </div>
   );

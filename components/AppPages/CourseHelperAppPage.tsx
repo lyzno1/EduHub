@@ -1,42 +1,72 @@
-import React from 'react';
-import { IconBook2, IconQuestionMark, IconClipboardText, IconFileText } from '@tabler/icons-react';
+import React, { useContext } from 'react';
+import HomeContext from '@/pages/api/home/home.context';
+import { IconBook, IconTestPipe, IconCode } from '@tabler/icons-react';
 
+// Define Card Type (can be moved to a shared types file later)
+interface AppCard {
+  id: string;
+  name: string;
+  icon: JSX.Element;
+  defaultPrompt: string;
+  appId: number;
+}
+
+// Define Cards for Course Helper (appId: 2)
+const courseHelperCards: AppCard[] = [
+  { id: 'ch-swe-test', name: '软件工程测试', icon: <IconTestPipe size={24} />, defaultPrompt: '关于软件工程测试的问题 ', appId: 2 },
+  { id: 'ch-oss-dev', name: '开源软件开发技术', icon: <IconCode size={24} />, defaultPrompt: '关于开源软件开发技术 ', appId: 2 },
+];
+
+// Props received from Chat.tsx (example)
 interface Props {
   inputBoxHeight: number;
   isInputExpanded: boolean;
 }
 
 export const CourseHelperAppPage: React.FC<Props> = ({ inputBoxHeight, isInputExpanded }) => {
+  const {
+    state: { conversations, selectedCardId, activeAppId, cardInputPrompt },
+    handleSelectConversation,
+    dispatch,
+  } = useContext(HomeContext);
+
+  const handleCardClick = (card: AppCard) => {
+    if (activeAppId !== card.appId) return;
+    const existingConv = conversations.find(conv => conv.appId === card.appId && conv.cardId === card.id);
+    if (existingConv) {
+      handleSelectConversation(existingConv);
+      dispatch({ field: 'selectedCardId', value: null });
+      dispatch({ field: 'cardInputPrompt', value: '' });
+    } else {
+      if (selectedCardId === card.id) {
+        dispatch({ field: 'selectedCardId', value: null });
+        dispatch({ field: 'cardInputPrompt', value: '' });
+      } else {
+        dispatch({ field: 'selectedCardId', value: card.id });
+        dispatch({ field: 'cardInputPrompt', value: card.defaultPrompt });
+      }
+    }
+  };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-4">
-      {/* App Icon and Title - Same structure as DeepSeek */}
-      <div className="mb-6 flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 dark:bg-yellow-900/30">
-        <IconBook2 size={32} className="text-yellow-600 dark:text-yellow-400" />
-      </div>
-      <h1 className="text-3xl font-bold mb-2 text-gray-800 dark:text-gray-100">课程学习助手</h1>
-      <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">解答课程疑问，辅助学习与复习</p>
-
-      {/* App Specific Cards Area - Same grid structure as DeepSeek */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl w-full">
-        {/* Card 1 */}
-        <div className="bg-white dark:bg-gray-800/50 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col items-center text-center">
-          <IconQuestionMark size={24} className="mb-2 text-cyan-500" />
-          <h3 className="font-semibold mb-1 text-gray-700 dark:text-gray-200">知识点问答</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">提出你不懂的课程知识点，获取详细解答。</p>
-        </div>
-        {/* Card 2 */}
-        <div className="bg-white dark:bg-gray-800/50 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col items-center text-center">
-          <IconClipboardText size={24} className="mb-2 text-lime-500" />
-          <h3 className="font-semibold mb-1 text-gray-700 dark:text-gray-200">学习资料总结</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">上传或粘贴学习材料，快速生成内容概要或重点。</p>
-        </div>
-        {/* Card 3 */}
-        <div className="bg-white dark:bg-gray-800/50 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col items-center text-center">
-          <IconFileText size={24} className="mb-2 text-orange-500" />
-          <h3 className="font-semibold mb-1 text-gray-700 dark:text-gray-200">练习与测验</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">根据课程内容生成练习题或进行知识点测验。</p>
-        </div>
+    <div className="p-4 h-full flex flex-col justify-center items-center">
+      <h2 className="text-2xl font-semibold mb-6 text-center dark:text-gray-200">课程助手</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg">
+        {courseHelperCards.map((card) => (
+          <button
+            key={card.id}
+            onClick={() => handleCardClick(card)}
+            className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 
+              ${selectedCardId === card.id
+                ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/30 shadow-md' 
+                : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }
+            `}
+          >
+            <div className="mb-2 text-yellow-600 dark:text-yellow-400">{card.icon}</div>
+            <span className="text-sm font-medium text-center dark:text-gray-300">{card.name}</span>
+          </button>
+        ))}
       </div>
     </div>
   );

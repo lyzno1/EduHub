@@ -38,6 +38,7 @@ export interface Conversation {
   folderId: string | null;
   conversationID: string;
   deletable: boolean;
-  appId: number | null;
+  appId?: number | null;
+  cardId?: string | null;
 }
 

@@ -33,6 +33,8 @@ export interface HomeInitialState {
   user: string;
   version: string;
   activeAppId: number | null;
+  selectedCardId: string | null;
+  cardInputPrompt: string;
 }
 
 // 首页的初始状态
@@ -62,4 +64,6 @@ export const initialState: HomeInitialState = {
   user: 'unknown',
   version:"2024032701",
   activeAppId: null,
+  selectedCardId: null,
+  cardInputPrompt: '',
 };
