@@ -64,6 +64,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       lightMode,
       messageIsStreaming,
       user,
+      cardInputPrompt, // 添加对 cardInputPrompt 的获取
     },
     handleUpdateConversation,
     dispatch: homeDispatch,
@@ -385,6 +386,15 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     latestHomeContextStateRef.current = homeContext.state;
   }, [homeContext.state]);
   // ===== 新增 useEffect 同步 Ref 结束 =====
+
+  // 添加 useEffect 来处理 cardInputPrompt 变化
+  useEffect(() => {
+    // 当 cardInputPrompt 存在且不为空时，自动设置到输入框中
+    if (cardInputPrompt && cardInputPrompt.trim() !== '') {
+      console.log('[Chat] 检测到 cardInputPrompt 变化，设置输入框内容为:', cardInputPrompt);
+      setContent(cardInputPrompt);
+    }
+  }, [cardInputPrompt]);
 
   const onSend = async (message: Message, deleteCount = 0) => {
     // ===== 添加新逻辑开始: 检测是否为"应用首页+卡片选中"的发送场景 =====

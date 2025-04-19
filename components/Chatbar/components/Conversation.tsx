@@ -117,13 +117,13 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
 
   // 监听模态框状态变化，并通知父组件
   useEffect(() => {
-    if (showRenameModal || showDeleteModal) {
-      onSetModalOpen(conversation.id);
+    if (showRenameModal) {
+      onSetModalOpen('rename' as ModalType); // 使用类型断言
+    } else if (showDeleteModal) {
+      onSetModalOpen('delete' as ModalType); // 使用类型断言
     } else {
       // 如果当前打开的模态框是这个对话的，则在关闭时通知父组件清除状态
-      // 需要一种方式访问 SidebarNav 的 modalOpenConversationId，或者让父组件自己处理
-      // 暂时先只通知打开
-      // onSetModalOpen(null); // 这行逻辑需要在父组件处理
+      onSetModalOpen(null);
     }
     // 依赖项中加入 onSetModalOpen 和 conversation.id 确保回调和ID正确
   }, [showRenameModal, showDeleteModal, onSetModalOpen, conversation.id]);
@@ -200,7 +200,7 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
     // 延迟打开模态框，等待关闭动画
     setTimeout(() => {
         setShowRenameModal(true);
-        onSetModalOpen(conversation.id); 
+        // 不需要在这里调用 onSetModalOpen，因为 useEffect 会处理
     }, 50); // 短暂延迟
   };
 
@@ -212,7 +212,7 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
     // 延迟打开模态框
     setTimeout(() => {
         setShowDeleteModal(true);
-        onSetModalOpen(conversation.id); 
+        // 不需要在这里调用 onSetModalOpen，因为 useEffect 会处理
     }, 50);
   };
   
@@ -222,7 +222,7 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
       handleUpdateConversation(conversation, { key: 'name', value: renameValue });
       // 立即关闭对话框
       setShowRenameModal(false);
-      onSetModalOpen(null); // 关闭时通知
+      // onSetModalOpen 由 useEffect 处理
       
       // 使用setTimeout确保UI更新完成后再进行API调用
       setTimeout(() => {
@@ -231,9 +231,17 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
           try {
             // --- 确定要使用的 API Key --- 
             let apiKeyToUse: string | undefined;
-            if (conversation.appId !== null && appConfigs[conversation.appId]) {
+            
+            // 健壮性修复：确保 appId 是有效数字且存在于 appConfigs 中
+            if (
+              conversation.appId !== null && 
+              typeof conversation.appId === 'number' && 
+              appConfigs && 
+              conversation.appId in appConfigs // 使用 in 操作符更简洁
+            ) {
               // 优先使用当前会话所属应用的 API Key
-              apiKeyToUse = appConfigs[conversation.appId]?.apiKey;
+              const appConfig = appConfigs[conversation.appId]; // 安全访问
+              apiKeyToUse = appConfig.apiKey;
               console.log(`重命名: 使用 App ID ${conversation.appId} 的 API Key`);
             } else {
               // 否则，使用全局默认的 API Key
@@ -276,7 +284,7 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
   const handleConfirmDelete = () => {
     // 立即关闭模态框，并通知父组件
     setShowDeleteModal(false);
-    onSetModalOpen(null); // 关闭时通知
+    // onSetModalOpen 由 useEffect 处理
     
     // 使用setTimeout确保UI更新完成后再进行操作
     setTimeout(() => {
@@ -288,9 +296,17 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
         try {
           // --- 确定要使用的 API Key --- 
           let apiKeyToUse: string | undefined;
-          if (conversation.appId !== null && appConfigs[conversation.appId]) {
+          
+          // 健壮性修复：确保 appId 是有效数字且存在于 appConfigs 中
+          if (
+            conversation.appId !== null && 
+            typeof conversation.appId === 'number' && 
+            appConfigs && 
+            conversation.appId in appConfigs // 使用 in 操作符更简洁
+          ) {
             // 优先使用当前会话所属应用的 API Key
-            apiKeyToUse = appConfigs[conversation.appId]?.apiKey;
+            const appConfig = appConfigs[conversation.appId]; // 安全访问
+            apiKeyToUse = appConfig.apiKey;
             console.log(`删除: 使用 App ID ${conversation.appId} 的 API Key`);
           } else {
             // 否则，使用全局默认的 API Key
@@ -348,18 +364,25 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
 
   // --- 修改：计算指示器文本 --- 
   let indicatorText: string | null = null;
-  if (conversation.appId !== null && appConfigs) { // 确保 appConfigs 存在
-    const currentAppConfig = appConfigs[conversation.appId]; // 先获取配置
+  
+  // 健壮性修复：确保 appId 是有效数字且存在于 appConfigs 中
+  if (
+    conversation.appId !== null && 
+    typeof conversation.appId === 'number' && 
+    appConfigs && 
+    conversation.appId in appConfigs // 使用 in 操作符
+  ) { 
+    const currentAppConfig = appConfigs[conversation.appId]; // 安全获取配置
     if (conversation.cardId !== null) {
       // 优先查找卡片名称
       const card = allCards.find(c => c.appId === conversation.appId && c.id === conversation.cardId);
       if (card) {
         indicatorText = card.name; // 只显示卡片名称
-      } else if (currentAppConfig) {
-        // 如果找不到卡片，作为后备显示应用名称 (如果存在)
+      } else {
+        // 如果找不到卡片，作为后备显示应用名称
         indicatorText = currentAppConfig.name;
       }
-    } else if (currentAppConfig) {
+    } else {
        // 如果只有 appId 没有 cardId (理论不应发生，但作为后备)
        indicatorText = currentAppConfig.name;
     }
