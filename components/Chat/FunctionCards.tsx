@@ -1,6 +1,7 @@
 import { IconBook, IconSchool, IconUser } from '@tabler/icons-react';
 import React, { useContext, useEffect, useState } from 'react';
 import HomeContext from '@/pages/api/home/home.context';
+import prompts from '@/prompt.json';
 
 // 定义类型
 interface FunctionItem {
@@ -95,9 +96,14 @@ export const FunctionCards: React.FC<FunctionCardsProps> = ({ scrollToBottom, se
     const selectedCategory = functionCategories.find(c => c.id === categoryId);
     const selectedFunction = selectedCategory?.children.find(f => f.id === functionId);
     
-    if (selectedFunction) {
-      // 准备要插入的文本
-      const promptText = `作为${selectedCategory?.name}中的${selectedFunction.name}，请帮我：`;
+    if (selectedFunction && selectedCategory) {
+      // 从 prompts.json 获取模板
+      const template = prompts.generalPrompts.functionCardClick;
+      
+      // 替换占位符
+      const promptText = template
+        .replace('{categoryName}', selectedCategory.name)
+        .replace('{functionName}', selectedFunction.name);
       
       // 使用React状态更新方式设置内容 (替换)
       if (setContent) {
