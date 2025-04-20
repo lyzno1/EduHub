@@ -362,9 +362,10 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
   // 使用默认图标
   const icon = <IconMessage size={18} />;
 
-  // --- 修改：计算指示器文本 --- 
-  let indicatorText: string | null = null;
-  
+  // --- 修改：计算标题和 Tag --- 
+  let displayName = conversation.name; // 默认标题为对话名称
+  let indicatorText: string | null = null; // 默认没有 Tag
+
   // 健壮性修复：确保 appId 是有效数字且存在于 appConfigs 中
   if (
     conversation.appId !== null && 
@@ -373,18 +374,22 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
     conversation.appId in appConfigs // 使用 in 操作符
   ) { 
     const currentAppConfig = appConfigs[conversation.appId]; // 安全获取配置
+    
+    // 设置 Tag 为应用名称
+    indicatorText = currentAppConfig.name;
+
+    // 如果有 cardId，优先使用卡片名称作为标题
     if (conversation.cardId !== null) {
-      // 优先查找卡片名称
       const card = allCards.find(c => c.appId === conversation.appId && c.id === conversation.cardId);
       if (card) {
-        indicatorText = card.name; // 只显示卡片名称
+        displayName = card.name; // 标题设为卡片名称
       } else {
-        // 如果找不到卡片，作为后备显示应用名称
-        indicatorText = currentAppConfig.name;
+        // 如果找不到卡片，标题回退到应用名称
+        displayName = currentAppConfig.name;
       }
     } else {
-       // 如果只有 appId 没有 cardId (理论不应发生，但作为后备)
-       indicatorText = currentAppConfig.name;
+      // 如果只有 appId 没有 cardId，标题设为应用名称
+       displayName = currentAppConfig.name;
     }
   }
   // --- 修改结束 ---
@@ -412,7 +417,9 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
         >
           {icon}
         <div className="relative flex-1 overflow-hidden text-left text-[13px] leading-5 py-0.5 flex items-center min-w-0">
-          <span className="block overflow-hidden whitespace-nowrap text-ellipsis">{conversation.name}</span>
+          {/* --- 修改：使用计算好的 displayName --- */}
+          <span className="block overflow-hidden whitespace-nowrap text-ellipsis">{displayName}</span>
+          {/* --- 修改结束 --- */}
           {/* --- 修改：使用计算好的 indicatorText --- */}
           {indicatorText && (
             <span className="ml-1.5 inline-block whitespace-nowrap rounded bg-blue-100 px-1.5 py-0.5 text-center align-baseline text-[10px] font-bold uppercase leading-none text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">

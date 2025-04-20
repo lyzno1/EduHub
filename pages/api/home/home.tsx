@@ -633,37 +633,37 @@ const Home = ({
       const cleanedSelectedConversation = cleanSelectedConversation(parsedSelectedConversation);
       
       if (!savedConversations.find(conv => conv.id === cleanedSelectedConversation.id)) {
-        savedConversations = [cleanedSelectedConversation, ...savedConversations]; 
+        savedConversations = [cleanedSelectedConversation, ...savedConversations];
         dispatch({ field: 'conversations', value: savedConversations });
         saveConversations(savedConversations);
       }
       dispatch({ field: 'selectedConversation', value: cleanedSelectedConversation });
     } else if (savedConversations.length > 0) {
        console.log('[Debug useEffect] No selected conversation loaded, selecting first from loaded history.');
-       dispatch({ field: 'selectedConversation', value: savedConversations[0] });
-       saveConversation(savedConversations[0]);
+      dispatch({ field: 'selectedConversation', value: savedConversations[0] });
+      saveConversation(savedConversations[0]);
     } else {
        console.log('[Debug useEffect] No conversations found, creating default new conversation.');
-       const newConversation: Conversation = {
-         id: uuidv4(),
-         name: t('New Conversation'),
-         originalName: '',
-         messages: [],
-         prompt: DEFAULT_SYSTEM_PROMPT,
-         temperature: DEFAULT_TEMPERATURE,
-         folderId: null,
-         conversationID: '',
-         deletable: true,
+      const newConversation: Conversation = {
+        id: uuidv4(),
+        name: t('New Conversation'),
+        originalName: '',
+        messages: [],
+        prompt: DEFAULT_SYSTEM_PROMPT,
+        temperature: DEFAULT_TEMPERATURE,
+        folderId: null,
+        conversationID: '',
+        deletable: true,
          appId: null,
-       };
+      };
 
-       const updatedConversations = [newConversation];
-       
-       dispatch({ field: 'selectedConversation', value: newConversation });
-       dispatch({ field: 'conversations', value: updatedConversations });
-       
-       saveConversation(newConversation);
-       saveConversations(updatedConversations);
+      const updatedConversations = [newConversation];
+      
+      dispatch({ field: 'selectedConversation', value: newConversation });
+      dispatch({ field: 'conversations', value: updatedConversations });
+      
+      saveConversation(newConversation);
+      saveConversations(updatedConversations);
     }
   }, [dispatch, serverSideApiKeyIsSet, serverSidePluginKeysSet]);
 
