@@ -84,7 +84,7 @@ export const CampusAssistantAppPage: React.FC<Props> = ({ inputBoxHeight, isInpu
           <button
             key={card.id}
             onClick={() => handleCardClick(card)}
-            className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 min-h-[120px] ${
+            className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 sm:min-h-[120px] ${
               selectedCardId === card.id
                 ? 'border-green-500 bg-green-50 dark:bg-green-900/30 shadow-md' // Selected state
                 : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-green-300 dark:hover:border-green-700' // Unselected state + hover
