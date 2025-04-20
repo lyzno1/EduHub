@@ -98,8 +98,13 @@ const ReasoningBox: FC<ReasoningBoxProps> = ({ children, lightMode, isStreaming 
       {/* Content area - Apply animation classes here */}
       <div 
         className={`reasoning-box-content overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out 
-                   ${isOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'} 
-                   /* Keep original styles below, including padding/margin */
+                   ${isStreaming 
+                      ? 'opacity-100' /* No max-h limit during streaming */ 
+                      : isOpen 
+                        ? 'max-h-[1000px] opacity-100' /* Limit height when open and not streaming */ 
+                        : 'max-h-0 opacity-0' /* Collapse when closed and not streaming */
+                    } 
+                   /* Keep original static styles below */
                    pl-5 pr-5 py-2 border-l-4 border-gray-300 dark:border-gray-600 
                    prose prose-sm dark:prose-invert max-w-none 
                    [&_p]:text-gray-500 dark:[&_p]:text-gray-400 
@@ -108,7 +113,6 @@ const ReasoningBox: FC<ReasoningBoxProps> = ({ children, lightMode, isStreaming 
                    [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 
                    bg-transparent dark:bg-transparent 
                    mt-1 mb-1 ml-1`}
-                   // Reverted: py-2, mt-1, mb-1 are back in static classes
       >
         {children}
       </div>
