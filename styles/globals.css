@@ -683,3 +683,28 @@ input::-webkit-input-placeholder {
   border-left-color: #4b5563; /* Darker border color */
   /* prose dark:prose-invert will handle text color inside */
 }
+
+/* KaTeX Layout Fixes (override prose styles) */
+
+/* Ensure inline KaTeX elements (.katex) behave as inline-block */
+.prose .katex {
+  display: inline-block !important; 
+  /* KaTeX handles vertical alignment well, but ensure baseline */
+  vertical-align: baseline !important; 
+}
+
+/* Ensure block KaTeX elements (.katex-display) are centered */
+.prose .katex-display {
+  display: block !important;     /* Ensure it's block */
+  text-align: center !important; /* Center the content within the block */
+  margin-left: auto !important;  /* Auto margins for block centering */
+  margin-right: auto !important;
+  overflow-x: auto;          /* Add scroll if needed for wide equations */
+  padding-top: 0.5em;        /* Add some vertical padding */
+  padding-bottom: 0.5em;
+}
+
+/* Optional: Override KaTeX font size if needed to match prose */
+/* .prose .katex {
+  font-size: inherit !important; 
+} */

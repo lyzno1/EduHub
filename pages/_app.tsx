@@ -6,6 +6,7 @@ import type { AppProps } from 'next/app';
 import { Inter } from 'next/font/google';
 import { useEffect, useState } from 'react';
 
+import 'katex/dist/katex.min.css';
 import '@/styles/globals.css';
 
 // 配置 Inter 字体

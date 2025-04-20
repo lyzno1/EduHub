@@ -14,6 +14,15 @@ export default function Document(props: Props) {
       <Head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="eduhub.chat"></meta>
+        {/* Remove MathJax script tag */}
+        {/* 
+        <script 
+          type="text/javascript"
+          async
+          src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS_CHTML"
+        >
+        </script> 
+        */}
       </Head>
       <body>
         <Main />

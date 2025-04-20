@@ -21,7 +21,7 @@ import HomeContext from '@/pages/api/home/home.context';
 import { CodeBlock } from '../Markdown/CodeBlock';
 import { MemoizedReactMarkdown } from '../Markdown/MemoizedReactMarkdown';
 
-import rehypeMathjax from 'rehype-mathjax';
+import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
@@ -244,7 +244,7 @@ const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({
         <MemoizedReactMarkdown
           className="prose dark:prose-invert max-w-none w-full text-gray-900 dark:text-gray-100"
           remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[rehypeRaw as any, rehypeMathjax]}
+          rehypePlugins={[rehypeKatex, rehypeRaw as any]}
           components={components}
         >
           {parts.before + beforeSuffix}
@@ -257,7 +257,7 @@ const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({
           <MemoizedReactMarkdown
             className="prose dark:prose-invert max-w-none w-full text-gray-900 dark:text-gray-100"
             remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[rehypeRaw as any, rehypeMathjax]}
+            rehypePlugins={[rehypeKatex, rehypeRaw as any]}
             components={components}
           >
             {parts.think + thinkSuffix}
@@ -270,7 +270,7 @@ const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({
         <MemoizedReactMarkdown
           className="prose dark:prose-invert max-w-none w-full text-gray-900 dark:text-gray-100"
           remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[rehypeRaw as any, rehypeMathjax]}
+          rehypePlugins={[rehypeKatex, rehypeRaw as any]}
           components={components}
         >
           {parts.after + afterSuffix}
