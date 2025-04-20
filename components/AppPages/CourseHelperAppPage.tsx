@@ -76,18 +76,17 @@ export const CourseHelperAppPage: React.FC<Props> = ({ inputBoxHeight, isInputEx
 
   return (
     <div className="p-4 h-full flex flex-col justify-center items-center">
-      <h2 className="text-2xl font-semibold mb-6 text-center dark:text-gray-200">课程助手</h2>
+      <h2 className="text-2xl font-semibold mb-6 text-center text-amber-700 dark:text-amber-400">课程助手</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg">
         {courseHelperCards.map((card) => (
           <button
             key={card.id}
             onClick={() => handleCardClick(card)}
-            className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 
-              ${selectedCardId === card.id
-                ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/30 shadow-md' 
-                : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }
-            `}
+            className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 min-h-[120px] ${
+              selectedCardId === card.id
+                ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/30 shadow-md'
+                : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-yellow-300 dark:hover:border-yellow-700'
+            }`}
           >
             <div className="mb-2 text-yellow-600 dark:text-yellow-400">{card.icon}</div>
             <span className="text-sm font-medium text-center dark:text-gray-300">{card.name}</span>
