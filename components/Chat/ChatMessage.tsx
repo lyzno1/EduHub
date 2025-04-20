@@ -4,11 +4,10 @@ import {
   IconEdit,
   IconAtom,
   IconChevronUp,
-  IconChevronDown
+  IconChevronDown,
 } from '@tabler/icons-react';
 
-import React, { useState, useEffect } from 'react';
-import { FC, memo, useContext, useRef } from 'react';
+import React, { useState, useEffect, FC, memo, useContext, useRef } from 'react';
 
 import { useTranslation } from 'next-i18next';
 
@@ -101,7 +100,7 @@ const ReasoningBox: FC<ReasoningBoxProps> = ({ children, lightMode, isStreaming 
                    ${isStreaming 
                       ? 'opacity-100' /* No max-h limit during streaming */ 
                       : isOpen 
-                        ? 'max-h-[1000px] opacity-100' /* Limit height when open and not streaming */ 
+                        ? 'max-h-[5000px] opacity-100' /* Use a much larger max-height when open */ 
                         : 'max-h-0 opacity-0' /* Collapse when closed and not streaming */
                     } 
                    /* Keep original static styles below */
@@ -214,6 +213,15 @@ const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({
         thinkContent = content.substring(startIndex + thinkStartTag.length, endIndex);
         afterContent = content.substring(endIndex + thinkEndTag.length);
       }
+
+      // --- Pre-process thinkContent to escape LaTeX delimiters --- 
+      if (thinkContent !== null) {
+        // Replace $$...$$ with `$$...$$` (renders as inline code)
+        thinkContent = thinkContent.replaceAll(/\$\$([\s\S]*?)\$\$/g, '`$$$1$$`');
+        // Optional: Handle single $...$ if they shouldn't render in reasoning box either
+        // thinkContent = thinkContent.replaceAll(/\$([^\$]+?)\$/g, '`$$$1$`'); 
+      }
+      // --- END Pre-process --- 
     }
     
     setParts({ before: beforeContent, think: thinkContent, after: afterContent });
@@ -408,21 +416,13 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
   const lastMessageIndex = (selectedConversation?.messages.length ?? 0) - 1;
   const isCurrentStreamingMessage = messageIsStreaming && messageIndex === lastMessageIndex;
 
-  // Define the components mapping (details and code)
+  // Define the components mapping passed to Markdown renderers
+  // No longer needs special div handling for KaTeX
   const markdownComponents: CustomComponents = {
-    details: ({ node, children, ...props }): React.ReactElement | null => {
-      const contentWithoutSummary = React.Children.toArray(children).filter(
-        (child) => !(React.isValidElement(child) && child.type === 'summary')
-      );
-      return (
-        <ReasoningBox lightMode={lightMode} isStreaming={isCurrentStreamingMessage}>
-          {contentWithoutSummary}
-        </ReasoningBox>
-      );
-    },
+    details: ({ node, children, ...props }) => null, // Let StreamingMarkdownRenderer handle details
+
     code: ({ node, inline, className, children, ...props }) => {
       const match = /language-(\w+)/.exec(className || '');
-      const isPotentiallyStreaming = messageIsStreaming && messageIndex === lastMessageIndex;
       return !inline ? (
         <CodeBlock
           key={Math.random()}
@@ -436,6 +436,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
         </code>
       );
     },
+    // REMOVED div renderer
   };
 
   return (
@@ -449,7 +450,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
                   <div className="flex w-full flex-col">
                     <textarea
                       ref={textareaRef}
-                      className="w-full resize-none whitespace-pre-wrap border border-gray-300 bg-white rounded-2xl p-3 focus:outline-none focus:border-blue-500"
+                      className="w-full resize-none whitespace-pre-wrap border border-gray-300 bg-white rounded-2xl p-3 focus:outline-none focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                       value={messageContent}
                       onChange={handleInputChange}
                       onKeyDown={handlePressEnter}
@@ -462,10 +463,9 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
                         overflow: 'hidden',
                       }}
                     />
-
                     <div className="mt-2 flex justify-end space-x-2">
                       <button
-                        className="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium hover:bg-gray-100"
+                        className="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
                         onClick={() => {
                           setMessageContent(message.content);
                           setIsEditing(false);
@@ -487,13 +487,12 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
                     <div className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-600/30 dark:to-gray-700/30 text-gray-900 dark:text-gray-100 px-4 py-3 rounded-[20px] text-sm leading-relaxed shadow-[0_2px_8px_-2px_rgba(0,0,0,0.1)] dark:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.3)] font-medium whitespace-pre-wrap break-words">
                       {message.content}
                     </div>
-                    
                     <div className="absolute bottom-2 right-0 flex items-center gap-1.5 invisible group-hover:visible">
                       <button
                         className={`flex items-center justify-center rounded-md p-1 px-1.5 text-xs
                         text-gray-500 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800
                         transition-colors duration-200 shadow-sm`}
-                        onClick={copyUserMessage}
+                        onClick={copyUserMessage} 
                         data-tooltip={userMessageCopied ? "已复制到剪贴板" : "复制消息内容"}
                         data-placement="bottom"
                       >
@@ -503,7 +502,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
                         className={`flex items-center justify-center rounded-md p-1 px-1.5 text-xs
                         text-gray-500 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700
                         transition-colors duration-200 shadow-sm`}
-                        onClick={toggleEditing}
+                        onClick={toggleEditing} 
                         data-tooltip="编辑消息"
                         data-placement="bottom"
                       >
@@ -531,11 +530,11 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
                     className={`flex items-center justify-center rounded-md p-1 px-1.5 text-xs
                     text-gray-500 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700
                     transition-colors duration-200 shadow-sm`}
-                    onClick={copyOnClick}
-                    data-tooltip={messagedCopied ? "已复制到剪贴板" : "复制消息内容"}
+                    onClick={copyOnClick} 
+                    data-tooltip={messagedCopied ? "已复制到剪贴板" : "复制消息内容"} 
                     data-placement="bottom"
                   >
-                    {messagedCopied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                    {messagedCopied ? <IconCheck size={14} /> : <IconCopy size={14} />} 
                   </button>
                 </div>
                )}
