@@ -1,63 +1,197 @@
 {
   "global": {
-    "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
-    "apiUrl": "https://api.dify.ai/v1",
     "appId": 0,
     "displayName": "默认全局",
+    "difyConfig": {
+      "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
+      "apiUrl": "https://api.dify.ai/v1"
+    },
     "cards": []
   },
   "deepseek": {
-    "appKey": "deepseek",
-    "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
-    "apiUrl": "https://api.dify.ai/v1",
     "appId": 1,
     "displayName": "DeepSeek",
     "cards": [
-      { "id": "ds-network-search", "name": "网络搜索", "iconName": "IconWorldWww" },
-      { "id": "ds-campus-kb", "name": "校园知识库", "iconName": "IconDatabase" },
-      { "id": "ds-academic-search", "name": "学术检索", "iconName": "IconBook" },
-      { "id": "ds-ai-tutor", "name": "AI辅导员", "iconName": "IconMessageChatbot" },
-      { "id": "ds-logistics-assistant", "name": "后勤助手", "iconName": "IconUsers" }
+      {
+        "cardId": "ds-network-search",
+        "name": "网络搜索",
+        "iconName": "IconWorldWww",
+        "difyConfig": {
+          "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      },
+      {
+        "cardId": "ds-campus-kb",
+        "name": "校园知识库",
+        "iconName": "IconDatabase",
+        "difyConfig": {
+          "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      },
+      {
+        "cardId": "ds-academic-search",
+        "name": "学术检索",
+        "iconName": "IconBook",
+        "difyConfig": {
+          "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      },
+      {
+        "cardId": "ds-ai-tutor",
+        "name": "AI辅导员",
+        "iconName": "IconMessageChatbot",
+        "difyConfig": {
+          "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      },
+      {
+        "cardId": "ds-logistics-assistant",
+        "name": "后勤助手",
+        "iconName": "IconUsers",
+        "difyConfig": {
+          "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      }
     ]
   },
   "courseHelper": {
-    "appKey": "courseHelper",
-    "apiKey": "app-8q49z7W7g5QkAv9Aq3P4quuH",
-    "apiUrl": "https://api.dify.ai/v1",
     "appId": 2,
     "displayName": "课程助手",
     "cards": [
-      { "id": "ch-swe-test", "name": "软件工程测试", "iconName": "IconTestPipe" },
-      { "id": "ch-oss-dev", "name": "开源软件开发技术", "iconName": "IconCode" }
+      {
+        "cardId": "ch-swe-test",
+        "name": "软件工程测试",
+        "iconName": "IconTestPipe",
+        "difyConfig": {
+          "apiKey": "app-8q49z7W7g5QkAv9Aq3P4quuH",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      },
+      {
+        "cardId": "ch-oss-dev",
+        "name": "开源软件开发技术",
+        "iconName": "IconCode",
+        "difyConfig": {
+          "apiKey": "app-8q49z7W7g5QkAv9Aq3P4quuH",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      }
     ]
   },
   "campusAssistant": {
-    "appKey": "campusAssistant",
-    "apiKey": "app-jUTkly1jWHq74R9qRkeRlZnG",
-    "apiUrl": "https://api.dify.ai/v1",
     "appId": 3,
     "displayName": "校园助理",
     "cards": [
-      { "id": "ca-network-qa", "name": "信息网络问答", "iconName": "IconInfoCircle" },
-      { "id": "ca-teacher-qa", "name": "教师问答", "iconName": "IconUsers" },
-      { "id": "ca-student-qa", "name": "学生问答", "iconName": "IconHelp" },
-      { "id": "ca-freshman-helper", "name": "新生助手", "iconName": "IconMoodBoy" }
+      {
+        "cardId": "ca-network-qa",
+        "name": "信息网络问答",
+        "iconName": "IconInfoCircle",
+        "difyConfig": {
+          "apiKey": "app-jUTkly1jWHq74R9qRkeRlZnG",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      },
+      {
+        "cardId": "ca-teacher-qa",
+        "name": "教师问答",
+        "iconName": "IconUsers",
+        "difyConfig": {
+          "apiKey": "app-jUTkly1jWHq74R9qRkeRlZnG",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      },
+      {
+        "cardId": "ca-student-qa",
+        "name": "学生问答",
+        "iconName": "IconHelp",
+        "difyConfig": {
+          "apiKey": "app-jUTkly1jWHq74R9qRkeRlZnG",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      },
+      {
+        "cardId": "ca-freshman-helper",
+        "name": "新生助手",
+        "iconName": "IconMoodBoy",
+        "difyConfig": {
+          "apiKey": "app-jUTkly1jWHq74R9qRkeRlZnG",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      }
     ]
   },
   "teacherAssistant": {
-    "appKey": "teacherAssistant",
-    "apiKey": "app-tYxHItA1xubaH6jEAQqCVfCy",
-    "apiUrl": "https://api.dify.ai/v1",
     "appId": 4,
     "displayName": "教师助手",
     "cards": [
-      { "id": "ta-assignment-ideas", "name": "作业构思", "iconName": "IconPencil" },
-      { "id": "ta-student-tutoring", "name": "学生辅导", "iconName": "IconMessageCircleQuestion" },
-      { "id": "ta-concept-explanation", "name": "概念解释", "iconName": "IconBulb" },
-      { "id": "ta-lecture-design", "name": "讲座设计", "iconName": "IconPresentation" },
-      { "id": "ta-lesson-plan", "name": "课程计划", "iconName": "IconListDetails" },
-      { "id": "ta-quiz-generation", "name": "测验生成", "iconName": "IconCheckbox" },
-      { "id": "ta-meeting-summary", "name": "会议总结", "iconName": "IconMessageReport" }
+      {
+        "cardId": "ta-assignment-ideas",
+        "name": "作业构思",
+        "iconName": "IconPencil",
+        "difyConfig": {
+          "apiKey": "app-tYxHItA1xubaH6jEAQqCVfCy",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      },
+      {
+        "cardId": "ta-student-tutoring",
+        "name": "学生辅导",
+        "iconName": "IconMessageCircleQuestion",
+        "difyConfig": {
+          "apiKey": "app-tYxHItA1xubaH6jEAQqCVfCy",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      },
+      {
+        "cardId": "ta-concept-explanation",
+        "name": "概念解释",
+        "iconName": "IconBulb",
+        "difyConfig": {
+          "apiKey": "app-tYxHItA1xubaH6jEAQqCVfCy",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      },
+      {
+        "cardId": "ta-lecture-design",
+        "name": "讲座设计",
+        "iconName": "IconPresentation",
+        "difyConfig": {
+          "apiKey": "app-tYxHItA1xubaH6jEAQqCVfCy",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      },
+      {
+        "cardId": "ta-lesson-plan",
+        "name": "课程计划",
+        "iconName": "IconListDetails",
+        "difyConfig": {
+          "apiKey": "app-tYxHItA1xubaH6jEAQqCVfCy",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      },
+      {
+        "cardId": "ta-quiz-generation",
+        "name": "测验生成",
+        "iconName": "IconCheckbox",
+        "difyConfig": {
+          "apiKey": "app-tYxHItA1xubaH6jEAQqCVfCy",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      },
+      {
+        "cardId": "ta-meeting-summary",
+        "name": "会议总结",
+        "iconName": "IconMessageReport",
+        "difyConfig": {
+          "apiKey": "app-tYxHItA1xubaH6jEAQqCVfCy",
+          "apiUrl": "https://api.dify.ai/v1"
+        }
+      }
     ]
   }
 }

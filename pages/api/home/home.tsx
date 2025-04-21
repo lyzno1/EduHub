@@ -48,7 +48,8 @@ import { IconMenu2 } from '@tabler/icons-react';
 import { DifyClient } from '@/services/dify/client';
 import { getDifyConfig } from '@/config/dify';
 import { toast } from 'react-hot-toast';
-import difyKeysData from '@/dify_keys.json';
+import difyConfigService from '@/services/difyConfigService';
+import { DifyFolderConfig } from '@/types/dify';
 
 // Define and export AppConfig interface here
 export interface AppConfig {
@@ -76,41 +77,35 @@ interface UpdateConversationData {
   value: any;
 }
 
-// 定义应用配置数据 (Use string keys to access difyKeysData)
-const appConfigs: Record<number, AppConfig> = {
-  // ID 1: DeepSeek 
-  1: {
-    id: 1,
-    name: 'DeepSeek',
-    apiKey: process.env.NEXT_PUBLIC_DIFY_APP_DEEPSEEK_API_KEY || difyKeysData['deepseek']?.apiKey || '', // Use 'deepseek'
-    apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_DEEPSEEK_API_URL || difyKeysData['deepseek']?.apiUrl, // Use 'deepseek'
-    icon: <IconMenu2 size={24} />, // Assuming IconMenu2 is defined/imported
-  },
-  // ID 2: Course Helper
-  2: {
-    id: 2,
-    name: '课程助手',
-    apiKey: process.env.NEXT_PUBLIC_DIFY_APP_COURSE_API_KEY || difyKeysData['courseHelper']?.apiKey || '', // Use 'courseHelper'
-    apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_COURSE_API_URL || difyKeysData['courseHelper']?.apiUrl, // Use 'courseHelper'
-    icon: <IconMenu2 size={24} />,
-  },
-  // ID 3: Campus Assistant
-  3: {
-    id: 3,
-    name: '校园助理',
-    apiKey: process.env.NEXT_PUBLIC_DIFY_APP_CAMPUS_API_KEY || difyKeysData['campusAssistant']?.apiKey || '', // Use 'campusAssistant'
-    apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_CAMPUS_API_URL || difyKeysData['campusAssistant']?.apiUrl, // Use 'campusAssistant'
-    icon: <IconMenu2 size={24} />,
-  },
-  // ID 4: Teacher Assistant
-  4: {
-    id: 4,
-    name: '教师助手',
-    apiKey: process.env.NEXT_PUBLIC_DIFY_APP_TEACHER_API_KEY || difyKeysData['teacherAssistant']?.apiKey || '', // Use 'teacherAssistant'
-    apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_TEACHER_API_URL || difyKeysData['teacherAssistant']?.apiUrl, // Use 'teacherAssistant'
-    icon: <IconMenu2 size={24} />,
-  },
-};
+// 定义应用配置数据 - 使用 difyConfigService 获取配置
+const appConfigs: Record<number, AppConfig> = {};
+
+// 从配置服务中获取所有文件夹配置并转换为 AppConfig 格式
+const folderConfigs = difyConfigService.getAllFolderConfigs();
+
+// 遍历所有文件夹配置，为每个文件夹创建 AppConfig
+Object.entries(folderConfigs).forEach(([appIdStr, folder]) => {
+  const appId = parseInt(appIdStr, 10);
+  if (isNaN(appId) || appId === 0) return; // 跳过 global 和无效的 appId
+  
+  // 从文件夹的第一张卡片获取 API 配置
+  // 这是一个临时方案，我们现在只使用文件夹下第一张卡片的 API 配置
+  // 未来需要更新 UI 界面，让用户可以选择特定的卡片
+  const firstCard = folder.cards[0];
+  
+  // 如果文件夹没有任何卡片，跳过
+  if (!firstCard) return;
+  
+  appConfigs[appId] = {
+    id: appId,
+    name: folder.displayName,
+    apiKey: process.env.NEXT_PUBLIC_DIFY_APP_GENERIC_API_KEY || 
+            firstCard.difyConfig.apiKey || '',
+    apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_GENERIC_API_URL || 
+            firstCard.difyConfig.apiUrl,
+    icon: <IconMenu2 size={24} />, // 使用统一图标，未来可以根据需要拓展
+  };
+});
 
 const Home = ({
   serverSideApiKeyIsSet,
@@ -287,14 +282,17 @@ const Home = ({
     // ... implementation of handleDifyApiCall ...
     // (This function seems complex and might need review later, but restoring it first)
     try {
-      const apiUrlToUse = appConfig.apiUrl || process.env.NEXT_PUBLIC_DIFY_API_URL || difyKeysData.global?.apiUrl || getDifyConfig().apiUrl;
-      const client = new DifyClient({
+      const apiConfig = accumulation; // 继续使用之前的流式结果
+      // 使用 difyConfigService 获取全局配置
+      const apiUrlToUse = appConfig.apiUrl || process.env.NEXT_PUBLIC_DIFY_API_URL || difyConfigService.getGlobalConfig().apiUrl || getDifyConfig().apiUrl;
+      
+      const difyClient = new DifyClient({
         apiUrl: apiUrlToUse,
         timeout: getDifyConfig().timeout,
         debug: true,
       });
 
-      const stream = await client.createChatStream({
+      const stream = await difyClient.createChatStream({
         query: originalMessage.content,
         key: apiKey,
         user: user || 'unknown',

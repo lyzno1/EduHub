@@ -28,7 +28,6 @@ import { streamDifyChat } from '@/services/useApiService';
 import { DifyClient } from '@/services/dify/client';
 import { API_PATHS } from '@/services/dify/constants';
 import { getDifyConfig } from '@/config/dify';
-import difyKeysData from '@/dify_keys.json';
 import { DEFAULT_SYSTEM_PROMPT, DEFAULT_TEMPERATURE } from '@/utils/app/const';
 
 import HomeContext from '@/pages/api/home/home.context';
@@ -45,8 +44,8 @@ import { CampusAssistantAppPage } from '@/components/AppPages/CampusAssistantApp
 import { CourseHelperAppPage } from '@/components/AppPages/CourseHelperAppPage';
 import { DeepSeekAppPage } from '@/components/AppPages/DeepSeekAppPage';
 import { TeacherAppPage } from '@/components/AppPages/TeacherAppPage';
-import appConfigsData from '@/dify_keys.json'; // Import the configuration data
-import { DifyAppConfig, DifyAppCardConfig } from '@/types/dify'; // Import shared types
+import difyConfigService from '@/services/difyConfigService'; 
+import { DifyAppCardConfig, DifyFolderConfig } from '@/types/dify'; // 只导入 DifyFolderConfig 和 DifyAppCardConfig
 
 
 // 添加主题类型定义
@@ -1496,12 +1495,10 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
   // Find the active application configuration
   const activeAppConfig = useMemo(() => {
-    // Assuming appConfigsData is the imported JSON object
-    // Need to handle potential type issues if importing JSON directly
-    const configs = appConfigsData as Record<string, DifyAppConfig>;
-    return Object.values(configs).find(
-      (app: DifyAppConfig) => app.appId === activeAppId
-    );
+    // 使用 difyConfigService 根据 activeAppId 获取相应的文件夹配置
+    if (activeAppId === null) return null;
+    
+    return difyConfigService.getFolderConfig(activeAppId);
   }, [activeAppId]);
 
   return (
