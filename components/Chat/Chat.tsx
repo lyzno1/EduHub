@@ -46,6 +46,7 @@ import { DeepSeekAppPage } from '@/components/AppPages/DeepSeekAppPage';
 import { TeacherAppPage } from '@/components/AppPages/TeacherAppPage';
 import { useMobileDetection } from '@/hooks/useMobileDetection';
 import { useCustomScrollbar } from '@/hooks/useCustomScrollbar';
+import { useInputHeightObserver } from '@/hooks/useInputHeightObserver';
 
 // 添加主题类型定义
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
@@ -106,6 +107,9 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const latestHomeContextStateRef = useRef(homeContext.state);
   // ===== 新增 Ref 结束 =====
 
+  // 获取消息数量
+  const messagesLength = selectedConversation?.messages?.length || 0;
+
   // 添加状态来跟踪输入框高度
   const [inputBoxHeight, setInputBoxHeight] = useState<number>(65);
   // 添加状态追踪输入框是否真正扩展了
@@ -113,8 +117,37 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   // 添加状态追踪底部输入框的高度(用于对话模式)
   const [bottomInputHeight, setBottomInputHeight] = useState<number>(65);
 
-  // 获取消息数量
-  const messagesLength = selectedConversation?.messages?.length || 0;
+  // 使用 useInputHeightObserver 监听输入框高度
+  const initialObserver = useInputHeightObserver({
+    selector: '[data-input-height]',
+    defaultHeight: 65,
+    minHeightChange: 5,
+    isEnabled: !messagesLength && !messageIsStreaming,
+    checkIsExpanded: true,
+    expandedThreshold: 70
+  });
+
+  // 使用 useInputHeightObserver 监听底部输入框高度
+  const bottomObserver = useInputHeightObserver({
+    selector: '.absolute.bottom-0.left-0.w-full.z-20 [data-input-height]',
+    defaultHeight: 65,
+    minHeightChange: 5,
+    isEnabled: !!messagesLength
+  });
+
+  // 将 Hook 返回的值同步到组件状态
+  useEffect(() => {
+    if (!messagesLength && !messageIsStreaming) {
+      setInputBoxHeight(initialObserver.height);
+      setIsInputExpanded(initialObserver.isExpanded);
+    }
+  }, [initialObserver.height, initialObserver.isExpanded, messagesLength, messageIsStreaming]);
+
+  useEffect(() => {
+    if (messagesLength) {
+      setBottomInputHeight(bottomObserver.height);
+    }
+  }, [bottomObserver.height, messagesLength]);
 
   // 添加移动端检测
   const isMobile = useMobileDetection();
@@ -225,69 +258,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       }, 100);
     }
   }, [selectedConversation?.id, handleScrollDown]); // 只在对话ID变化时触发
-
-  // 添加一个useEffect来监听输入框高度的变化(初始界面)
-  useEffect(() => {
-    // 如果有消息或在流式生成中，不需要监听
-    if (messagesLength || messageIsStreaming) {
-      return;
-    }
-    
-    // 通过MutationObserver监听data-input-height属性的变化
-    const inputContainer = document.querySelector('[data-input-height]');
-    if (!inputContainer) return;
-    
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'data-input-height') {
-          const height = parseInt(inputContainer.getAttribute('data-input-height') || '65', 10);
-          
-          // 只有当高度显著变化时(至少5px)才更新状态
-          if (Math.abs(height - inputBoxHeight) >= 5) {
-            setInputBoxHeight(height);
-            setIsInputExpanded(height > 70); // 确保只有真正扩展时才设置为true
-          }
-        }
-      });
-    });
-    
-    observer.observe(inputContainer, { attributes: true });
-    
-    return () => {
-      observer.disconnect();
-    };
-  }, [messagesLength, messageIsStreaming, inputBoxHeight]);
-
-  // 添加useEffect监听对话模式下底部输入框的高度变化
-  useEffect(() => {
-    // 只有在有消息时才监听底部输入框
-    if (!messagesLength) {
-      return;
-    }
-    
-    // 查找底部输入框容器
-    const bottomInputContainer = document.querySelector('.absolute.bottom-0.left-0.w-full.z-20 [data-input-height]');
-    if (!bottomInputContainer) return;
-    
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'data-input-height') {
-          const height = parseInt(bottomInputContainer.getAttribute('data-input-height') || '65', 10);
-          
-          // 只有当高度显著变化时才更新状态
-          if (Math.abs(height - bottomInputHeight) >= 5) {
-            setBottomInputHeight(height);
-          }
-        }
-      });
-    });
-    
-    observer.observe(bottomInputContainer, { attributes: true });
-    
-    return () => {
-      observer.disconnect();
-    };
-  }, [messagesLength, bottomInputHeight]);
 
   // 优化事件监听，同时支持触摸和鼠标事件
   useEffect(() => {
