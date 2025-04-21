@@ -1,7 +1,7 @@
 // API 相关常量
-export const DEFAULT_API_URL = 'http://localhost:8080';
+export const DEFAULT_API_URL = 'https://api.dify.ai/v1/';
 export const DEFAULT_TIMEOUT = 30000; // 30 seconds
-export const DEFAULT_USER = 'anonymous';
+export const DEFAULT_USER = 'unknown';
 
 // API 路径
 export const API_PATHS = {

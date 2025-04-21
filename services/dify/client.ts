@@ -88,11 +88,11 @@ export class DifyClient {
         apiKey: process.env.NEXT_PUBLIC_DIFY_API_KEY
       });
     }
-
-    console.log('环境变量检查:', {
-      NEXT_PUBLIC_DIFY_API_KEY: process.env.NEXT_PUBLIC_DIFY_API_KEY,
-      NEXT_PUBLIC_DIFY_API_URL: process.env.NEXT_PUBLIC_DIFY_API_URL
-    });
+    // 有需要可以打开检查环境变量
+    // console.log('环境变量检查:', {
+    //   NEXT_PUBLIC_DIFY_API_KEY: process.env.NEXT_PUBLIC_DIFY_API_KEY,
+    //   NEXT_PUBLIC_DIFY_API_URL: process.env.NEXT_PUBLIC_DIFY_API_URL
+    // });
   }
 
   public setAppId(appId: string) {
