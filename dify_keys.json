@@ -7,6 +7,7 @@
     "cards": []
   },
   "deepseek": {
+    "appKey": "deepseek",
     "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
     "apiUrl": "https://api.dify.ai/v1",
     "appId": 1,
@@ -20,6 +21,7 @@
     ]
   },
   "courseHelper": {
+    "appKey": "courseHelper",
     "apiKey": "app-8q49z7W7g5QkAv9Aq3P4quuH",
     "apiUrl": "https://api.dify.ai/v1",
     "appId": 2,
@@ -30,6 +32,7 @@
     ]
   },
   "campusAssistant": {
+    "appKey": "campusAssistant",
     "apiKey": "app-jUTkly1jWHq74R9qRkeRlZnG",
     "apiUrl": "https://api.dify.ai/v1",
     "appId": 3,
@@ -42,6 +45,7 @@
     ]
   },
   "teacherAssistant": {
+    "appKey": "teacherAssistant",
     "apiKey": "app-tYxHItA1xubaH6jEAQqCVfCy",
     "apiUrl": "https://api.dify.ai/v1",
     "appId": 4,

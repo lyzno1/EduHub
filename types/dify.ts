@@ -43,5 +43,5 @@ export interface DifyAppConfig {
   appId: number;             // 该应用的数字 ID (当前用于映射)
   displayName: string;       // 该应用在界面上显示的名称 (例如 '课程助手')
   cards: DifyAppCardConfig[]; // 该应用包含的卡片配置数组
-  // appKey?: string;         // (可选) 应用的程序化键名 (例如 'courseHelper')，为下一步准备
+  appKey?: string;         // (可选) 应用的程序化键名 (例如 'courseHelper')
 } 
