@@ -44,6 +44,7 @@ import { CampusAssistantAppPage } from '@/components/AppPages/CampusAssistantApp
 import { CourseHelperAppPage } from '@/components/AppPages/CourseHelperAppPage';
 import { DeepSeekAppPage } from '@/components/AppPages/DeepSeekAppPage';
 import { TeacherAppPage } from '@/components/AppPages/TeacherAppPage';
+import { useMobileDetection } from '@/hooks/useMobileDetection';
 
 // 添加主题类型定义
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
@@ -115,17 +116,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const messagesLength = selectedConversation?.messages?.length || 0;
 
   // 添加移动端检测
-  const [isMobile, setIsMobile] = useState(false);
-  
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const isMobile = useMobileDetection();
 
   // 获取欢迎界面相关样式
   useEffect(() => {
