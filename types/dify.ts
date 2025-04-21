@@ -44,12 +44,14 @@ export interface DifyAppCardConfig {
   // defaultPrompt 字段已被移除
 }
 
-// 代表 dify_keys.json 中每个文件夹/分组配置的数据结构
+// 配置中每个应用文件夹（目录）的数据结构
 export interface DifyFolderConfig {
-  appId: number;             // 文件夹/分组的数字 ID (用于 UI 状态)
-  displayName: string;       // 文件夹/分组在界面上显示的名称 (例如 '课程助手')
-  cards: DifyAppCardConfig[]; // 该文件夹包含的卡片配置数组
-  // 不再包含 apiKey, apiUrl, appKey
+  appId: number;          // 文件夹的唯一数字标识符
+  displayName: string;    // 文件夹在 UI 上显示的名称
+  folderKey: string;      // 新增：此文件夹在 dify_keys.json 中的原始键 (UUID 或字符串)
+  cards: DifyAppCardConfig[]; // 此文件夹下包含的应用卡片列表
+  // 文件夹级别的 API 配置（可选，卡片可以覆盖）
+  difyConfig?: DifyApiConfig;
 }
 
 // 代表整个 dify_keys.json 文件结构

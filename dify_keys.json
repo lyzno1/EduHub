@@ -1,7 +1,7 @@
 {
   "global": {
     "appId": 0,
-    "displayName": "默认全局",
+    "displayName": "普通聊天",
     "difyConfig": {
       "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
       "apiUrl": "https://api.dify.ai/v1"

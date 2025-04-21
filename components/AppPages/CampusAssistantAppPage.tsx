@@ -38,14 +38,7 @@ export const CampusAssistantAppPage: React.FC<Props> = ({ config }) => {
   const processedCards = useMemo(() => {
     const appPrompts = prompts.appCardPrompts as AppCardPromptsType;
     
-    // 确定 app name 的逻辑 - 使用文件夹名称（键名）
-    let folderKey = '';
-    // 尝试通过 appId 找到对应的文件夹名称
-    if (config.appId === 1) folderKey = 'deepseek';
-    else if (config.appId === 2) folderKey = 'courseHelper';
-    else if (config.appId === 3) folderKey = 'campusAssistant';
-    else if (config.appId === 4) folderKey = 'teacherAssistant';
-    else folderKey = config.displayName.toLowerCase().replace(/\s+/g, '');
+    const folderKey = config.folderKey;
 
     console.log("[CampusAssistantAppPage] Using folder key for prompts:", folderKey);
 

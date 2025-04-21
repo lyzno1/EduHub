@@ -28,9 +28,16 @@ class DifyConfigService {
       
       const folder = this.config[folderKey] as DifyFolderConfig;
       
+      folder.folderKey = folderKey;
+
       // 创建 appId -> folder 的映射
       this.folderConfigMap.set(folder.appId, folder);
       
+      // 确保 cards 是数组 (避免后续迭代错误)
+      if (!folder.cards || !Array.isArray(folder.cards)) {
+        folder.cards = [];
+      }
+
       // 为每个卡片创建映射
       for (const card of folder.cards) {
         this.cardConfigMap.set(card.cardId, card);
