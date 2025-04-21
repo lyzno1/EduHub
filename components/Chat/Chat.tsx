@@ -1591,8 +1591,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                     marginTop: !isInputExpanded
                       ? window.innerWidth < 768 ? '-20vh' : '-25vh'
                       : window.innerWidth < 768
-                        ? `calc(-20vh - ${(inputBoxHeight - 65) / 2}px)`
-                        : `calc(-25vh - ${(inputBoxHeight - 65) / 2}px)`
+                        ? `calc(-22vh - ${(inputBoxHeight - 65)}px)`
+                        : `calc(-27vh - ${(inputBoxHeight - 65)}px)`
                   }}
                 >
                  {/* Logo and Title */} 
