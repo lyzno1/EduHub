@@ -2,22 +2,7 @@ import React, { useContext, useMemo } from 'react';
 import HomeContext from '@/pages/api/home/home.context';
 import { IconTestPipe, IconCode } from '@tabler/icons-react';
 import prompts from '@/prompt.json';
-// import { DifyAppConfig, DifyAppCardConfig } from '@/types/dify'; // Assuming types are defined elsewhere
-
-// Define types locally for now (move to @/types/dify later)
-interface DifyAppCardConfig {
-  id: string;
-  name: string;
-  iconName: string;
-}
-interface DifyAppConfig {
-  apiKey: string;
-  apiUrl: string;
-  appId: number;
-  displayName: string;
-  cards: DifyAppCardConfig[];
-}
-// End local type definitions
+import { DifyAppConfig, DifyAppCardConfig } from '@/types/dify'; // Import shared types
 
 // Define the structure of appCardPrompts more explicitly
 type AppCardPromptsType = {

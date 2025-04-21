@@ -46,22 +46,8 @@ import { CourseHelperAppPage } from '@/components/AppPages/CourseHelperAppPage';
 import { DeepSeekAppPage } from '@/components/AppPages/DeepSeekAppPage';
 import { TeacherAppPage } from '@/components/AppPages/TeacherAppPage';
 import appConfigsData from '@/dify_keys.json'; // Import the configuration data
+import { DifyAppConfig, DifyAppCardConfig } from '@/types/dify'; // Import shared types
 
-// Define DifyAppConfig type locally if not imported globally
-// (Ideally, move this to a shared types file)
-interface DifyAppCardConfig {
-  id: string;
-  name: string;
-  iconName: string;
-}
-interface DifyAppConfig {
-  apiKey: string;
-  apiUrl: string;
-  appId: number;
-  displayName: string;
-  cards: DifyAppCardConfig[];
-}
-// --- End Local Type Definition ---
 
 // 添加主题类型定义
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
