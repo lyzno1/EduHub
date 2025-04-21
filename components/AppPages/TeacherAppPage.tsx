@@ -42,15 +42,21 @@ export const TeacherAppPage: React.FC<Props> = ({ config }) => {
   // Process cards to include default prompts
   const processedCards = useMemo(() => {
     const appPrompts = prompts.appCardPrompts as AppCardPromptsType;
-    const appName = Object.keys(prompts.appCardPrompts).find(
-      key => {
-        const promptApp = appPrompts[key];
-        return promptApp && config.cards.some((card: DifyAppCardConfig) => promptApp[card.id] !== undefined);
-      }
-    ) || '';
     
-    const fallbackAppName = Object.keys(prompts.appCardPrompts).find(key => key.toLowerCase().includes(config.displayName.toLowerCase())) || '';
-    const finalAppName = appName || fallbackAppName;
+    let finalAppName = config.appKey; // 优先使用 config.appKey
+
+    if (!finalAppName) {
+      console.warn(`[TeacherAppPage] config.appKey is missing for ${config.displayName}. Falling back to guessing appName.`);
+      // Fallback logic
+      const guessedAppName = Object.keys(prompts.appCardPrompts).find(
+        key => {
+          const promptApp = appPrompts[key];
+          return promptApp && config.cards.some((card: DifyAppCardConfig) => promptApp[card.id] !== undefined);
+        }
+      ) || Object.keys(prompts.appCardPrompts).find(key => key.toLowerCase().includes(config.displayName.toLowerCase())) || '';
+      finalAppName = guessedAppName;
+    }
+
     console.log("[TeacherAppPage] Determined App Name for prompts:", finalAppName);
 
      if (!finalAppName) {
