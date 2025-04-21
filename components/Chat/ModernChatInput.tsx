@@ -30,6 +30,7 @@ interface Props {
   isMobile?: boolean;
   handleStopConversation: () => void;
   messageIsStreaming: boolean;
+  isDisabled?: boolean;
 }
 
 export const ModernChatInput = ({
@@ -46,6 +47,7 @@ export const ModernChatInput = ({
   isMobile = false,
   handleStopConversation,
   messageIsStreaming,
+  isDisabled,
 }: Props) => {
   const { t } = useTranslation('chat');
 
@@ -62,6 +64,10 @@ export const ModernChatInput = ({
   const [inputHeight, setInputHeight] = useState<number>(65); // 默认高度
   // 只在移动端添加键盘状态跟踪
   const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
+  // 添加 Tooltip 显示状态
+  const [showTooltip, setShowTooltip] = useState<boolean>(false);
+  // 添加定时器引用用于移动端自动隐藏提示
+  const tooltipTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const inputContainerRef = useRef<HTMLDivElement>(null);
   
@@ -85,6 +91,45 @@ export const ModernChatInput = ({
   const isDarkMode = useCallback(() => {
     return lightMode === 'dark';
   }, [lightMode]);
+
+  // 处理禁用状态下的悬停事件
+  const handleMouseEnter = useCallback(() => {
+    if (isDisabled && !isDeviceMobile) {
+      setShowTooltip(true);
+    }
+  }, [isDisabled, isDeviceMobile]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (isDisabled && !isDeviceMobile) {
+      setShowTooltip(false);
+    }
+  }, [isDisabled, isDeviceMobile]);
+
+  // 处理禁用状态下的点击事件（移动端）
+  const handleDisabledClick = useCallback(() => {
+    if (isDisabled && isDeviceMobile) {
+      setShowTooltip(true);
+      
+      // 清除现有定时器
+      if (tooltipTimerRef.current) {
+        clearTimeout(tooltipTimerRef.current);
+      }
+      
+      // 设置新定时器，3秒后自动隐藏提示
+      tooltipTimerRef.current = setTimeout(() => {
+        setShowTooltip(false);
+      }, 3000);
+    }
+  }, [isDisabled, isDeviceMobile]);
+
+  // 组件卸载时清除定时器
+  useEffect(() => {
+    return () => {
+      if (tooltipTimerRef.current) {
+        clearTimeout(tooltipTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -360,6 +405,32 @@ export const ModernChatInput = ({
         animation: fadeIn 0.3s ease-in-out;
       }
       
+      /* 自定义提示框动画 - 修改为没有位置变化的动画 */
+      @keyframes tooltipFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      
+      /* 优化后的Tooltip样式 */
+      .custom-tooltip {
+        position: absolute;
+        top: -40px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(0, 0, 0, 0.75);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        white-space: nowrap;
+        pointer-events: none;
+        z-index: 100;
+        animation: tooltipFadeIn 0.2s ease-out;
+        text-align: center;
+      }
+      
       /* 移动端样式 - 仅在小屏幕上应用 */
       @media (max-width: 767px) {
         .mobile-input-rounded {
@@ -387,6 +458,12 @@ export const ModernChatInput = ({
         html.keyboard-open .welcome-text {
           visibility: visible !important;
           opacity: 1 !important;
+        }
+        
+        /* 移动端提示框位置调整 */
+        .custom-tooltip {
+          width: 180px;
+          top: -45px;
         }
       }
     `;
@@ -460,12 +537,12 @@ export const ModernChatInput = ({
   // 在返回部分调整样式以适应移动端
   return (
     <div 
-      className={isCentered 
+      className={`${isCentered 
         ? "absolute top-1/2 left-0 w-full px-4 pb-8 z-10 transform -translate-y-1/2 chat-welcome-input" // 居中模式继续使用绝对定位
         : isDeviceMobile 
           ? "w-full px-0 pb-0 z-10 absolute bottom-0 left-0 right-0 chat-welcome-input" // 移动端底部模式，移除内边距
           : "absolute bottom-0 left-0 w-full px-2 sm:px-4 pb-2 z-10 chat-welcome-input" // 桌面底部模式
-      }
+      } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       ref={inputContainerRef}
       data-input-height={inputHeight}
     >
@@ -484,6 +561,11 @@ export const ModernChatInput = ({
               : '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 8px 15px -3px rgba(0, 0, 0, 0.1), 0 12px 20px -5px rgba(0, 0, 0, 0.15)',
         }}
       >
+        {/* 提示框 - 移到这里防止位置闪烁 */}
+        {isDisabled && showTooltip && (
+          <div className="custom-tooltip">请先选择一个应用卡片</div>
+        )}
+        
         {/* 这里是真正的输入区，高度根据内容动态变化但不会影响外部布局 */}
         <div 
           className={`${isDeviceMobile ? 'min-h-[45px]' : 'min-h-[50px] sm:min-h-[65px]'} overflow-y-auto ${isDeviceMobile ? 'rounded-t-xl' : 'rounded-t-xl sm:rounded-t-3xl'} ${isDeviceMobile ? 'px-3' : 'px-3 sm:px-6'} ${isDarkMode() ? 'chat-input-dark-bg' : ''} input-content-container textarea-container-scrollbar ${isDeviceMobile ? 'mobile-input-container' : ''} ${!isCentered && isDeviceMobile ? 'mobile-input-rounded' : ''}`}
@@ -493,10 +575,13 @@ export const ModernChatInput = ({
             backgroundColor: isDarkMode() ? '#343541' : getBgColor(),
             maxHeight: isDeviceMobile ? '180px' : '260px', // 根据设备类型调整最大高度
           }}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={handleDisabledClick}
         >
           <textarea
             ref={textareaRef as MutableRefObject<HTMLTextAreaElement>}
-            className={`w-full flex-grow resize-none border-0 ${isDeviceMobile ? 'pt-3 mobile-input-padding' : 'p-0'} ${isDeviceMobile ? 'text-[14px]' : 'text-[15px] sm:text-[16px]'} focus:outline-none focus:ring-0 ${isDarkMode() ? 'modern-input-dark' : 'modern-input-light'} textarea-transition scrollbar-thin`}
+            className={`w-full flex-grow resize-none border-0 ${isDeviceMobile ? 'pt-3 mobile-input-padding' : 'p-0'} ${isDeviceMobile ? 'text-[14px]' : 'text-[15px] sm:text-[16px]'} focus:outline-none focus:ring-0 ${isDarkMode() ? 'modern-input-dark' : 'modern-input-light'} textarea-transition scrollbar-thin ${isDisabled ? 'cursor-not-allowed' : ''}`}
             style={{
               backgroundColor: 'transparent',
               color: isDarkMode() ? 'hsl(205deg, 16%, 77%)' : '#333333',
@@ -514,6 +599,7 @@ export const ModernChatInput = ({
             placeholder={t('你想了解什么？') || ''}
             value={content}
             rows={1}
+            disabled={isDisabled}
             onCompositionStart={() => setIsTyping(true)}
             onCompositionEnd={() => setIsTyping(false)}
             onChange={handleChange}

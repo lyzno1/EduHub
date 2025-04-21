@@ -44,6 +44,10 @@ import { CampusAssistantAppPage } from '@/components/AppPages/CampusAssistantApp
 import { CourseHelperAppPage } from '@/components/AppPages/CourseHelperAppPage';
 import { DeepSeekAppPage } from '@/components/AppPages/DeepSeekAppPage';
 import { TeacherAppPage } from '@/components/AppPages/TeacherAppPage';
+import { useMobileDetection } from '@/hooks/useMobileDetection';
+import { useCustomScrollbar } from '@/hooks/useCustomScrollbar';
+import { useInputHeightObserver } from '@/hooks/useInputHeightObserver';
+import { useScrollManager } from '@/hooks/useScrollManager';
 
 // 添加主题类型定义
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
@@ -77,10 +81,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
   const [content, setContent] = useState<string>('');
   const [currentMessage, setCurrentMessage] = useState<Message>();
-  const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(true);
   const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [showScrollDownButton, setShowScrollDownButton] =
-    useState<boolean>(false);
   const [modelWaiting, setModelWaiting] = useState<boolean>(false);
   // 添加一个锁定变量，防止按钮状态在短时间内频繁变化
   const scrollButtonLockRef = useRef<boolean>(false);
@@ -104,6 +105,9 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const latestHomeContextStateRef = useRef(homeContext.state);
   // ===== 新增 Ref 结束 =====
 
+  // 获取消息数量
+  const messagesLength = selectedConversation?.messages?.length || 0;
+
   // 添加状态来跟踪输入框高度
   const [inputBoxHeight, setInputBoxHeight] = useState<number>(65);
   // 添加状态追踪输入框是否真正扩展了
@@ -111,21 +115,64 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   // 添加状态追踪底部输入框的高度(用于对话模式)
   const [bottomInputHeight, setBottomInputHeight] = useState<number>(65);
 
-  // 获取消息数量
-  const messagesLength = selectedConversation?.messages?.length || 0;
+  // 使用 useInputHeightObserver 监听输入框高度
+  const initialObserver = useInputHeightObserver({
+    selector: '[data-input-height]',
+    defaultHeight: 65,
+    minHeightChange: 5,
+    isEnabled: !messagesLength && !messageIsStreaming,
+    checkIsExpanded: true,
+    expandedThreshold: 70
+  });
+
+  // 使用 useInputHeightObserver 监听底部输入框高度
+  const bottomObserver = useInputHeightObserver({
+    selector: '.absolute.bottom-0.left-0.w-full.z-20 [data-input-height]',
+    defaultHeight: 65,
+    minHeightChange: 5,
+    isEnabled: !!messagesLength
+  });
+
+  // 将 Hook 返回的值同步到组件状态
+  useEffect(() => {
+    if (!messagesLength && !messageIsStreaming) {
+      setInputBoxHeight(initialObserver.height);
+      setIsInputExpanded(initialObserver.isExpanded);
+    }
+  }, [initialObserver.height, initialObserver.isExpanded, messagesLength, messageIsStreaming]);
+
+  useEffect(() => {
+    if (messagesLength) {
+      setBottomInputHeight(bottomObserver.height);
+    }
+  }, [bottomObserver.height, messagesLength]);
 
   // 添加移动端检测
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useMobileDetection();
   
+  // --- Add state for task ID ---
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  // --- END Add ---
+
+  // ===== 新增 useEffect 同步 Ref 开始 =====
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    latestHomeContextStateRef.current = homeContext.state;
+  }, [homeContext.state]);
+  // ===== 新增 useEffect 同步 Ref 结束 =====
+
+  // 管理聊天滚动
+  const {
+    autoScrollEnabled,
+    showScrollDownButton,
+    scrollToBottom: handleScrollDown,
+    scrollDownPrecise: scrollDown
+  } = useScrollManager({
+    chatContainerRef,
+    messagesEndRef,
+    messagesLength,
+    selectedConversationId: selectedConversation?.id,
+    messageIsStreaming
+  });
 
   // 获取欢迎界面相关样式
   useEffect(() => {
@@ -168,224 +215,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       }
     };
   }, []);
-
-  // 滚动到底部的函数
-  const handleScrollDown = useCallback(() => {
-    if (chatContainerRef?.current) {
-      // 锁定滚动按钮状态变化，防止闪烁
-      scrollButtonLockRef.current = true;
-      // 立即隐藏按钮
-      setShowScrollDownButton(false);
-      
-      chatContainerRef.current.scrollTo({
-        top: chatContainerRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
-      
-      setAutoScrollEnabled(true);
-      
-      // 滚动动画完成后解锁，延长时间
-      setTimeout(() => {
-        scrollButtonLockRef.current = false;
-      }, 1000);
-    }
-  }, []);
-
-  // 用于精确滚动到消息末尾的函数(使用messagesEndRef)
-  const scrollDown = () => {
-    if (chatContainerRef?.current && messagesEndRef.current) {
-      // 锁定滚动按钮状态变化，防止闪烁
-      scrollButtonLockRef.current = true;
-      // 设置按钮立即隐藏
-      setShowScrollDownButton(false);
-      
-      // 延迟滚动一小段时间，确保按钮状态已更新
-      setTimeout(() => {
-        // 使用messagesEndRef实现精确滚动
-        messagesEndRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'end',
-        });
-        
-        setAutoScrollEnabled(true);
-        
-        // 滚动动画完成后解锁 - 延长锁定时间
-        setTimeout(() => {
-          scrollButtonLockRef.current = false;
-        }, 1000);
-      }, 10);
-    }
-  };
-  
-  // 使用节流减少scrollDown的调用频率
-  const throttledScrollDown = useCallback(
-    throttle(scrollDown, 100),
-    []
-  );
-
-  // 确保组件挂载和对话切换时自动滚动到底部 - 简化为直接调用滚动函数
-  useEffect(() => {
-    // 如果有消息，在组件挂载或对话切换时自动滚动到底部
-    if (messagesLength > 0) {
-      // 简单地直接调用滚动函数
-      setTimeout(() => {
-        handleScrollDown();
-      }, 100);
-    }
-  }, [selectedConversation?.id, handleScrollDown]); // 只在对话ID变化时触发
-
-  // 添加一个useEffect来监听输入框高度的变化(初始界面)
-  useEffect(() => {
-    // 如果有消息或在流式生成中，不需要监听
-    if (messagesLength || messageIsStreaming) {
-      return;
-    }
-    
-    // 通过MutationObserver监听data-input-height属性的变化
-    const inputContainer = document.querySelector('[data-input-height]');
-    if (!inputContainer) return;
-    
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'data-input-height') {
-          const height = parseInt(inputContainer.getAttribute('data-input-height') || '65', 10);
-          
-          // 只有当高度显著变化时(至少5px)才更新状态
-          if (Math.abs(height - inputBoxHeight) >= 5) {
-            setInputBoxHeight(height);
-            setIsInputExpanded(height > 70); // 确保只有真正扩展时才设置为true
-          }
-        }
-      });
-    });
-    
-    observer.observe(inputContainer, { attributes: true });
-    
-    return () => {
-      observer.disconnect();
-    };
-  }, [messagesLength, messageIsStreaming, inputBoxHeight]);
-
-  // 添加useEffect监听对话模式下底部输入框的高度变化
-  useEffect(() => {
-    // 只有在有消息时才监听底部输入框
-    if (!messagesLength) {
-      return;
-    }
-    
-    // 查找底部输入框容器
-    const bottomInputContainer = document.querySelector('.absolute.bottom-0.left-0.w-full.z-20 [data-input-height]');
-    if (!bottomInputContainer) return;
-    
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'data-input-height') {
-          const height = parseInt(bottomInputContainer.getAttribute('data-input-height') || '65', 10);
-          
-          // 只有当高度显著变化时才更新状态
-          if (Math.abs(height - bottomInputHeight) >= 5) {
-            setBottomInputHeight(height);
-          }
-        }
-      });
-    });
-    
-    observer.observe(bottomInputContainer, { attributes: true });
-    
-    return () => {
-      observer.disconnect();
-    };
-  }, [messagesLength, bottomInputHeight]);
-
-  // 优化事件监听，同时支持触摸和鼠标事件
-  useEffect(() => {
-    if (!chatContainerRef.current) return;
-    
-    const handleScroll = () => {
-      if (!chatContainerRef.current) return;
-      
-      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-      const scrollPosition = scrollHeight - scrollTop - clientHeight;
-      
-      const isInitialState = !selectedConversation || selectedConversation.messages.length === 0;
-      const isUserInteracting = document.body.classList.contains('user-is-interacting');
-      
-      if (scrollPosition > 100 && !scrollButtonLockRef.current && !isUserInteracting) {
-        setAutoScrollEnabled(false);
-        if (!isInitialState) {
-          setShowScrollDownButton(true);
-        } else {
-          setShowScrollDownButton(false);
-        }
-      } else if (scrollPosition <= 100 && !isUserInteracting) {
-        setAutoScrollEnabled(true);
-        setShowScrollDownButton(false);
-      }
-    };
-    
-    // 统一处理用户交互事件
-    const handleInteractionStart = () => {
-      document.body.classList.add('user-is-interacting');
-    };
-    
-    const handleInteractionEnd = () => {
-      document.body.classList.remove('user-is-interacting');
-      handleScroll();
-    };
-    
-    const container = chatContainerRef.current;
-    
-    // 移动端触摸事件
-    container.addEventListener('touchstart', handleInteractionStart, { passive: true });
-    container.addEventListener('touchend', handleInteractionEnd, { passive: true });
-    
-    // 桌面端鼠标事件
-    container.addEventListener('mousedown', handleInteractionStart);
-    container.addEventListener('mouseup', handleInteractionEnd);
-    
-    // 滚动事件
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    
-    return () => {
-      container.removeEventListener('touchstart', handleInteractionStart);
-      container.removeEventListener('touchend', handleInteractionEnd);
-      container.removeEventListener('mousedown', handleInteractionStart);
-      container.removeEventListener('mouseup', handleInteractionEnd);
-      container.removeEventListener('scroll', handleScroll);
-    };
-  }, [chatContainerRef, messagesLength]);
-
-  // 优化消息流更新
-  useEffect(() => {
-    if (!selectedConversation?.messages || !autoScrollEnabled) return;
-    
-    const lastMessage = selectedConversation.messages[selectedConversation.messages.length - 1];
-    if (!lastMessage) return;
-    
-    const updateScroll = () => {
-      if (!chatContainerRef.current || !autoScrollEnabled) return;
-      
-      const shouldScroll = !document.body.classList.contains('user-is-interacting');
-      if (shouldScroll) {
-        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-      }
-    };
-    
-    // 使用 requestAnimationFrame 优化滚动性能
-    if (lastMessage.content) {
-      requestAnimationFrame(updateScroll);
-    }
-  }, [selectedConversation?.messages, autoScrollEnabled]);
-
-  // --- Add state for task ID ---
-  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
-  // --- END Add ---
-
-  // ===== 新增 useEffect 同步 Ref 开始 =====
-  useEffect(() => {
-    latestHomeContextStateRef.current = homeContext.state;
-  }, [homeContext.state]);
-  // ===== 新增 useEffect 同步 Ref 结束 =====
 
   // 添加 useEffect 来处理 cardInputPrompt 变化
   useEffect(() => {
@@ -498,9 +327,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         
         // 滚动到底部
         setTimeout(() => {
-          if (chatContainerRef.current) {
-            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-          }
+          handleScrollDown();
         }, 50);
 
 
@@ -576,7 +403,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 role: 'assistant', 
                 content: fullResponse 
               };
-          } else {
+        } else {
               console.error("[Card Send Stream] Error updating message stream: Cannot find assistant placeholder.");
               isStreamHalted = true;
               return;
@@ -1055,336 +882,13 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     }
   }, [selectedConversation?.messages, handleScrollDown, autoScrollEnabled, messageIsStreaming]);
 
-  // 更新样式内容，确保平滑过渡和一致的padding
-  useEffect(() => {
-    // 创建样式表
-    const styleEl = document.createElement('style');
-    // 确保ID唯一，避免重复添加
-    styleEl.id = 'chat-custom-scrollbar-styles';
-    
-    // 获取当前主题颜色
-    const isDarkMode = currentTheme === 'dark';
-    
-    // 设置样式内容
-    styleEl.innerHTML = `
-      /* 滚动条容器样式 */
-      .chat-container-scrollbar, .textarea-container-scrollbar {
-        position: relative;
-        scrollbar-width: thin;
-        scrollbar-color: transparent transparent; /* Firefox支持 */
-      }
-      
-      /* 滚动条整体样式 */
-      .chat-container-scrollbar::-webkit-scrollbar, .textarea-container-scrollbar::-webkit-scrollbar {
-        width: 8px;
-        background-color: transparent;
-      }
-      
-      /* 滚动条滑块样式 - 设置为透明 */
-      .chat-container-scrollbar::-webkit-scrollbar-thumb, .textarea-container-scrollbar::-webkit-scrollbar-thumb {
-        background-color: transparent;
-      }
-      
-      /* 滚动条轨道样式 - 设置为透明 */
-      .chat-container-scrollbar::-webkit-scrollbar-track, .textarea-container-scrollbar::-webkit-scrollbar-track {
-        background-color: transparent;
-      }
-      
-      /* 创建一个自定义的滚动条容器 */
-      .chat-scrollbar-custom-overlay {
-        position: fixed;
-        top: 40px;
-        right: 0;
-        width: 8px;
-        bottom: 85px; /* 减少底部距离，与底部遮挡层一致 */
-        z-index: 99;
-        pointer-events: auto; /* 允许鼠标事件 */
-        display: none; /* 默认隐藏，由JS控制显示 */
-      }
-      
-      /* 自定义滚动条轨道 */
-      .chat-scrollbar-custom-track {
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 8px;
-        height: 100%;
-        background-color: transparent;
-      }
-      
-      /* 自定义滚动条滑块 - 会动态定位和大小 */
-      .chat-scrollbar-custom-thumb {
-        position: absolute;
-        width: 8px;
-        background-color: ${isDarkMode ? 'rgba(200, 200, 210, 0.3)' : 'rgba(156, 163, 175, 0.3)'};
-        border-radius: 10px;
-        transition: background-color 0.2s;
-      }
-      
-      /* 正在拖动的滑块样式 */
-      .user-is-dragging-scrollbar .chat-scrollbar-custom-thumb {
-        background-color: ${isDarkMode ? 'rgba(200, 200, 210, 0.6)' : 'rgba(156, 163, 175, 0.6)'};
-      }
-      
-      .chat-scrollbar-custom-thumb:hover {
-        background-color: ${isDarkMode ? 'rgba(200, 200, 210, 0.5)' : 'rgba(156, 163, 175, 0.5)'};
-      }
-      
-      /* 上边界指示器 - 上三角形 */
-      .chat-scrollbar-custom-overlay::before {
-        content: "";
-        position: absolute;
-        top: -6px;
-        right: 0;
-        width: 0;
-        height: 0;
-        border-left: 4px solid transparent;
-        border-right: 4px solid transparent;
-        border-bottom: 6px solid ${isDarkMode ? 'rgba(200, 200, 210, 0.4)' : 'rgba(156, 163, 175, 0.4)'};
-        pointer-events: none; /* 防止干扰鼠标事件 */
-      }
-      
-      /* 下边界指示器 - 下三角形 */
-      .chat-scrollbar-custom-overlay::after {
-        content: "";
-        position: absolute;
-        bottom: -6px;
-        right: 0;
-        width: 0;
-        height: 0;
-        border-left: 4px solid transparent;
-        border-right: 4px solid transparent;
-        border-top: 6px solid ${isDarkMode ? 'rgba(200, 200, 210, 0.4)' : 'rgba(156, 163, 175, 0.4)'};
-        pointer-events: none; /* 防止干扰鼠标事件 */
-      }
-      
-      /* 防止文本选择，避免拖动滚动条时选择文本 */
-      .user-is-dragging-scrollbar {
-        user-select: none;
-      }
-      
-      /* 初始状态下的自定义滚动条 - 确保与对话状态一致 */
-      .initial-input-scrollbar-overlay {
-        position: fixed;
-        top: 40%;
-        right: 0;
-        width: 8px;
-        height: 220px;
-        z-index: 99;
-        pointer-events: none;
-        display: none; /* 默认隐藏，由JS控制显示 */
-      }
-      
-      /* 初始状态滚动条样式与主滚动条保持一致 */
-      .initial-input-scrollbar-overlay .chat-scrollbar-custom-track,
-      .initial-input-scrollbar-overlay .chat-scrollbar-custom-thumb,
-      .initial-input-scrollbar-overlay::before,
-      .initial-input-scrollbar-overlay::after {
-        /* 继承主滚动条的样式 */
-        display: inherit;
-      }
-      
-      /* 适配暗色模式 */
-      @media (prefers-color-scheme: dark) {
-        .chat-scrollbar-custom-thumb {
-          background-color: rgba(200, 200, 210, 0.3);
-        }
-        
-        .chat-scrollbar-custom-thumb:hover {
-          background-color: rgba(200, 200, 210, 0.5);
-        }
-        
-        
-        .chat-scrollbar-custom-overlay::before {
-          border-bottom: 6px solid rgba(200, 200, 210, 0.4);
-        }
-        
-        .chat-scrollbar-custom-overlay::after {
-          border-top: 6px solid rgba(200, 200, 210, 0.4);
-        }
-      }
-    `;
-    
-    // 更新或添加样式表
-    const existingStyle = document.getElementById('chat-custom-scrollbar-styles');
-    if (existingStyle) {
-      existingStyle.innerHTML = styleEl.innerHTML;
-    } else {
-      document.head.appendChild(styleEl);
-    }
-    
-    // 组件卸载时移除样式表
-    return () => {
-      const existingStyle = document.getElementById('chat-custom-scrollbar-styles');
-      if (existingStyle) {
-        existingStyle.remove();
-      }
-    };
-  }, [currentTheme]); // 添加currentTheme作为依赖，确保主题切换时更新样式
-
-  // 添加自定义滚动条逻辑
-  useEffect(() => {
-    if (!chatContainerRef.current) return;
-    
-    // 创建自定义滚动条元素
-    const overlay = document.createElement('div');
-    overlay.className = 'chat-scrollbar-custom-overlay';
-    
-    const track = document.createElement('div');
-    track.className = 'chat-scrollbar-custom-track';
-    
-    const thumb = document.createElement('div');
-    thumb.className = 'chat-scrollbar-custom-thumb';
-    
-    track.appendChild(thumb);
-    overlay.appendChild(track);
-    document.body.appendChild(overlay);
-    
-    // 更新滚动条位置和大小
-    const updateScrollbar = () => {
-      if (!chatContainerRef.current) return;
-      
-      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-      const scrollableArea = scrollHeight - clientHeight;
-      
-      // 检查是否是初始状态（没有消息）
-      const isInitialState = messagesLength === 0;
-      
-      // 在初始状态下，始终隐藏滚动条和指示器
-      if (isInitialState) {
-        overlay.style.display = 'none';
-        return;
-      }
-      
-      // 对话状态下，只有在有可滚动内容时才显示滚动条
-      if (scrollableArea <= 0) {
-        overlay.style.display = 'none';
-        return;
-      } else {
-        overlay.style.display = 'block';
-      }
-      
-      // 计算滑块高度 - 基于可视区域与总高度的比例
-      const trackHeight = overlay.clientHeight;
-      const thumbHeight = Math.max(30, (clientHeight / scrollHeight) * trackHeight);
-      
-      // 计算滑块位置
-      const thumbTop = (scrollTop / Math.max(1, scrollableArea)) * (trackHeight - thumbHeight);
-      
-      // 更新滑块样式
-      thumb.style.display = 'block';
-      thumb.style.height = `${thumbHeight}px`;
-      thumb.style.top = `${thumbTop}px`;
-    };
-    
-    // 初始更新
-    updateScrollbar();
-    
-    // 监听滚动事件
-    const handleScroll = () => {
-      updateScrollbar();
-    };
-    
-    // 添加滚动条拖动功能
-    let isDragging = false;
-    let startY = 0;
-    let startScrollTop = 0;
-    
-    const onThumbMouseDown = (e: MouseEvent) => {
-      e.preventDefault();
-      isDragging = true;
-      startY = e.clientY;
-      document.body.classList.add('user-is-dragging-scrollbar');
-      
-      if (chatContainerRef.current) {
-        startScrollTop = chatContainerRef.current.scrollTop;
-      }
-      
-      document.addEventListener('mousemove', onDocumentMouseMove);
-      document.addEventListener('mouseup', onDocumentMouseUp);
-    };
-    
-    const onTrackMouseDown = (e: MouseEvent) => {
-      // 检查点击是否在轨道上而不是滑块上
-      if (e.target === track) {
-        e.preventDefault();
-        
-        if (!chatContainerRef.current) return;
-        
-        const { scrollHeight, clientHeight } = chatContainerRef.current;
-        const trackRect = track.getBoundingClientRect();
-        const clickRatio = (e.clientY - trackRect.top) / trackRect.height;
-        
-        // 设置新的滚动位置
-        chatContainerRef.current.scrollTop = clickRatio * (scrollHeight - clientHeight);
-        
-        // 更新滚动条位置
-        updateScrollbar();
-      }
-    };
-    
-    const onDocumentMouseMove = (e: MouseEvent) => {
-      if (!isDragging || !chatContainerRef.current) return;
-      
-      e.preventDefault();
-      
-      const { scrollHeight, clientHeight } = chatContainerRef.current;
-      const scrollableDistance = scrollHeight - clientHeight;
-      const trackRect = track.getBoundingClientRect();
-      
-      // 计算鼠标移动距离相对于轨道的比例
-      const deltaY = e.clientY - startY;
-      const deltaRatio = deltaY / trackRect.height;
-      
-      // 应用新的滚动位置
-      chatContainerRef.current.scrollTop = Math.max(
-        0,
-        Math.min(startScrollTop + deltaRatio * scrollableDistance, scrollableDistance)
-      );
-      
-      // 更新滚动条
-      updateScrollbar();
-    };
-    
-    const onDocumentMouseUp = () => {
-      isDragging = false;
-      document.body.classList.remove('user-is-dragging-scrollbar');
-      document.removeEventListener('mousemove', onDocumentMouseMove);
-      document.removeEventListener('mouseup', onDocumentMouseUp);
-    };
-    
-    // 添加事件监听器
-    thumb.addEventListener('mousedown', onThumbMouseDown);
-    track.addEventListener('mousedown', onTrackMouseDown);
-    chatContainerRef.current.addEventListener('scroll', handleScroll);
-    window.addEventListener('resize', updateScrollbar);
-    
-    // 创建MutationObserver来监视内容变化
-    const observer = new MutationObserver(updateScrollbar);
-    observer.observe(chatContainerRef.current, { 
-      childList: true, 
-      subtree: true,
-      attributes: true
-    });
-    
-    // 清理
-    return () => {
-      if (chatContainerRef.current) {
-        chatContainerRef.current.removeEventListener('scroll', handleScroll);
-      }
-      window.removeEventListener('resize', updateScrollbar);
-      observer.disconnect();
-      
-      thumb.removeEventListener('mousedown', onThumbMouseDown);
-      track.removeEventListener('mousedown', onTrackMouseDown);
-      document.removeEventListener('mousemove', onDocumentMouseMove);
-      document.removeEventListener('mouseup', onDocumentMouseUp);
-      
-      if (overlay && overlay.parentNode) {
-        overlay.parentNode.removeChild(overlay);
-      }
-    };
-  }, [messagesLength, bottomInputHeight]);
+  // 使用自定义滚动条 Hook
+  useCustomScrollbar({
+    containerRef: chatContainerRef,
+    messagesLength,
+    currentTheme,
+    bottomInputHeight
+  });
 
   // --- handleStopConversation (Keep API call commented out) --- 
   const handleStopConversation = async () => { 
@@ -1484,6 +988,10 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     (homeState.activeAppId !== null && homeState.selectedCardId === null)
     ? '' // 则强制传递空字符串
     : content; // 否则，使用 Chat 组件自己的 content state (用于普通对话输入、卡片选中后的输入等)
+  // ===== 添加结束 =====
+
+  // ===== 添加：计算输入框是否应禁用 =====
+  const isInputDisabled = activeAppId !== null && homeState.selectedCardId === null;
   // ===== 添加结束 =====
 
   return (
@@ -1678,6 +1186,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 isMobile={isMobile}
                 handleStopConversation={handleStopConversation}
                 messageIsStreaming={messageIsStreaming}
+                isDisabled={isInputDisabled}
               />
             </div>
           </div>
@@ -1704,6 +1213,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                     isMobile={isMobile}
                     handleStopConversation={handleStopConversation}
                       messageIsStreaming={messageIsStreaming}
+                    isDisabled={isInputDisabled}
                   />
                 </div>
               </div>
@@ -1728,6 +1238,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                          isMobile={isMobile}
                          handleStopConversation={handleStopConversation}
                       messageIsStreaming={messageIsStreaming}
+                       isDisabled={isInputDisabled}
                        /> 
                      </div> 
                    </div> 
