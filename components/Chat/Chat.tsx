@@ -1486,6 +1486,10 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     : content; // 否则，使用 Chat 组件自己的 content state (用于普通对话输入、卡片选中后的输入等)
   // ===== 添加结束 =====
 
+  // ===== 添加：计算输入框是否应禁用 =====
+  const isInputDisabled = activeAppId !== null && homeState.selectedCardId === null;
+  // ===== 添加结束 =====
+
   return (
     <div
       className={`relative flex-1 flex flex-col overflow-y-auto bg-white dark:bg-[#343541] ${
@@ -1678,6 +1682,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 isMobile={isMobile}
                 handleStopConversation={handleStopConversation}
                 messageIsStreaming={messageIsStreaming}
+                isDisabled={isInputDisabled} // <-- 添加 isDisabled prop
               />
             </div>
           </div>
@@ -1704,6 +1709,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                     isMobile={isMobile}
                     handleStopConversation={handleStopConversation}
                       messageIsStreaming={messageIsStreaming}
+                    isDisabled={isInputDisabled} // <-- 添加 isDisabled prop
                   />
                 </div>
               </div>
@@ -1728,6 +1734,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                          isMobile={isMobile}
                          handleStopConversation={handleStopConversation}
                       messageIsStreaming={messageIsStreaming}
+                       isDisabled={isInputDisabled} // <-- 添加 isDisabled prop
                        /> 
                      </div> 
                    </div> 

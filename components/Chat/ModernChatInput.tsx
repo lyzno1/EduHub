@@ -30,6 +30,7 @@ interface Props {
   isMobile?: boolean;
   handleStopConversation: () => void;
   messageIsStreaming: boolean;
+  isDisabled?: boolean;
 }
 
 export const ModernChatInput = ({
@@ -46,6 +47,7 @@ export const ModernChatInput = ({
   isMobile = false,
   handleStopConversation,
   messageIsStreaming,
+  isDisabled,
 }: Props) => {
   const { t } = useTranslation('chat');
 
@@ -460,14 +462,15 @@ export const ModernChatInput = ({
   // 在返回部分调整样式以适应移动端
   return (
     <div 
-      className={isCentered 
+      className={`${isCentered 
         ? "absolute top-1/2 left-0 w-full px-4 pb-8 z-10 transform -translate-y-1/2 chat-welcome-input" // 居中模式继续使用绝对定位
         : isDeviceMobile 
           ? "w-full px-0 pb-0 z-10 absolute bottom-0 left-0 right-0 chat-welcome-input" // 移动端底部模式，移除内边距
-          : "absolute bottom-0 left-0 w-full px-2 sm:px-4 pb-2 z-10 chat-welcome-input" // 桌面底部模式
-      }
+          : "absolute bottom-0 left-0 w-full px-2 sm:px-4 pb-2 z-10 chat-welcome-input"
+       } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       ref={inputContainerRef}
       data-input-height={inputHeight}
+      title={isDisabled ? "请先选择一个应用卡片" : ""}
     >
       <div
         className={`relative flex flex-col rounded-xl sm:rounded-3xl input-container ${isDarkMode() ? 'chat-input-dark-bg chat-input-dark-mode' : ''} ${!isCentered && isDeviceMobile ? 'mobile-input-rounded' : ''}`}
@@ -496,7 +499,7 @@ export const ModernChatInput = ({
         >
           <textarea
             ref={textareaRef as MutableRefObject<HTMLTextAreaElement>}
-            className={`w-full flex-grow resize-none border-0 ${isDeviceMobile ? 'pt-3 mobile-input-padding' : 'p-0'} ${isDeviceMobile ? 'text-[14px]' : 'text-[15px] sm:text-[16px]'} focus:outline-none focus:ring-0 ${isDarkMode() ? 'modern-input-dark' : 'modern-input-light'} textarea-transition scrollbar-thin`}
+            className={`w-full flex-grow resize-none border-0 ${isDeviceMobile ? 'pt-3 mobile-input-padding' : 'p-0'} ${isDeviceMobile ? 'text-[14px]' : 'text-[15px] sm:text-[16px]'} focus:outline-none focus:ring-0 ${isDarkMode() ? 'modern-input-dark' : 'modern-input-light'} textarea-transition scrollbar-thin ${isDisabled ? 'cursor-not-allowed' : ''}`}
             style={{
               backgroundColor: 'transparent',
               color: isDarkMode() ? 'hsl(205deg, 16%, 77%)' : '#333333',
@@ -514,6 +517,7 @@ export const ModernChatInput = ({
             placeholder={t('你想了解什么？') || ''}
             value={content}
             rows={1}
+            disabled={isDisabled}
             onCompositionStart={() => setIsTyping(true)}
             onCompositionEnd={() => setIsTyping(false)}
             onChange={handleChange}
