@@ -68,7 +68,7 @@ export class DifyClient {
 
   constructor(config: Partial<DifyConfig> = {}) {
     const safeConfig = config || {};
-    let rawUrl = safeConfig.apiUrl || process.env.NEXT_PUBLIC_DIFY_API_URL || DEFAULT_API_URL;
+    let rawUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || safeConfig.apiUrl || DEFAULT_API_URL;
     
     // 确保baseUrl不包含API路径
     if (rawUrl.endsWith(API_PATHS.CHAT_MESSAGES)) {

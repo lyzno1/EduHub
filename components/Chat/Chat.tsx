@@ -7,6 +7,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useMemo,
 } from 'react';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
@@ -44,6 +45,23 @@ import { CampusAssistantAppPage } from '@/components/AppPages/CampusAssistantApp
 import { CourseHelperAppPage } from '@/components/AppPages/CourseHelperAppPage';
 import { DeepSeekAppPage } from '@/components/AppPages/DeepSeekAppPage';
 import { TeacherAppPage } from '@/components/AppPages/TeacherAppPage';
+import appConfigsData from '@/dify_keys.json'; // Import the configuration data
+
+// Define DifyAppConfig type locally if not imported globally
+// (Ideally, move this to a shared types file)
+interface DifyAppCardConfig {
+  id: string;
+  name: string;
+  iconName: string;
+}
+interface DifyAppConfig {
+  apiKey: string;
+  apiUrl: string;
+  appId: number;
+  displayName: string;
+  cards: DifyAppCardConfig[];
+}
+// --- End Local Type Definition ---
 
 // 添加主题类型定义
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
@@ -391,7 +409,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   useEffect(() => {
     // 当 cardInputPrompt 存在且不为空时，自动设置到输入框中
     if (cardInputPrompt && cardInputPrompt.trim() !== '') {
-      console.log('[Chat] 检测到 cardInputPrompt 变化，设置输入框内容为:', cardInputPrompt);
+      // console.log('[Chat] 检测到 cardInputPrompt 变化，设置输入框内容为:', cardInputPrompt);
       setContent(cardInputPrompt);
     }
   }, [cardInputPrompt]);
@@ -1490,6 +1508,16 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const isInputDisabled = activeAppId !== null && homeState.selectedCardId === null;
   // ===== 添加结束 =====
 
+  // Find the active application configuration
+  const activeAppConfig = useMemo(() => {
+    // Assuming appConfigsData is the imported JSON object
+    // Need to handle potential type issues if importing JSON directly
+    const configs = appConfigsData as Record<string, DifyAppConfig>;
+    return Object.values(configs).find(
+      (app: DifyAppConfig) => app.appId === activeAppId
+    );
+  }, [activeAppId]);
+
   return (
     <div
       className={`relative flex-1 flex flex-col overflow-y-auto bg-white dark:bg-[#343541] ${
@@ -1579,11 +1607,16 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             </div>
           ) : isAppMode ? (
             // *** 2. Render App Initial Page (if no messages and appId exists) ***
-            <div className="flex-1 overflow-auto p-4 h-full"> 
-              {activeAppId === 1 && <DeepSeekAppPage />} 
-              {activeAppId === 2 && <CourseHelperAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
-              {activeAppId === 3 && <CampusAssistantAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
-              {activeAppId === 4 && <TeacherAppPage inputBoxHeight={inputBoxHeight} isInputExpanded={isInputExpanded} />} 
+            <div className="flex-1 overflow-auto p-4 h-full">
+              {/* Pass the found config to the corresponding component */}
+              {activeAppId === 1 && activeAppConfig && <DeepSeekAppPage config={activeAppConfig} />}
+              {activeAppId === 2 && activeAppConfig && <CourseHelperAppPage config={activeAppConfig} />}
+              {activeAppId === 3 && activeAppConfig && <CampusAssistantAppPage config={activeAppConfig} />}
+              {activeAppId === 4 && activeAppConfig && <TeacherAppPage config={activeAppConfig} />}
+              {/* Add a fallback or warning if config not found? */}
+              {!activeAppConfig && activeAppId !== 0 && (
+                <div className="text-red-500 text-center p-4">Error: Configuration for App ID {activeAppId} not found.</div>
+              )}
             </div>
           ) : (
             // *** 3. Render General Welcome Screen (if no messages and no appId) ***
