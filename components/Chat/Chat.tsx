@@ -149,7 +149,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
   // 添加移动端检测
   const isMobile = useMobileDetection();
-
+  
   // --- Add state for task ID ---
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   // --- END Add ---
@@ -403,7 +403,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 role: 'assistant', 
                 content: fullResponse 
               };
-          } else {
+        } else {
               console.error("[Card Send Stream] Error updating message stream: Cannot find assistant placeholder.");
               isStreamHalted = true;
               return;
@@ -990,6 +990,10 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     : content; // 否则，使用 Chat 组件自己的 content state (用于普通对话输入、卡片选中后的输入等)
   // ===== 添加结束 =====
 
+  // ===== 添加：计算输入框是否应禁用 =====
+  const isInputDisabled = activeAppId !== null && homeState.selectedCardId === null;
+  // ===== 添加结束 =====
+
   return (
     <div
       className={`relative flex-1 flex flex-col overflow-y-auto bg-white dark:bg-[#343541] ${
@@ -1182,6 +1186,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                 isMobile={isMobile}
                 handleStopConversation={handleStopConversation}
                 messageIsStreaming={messageIsStreaming}
+                isDisabled={isInputDisabled}
               />
             </div>
           </div>
@@ -1208,6 +1213,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                     isMobile={isMobile}
                     handleStopConversation={handleStopConversation}
                       messageIsStreaming={messageIsStreaming}
+                    isDisabled={isInputDisabled}
                   />
                 </div>
               </div>
@@ -1232,6 +1238,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
                          isMobile={isMobile}
                          handleStopConversation={handleStopConversation}
                       messageIsStreaming={messageIsStreaming}
+                       isDisabled={isInputDisabled}
                        /> 
                      </div> 
                    </div> 
