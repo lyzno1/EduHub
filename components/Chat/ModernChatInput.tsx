@@ -64,6 +64,10 @@ export const ModernChatInput = ({
   const [inputHeight, setInputHeight] = useState<number>(65); // 默认高度
   // 只在移动端添加键盘状态跟踪
   const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
+  // 添加 Tooltip 显示状态
+  const [showTooltip, setShowTooltip] = useState<boolean>(false);
+  // 添加定时器引用用于移动端自动隐藏提示
+  const tooltipTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const inputContainerRef = useRef<HTMLDivElement>(null);
   
@@ -87,6 +91,45 @@ export const ModernChatInput = ({
   const isDarkMode = useCallback(() => {
     return lightMode === 'dark';
   }, [lightMode]);
+
+  // 处理禁用状态下的悬停事件
+  const handleMouseEnter = useCallback(() => {
+    if (isDisabled && !isDeviceMobile) {
+      setShowTooltip(true);
+    }
+  }, [isDisabled, isDeviceMobile]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (isDisabled && !isDeviceMobile) {
+      setShowTooltip(false);
+    }
+  }, [isDisabled, isDeviceMobile]);
+
+  // 处理禁用状态下的点击事件（移动端）
+  const handleDisabledClick = useCallback(() => {
+    if (isDisabled && isDeviceMobile) {
+      setShowTooltip(true);
+      
+      // 清除现有定时器
+      if (tooltipTimerRef.current) {
+        clearTimeout(tooltipTimerRef.current);
+      }
+      
+      // 设置新定时器，3秒后自动隐藏提示
+      tooltipTimerRef.current = setTimeout(() => {
+        setShowTooltip(false);
+      }, 3000);
+    }
+  }, [isDisabled, isDeviceMobile]);
+
+  // 组件卸载时清除定时器
+  useEffect(() => {
+    return () => {
+      if (tooltipTimerRef.current) {
+        clearTimeout(tooltipTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -362,6 +405,32 @@ export const ModernChatInput = ({
         animation: fadeIn 0.3s ease-in-out;
       }
       
+      /* 自定义提示框动画 - 修改为没有位置变化的动画 */
+      @keyframes tooltipFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      
+      /* 优化后的Tooltip样式 */
+      .custom-tooltip {
+        position: absolute;
+        top: -40px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(0, 0, 0, 0.75);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        white-space: nowrap;
+        pointer-events: none;
+        z-index: 100;
+        animation: tooltipFadeIn 0.2s ease-out;
+        text-align: center;
+      }
+      
       /* 移动端样式 - 仅在小屏幕上应用 */
       @media (max-width: 767px) {
         .mobile-input-rounded {
@@ -389,6 +458,12 @@ export const ModernChatInput = ({
         html.keyboard-open .welcome-text {
           visibility: visible !important;
           opacity: 1 !important;
+        }
+        
+        /* 移动端提示框位置调整 */
+        .custom-tooltip {
+          width: 180px;
+          top: -45px;
         }
       }
     `;
@@ -470,7 +545,6 @@ export const ModernChatInput = ({
       } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       ref={inputContainerRef}
       data-input-height={inputHeight}
-      title={isDisabled ? "请先选择一个应用卡片" : ""}
     >
       <div
         className={`relative flex flex-col rounded-xl sm:rounded-3xl input-container ${isDarkMode() ? 'chat-input-dark-bg chat-input-dark-mode' : ''} ${!isCentered && isDeviceMobile ? 'mobile-input-rounded' : ''}`}
@@ -487,6 +561,11 @@ export const ModernChatInput = ({
               : '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 8px 15px -3px rgba(0, 0, 0, 0.1), 0 12px 20px -5px rgba(0, 0, 0, 0.15)',
         }}
       >
+        {/* 提示框 - 移到这里防止位置闪烁 */}
+        {isDisabled && showTooltip && (
+          <div className="custom-tooltip">请先选择一个应用卡片</div>
+        )}
+        
         {/* 这里是真正的输入区，高度根据内容动态变化但不会影响外部布局 */}
         <div 
           className={`${isDeviceMobile ? 'min-h-[45px]' : 'min-h-[50px] sm:min-h-[65px]'} overflow-y-auto ${isDeviceMobile ? 'rounded-t-xl' : 'rounded-t-xl sm:rounded-t-3xl'} ${isDeviceMobile ? 'px-3' : 'px-3 sm:px-6'} ${isDarkMode() ? 'chat-input-dark-bg' : ''} input-content-container textarea-container-scrollbar ${isDeviceMobile ? 'mobile-input-container' : ''} ${!isCentered && isDeviceMobile ? 'mobile-input-rounded' : ''}`}
@@ -496,6 +575,9 @@ export const ModernChatInput = ({
             backgroundColor: isDarkMode() ? '#343541' : getBgColor(),
             maxHeight: isDeviceMobile ? '180px' : '260px', // 根据设备类型调整最大高度
           }}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={handleDisabledClick}
         >
           <textarea
             ref={textareaRef as MutableRefObject<HTMLTextAreaElement>}
