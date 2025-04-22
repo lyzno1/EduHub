@@ -1,0 +1,29 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Project Documentation Generation Plan
+
+This rule outlines the process for analyzing the project codebase and generating technical documentation based on user-provided information.
+
+**Goal:** Generate a comprehensive Markdown document describing the project's structure, features, tech stack, and usage based on code analysis.
+
+**Interaction Flow:**
+
+1.  **Receive Directory Structure:** The user will first provide an overview of the project's directory structure (e.g., using `tree` output or a list).
+2.  **Request/Receive Key Files:** Based on the structure, I may request specific key files, or the user will proactively provide the content of core files (entry points, logic modules, configurations, etc.).
+3.  **Analyze Code:** I will analyze the provided directory structure and file contents.
+4.  **Generate Document:** Using the gathered information, I will generate a Markdown document with the following sections:
+    *   Project Overview
+    *   Project Structure
+    *   Main Features
+    *   Technology Stack
+    *   How to Run/Use (if available)
+
+**Guidance:**
+
+*   Focus on information directly derivable from the provided code and structure.
+*   Clearly state any uncertainties or areas requiring more information.
+*   Reference specific files or code snippets when describing structure and features.
+*   The final output should be a well-formatted Markdown document.

@@ -1,4 +1,4 @@
-import { IconMessagePlus, IconSearch, IconX, IconBrandChrome, IconSchool, IconBook, IconCode, IconBrain, IconRobot, IconBook2, IconUsers, IconGripVertical, IconMenu2 } from '@tabler/icons-react';
+import { IconMessagePlus, IconSearch, IconX, IconBrandChrome, IconSchool, IconBook, IconCode, IconBrain, IconRobot, IconBook2, IconUsers, IconGripVertical, IconMenu2, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { FC, useContext, useEffect, useState, useRef, CSSProperties, useMemo } from 'react';
 import { useTranslation } from 'next-i18next';
 import {
@@ -103,6 +103,7 @@ interface Props {
 }
 
 const SIDEBAR_WIDTH = 260;
+const INITIAL_APP_DISPLAY_LIMIT = 4; // 設定初始顯示數量
 
 export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const { t } = useTranslation('sidebar');
@@ -112,6 +113,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [modalOpenConversationId, setModalOpenConversationId] = useState<string | null>(null);
+  const [isAppListExpanded, setIsAppListExpanded] = useState<boolean>(false); // 添加展開狀態
   const prevSelectedConversationRef = useRef<string | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [translateX, setTranslateX] = useState(0);
@@ -372,7 +374,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
         </div>
       </div>
 
-      <div className="flex-grow flex-shrink-0 overflow-y-auto h-0">
+      <div className="flex-grow min-h-0 overflow-y-auto">
         <div className="px-4 pb-4">
           {hasNoResults ? (
             <div className="text-center text-gray-500 dark:text-gray-400 py-2">
@@ -423,31 +425,63 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
         </div>
       </div>
 
-      <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 overflow-y-auto min-h-0">
+      <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700">
         <div className="px-4 pt-2 pb-4">
           <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
             校园应用
           </div>
-          <div className="space-y-2">
-            {dynamicApplications.map((app) => (
-              <button
-                key={app.id}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 group ${
-                  activeAppId === app.id 
-                    ? 'bg-gray-200 dark:bg-gray-700 font-medium'
-                    : ''
-                }`}
-                onClick={() => handleAppClick(app.id)}
-              >
-                <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${app.color} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}>
-                  {app.icon}
-                </div>
-                <span className={`text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white ${
-                  activeAppId === app.id ? 'text-gray-900 dark:text-white' : ''
-                }`}>{app.name}</span>
-              </button>
-            ))}
+          <div 
+             className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${isAppListExpanded ? 'max-h-screen' : 'max-h-56' // 增加高度以容纳按钮
+             }`}
+          >
+            <div className="space-y-2">
+              {dynamicApplications.map((app) => (
+                <button
+                  key={app.id}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 group ${
+                    activeAppId === app.id 
+                      ? 'bg-gray-200 dark:bg-gray-700 font-medium'
+                      : ''
+                  }`}
+                  onClick={() => handleAppClick(app.id)}
+                >
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${app.color} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}>
+                    {app.icon}
+                  </div>
+                  <span className={`text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white ${
+                    activeAppId === app.id ? 'text-gray-900 dark:text-white' : ''
+                  }`}>{app.name}</span>
+                </button>
+              ))}
+            </div>
           </div>
+
+          {dynamicApplications.length > INITIAL_APP_DISPLAY_LIMIT && (
+            <button 
+              onClick={() => setIsAppListExpanded(!isAppListExpanded)}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 group mt-2`}
+            >
+              {isAppListExpanded ? (
+                 <>
+                   <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+                      <IconChevronUp size={18} className="text-gray-500 dark:text-gray-400" />
+                   </div>
+                   <span className="text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white">
+                     收起
+                   </span>
+                 </>
+              ) : (
+                 <>
+                    <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+                       <IconChevronDown size={18} className="text-gray-500 dark:text-gray-400" />
+                    </div>
+                    <span className="text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white">
+                      展开另外 {dynamicApplications.length - INITIAL_APP_DISPLAY_LIMIT} 个应用
+                    </span>
+                 </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>
