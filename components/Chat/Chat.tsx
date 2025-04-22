@@ -1,4 +1,4 @@
-import { IconClearAll, IconSettings } from '@tabler/icons-react';
+import { IconClearAll, IconSettings, IconTestPipe, IconCode, IconInfoCircle, IconHelp, IconMoodBoy, IconWorldWww, IconDatabase, IconBook, IconMessageChatbot, IconPencil, IconMessageCircleQuestion, IconBulb, IconPresentation, IconListDetails, IconCheckbox, IconMessageReport, IconQuestionMark } from '@tabler/icons-react';
 import {
   MutableRefObject,
   memo,
@@ -40,13 +40,30 @@ import { MemoizedChatMessage } from './MemoizedChatMessage';
 import { FunctionCards } from './FunctionCards';
 import { ChatInput } from './ChatInput';
 import { ChatMessage } from './ChatMessage';
-import { CampusAssistantAppPage } from '@/components/AppPages/CampusAssistantAppPage';
-import { CourseHelperAppPage } from '@/components/AppPages/CourseHelperAppPage';
-import { DeepSeekAppPage } from '@/components/AppPages/DeepSeekAppPage';
-import { TeacherAppPage } from '@/components/AppPages/TeacherAppPage';
-import difyConfigService from '@/services/difyConfigService'; 
-import { DifyAppCardConfig, DifyFolderConfig } from '@/types/dify'; // 只导入 DifyFolderConfig 和 DifyAppCardConfig
+import { AppPageTemplate } from '@/components/AppPages/common/AppPageTemplate';
+import difyConfigService from '@/services/difyConfigService';
+import { DifyFolderConfig } from '@/types/dify';
 
+// Define the mapping for all possible card icons here
+const iconMapForAllCards: { [key: string]: React.ComponentType<any> } = {
+  IconTestPipe: IconTestPipe,
+  IconCode: IconCode,
+  IconInfoCircle: IconInfoCircle,
+  IconHelp: IconHelp,
+  IconMoodBoy: IconMoodBoy,
+  IconWorldWww: IconWorldWww,
+  IconDatabase: IconDatabase,
+  IconBook: IconBook,
+  IconMessageChatbot: IconMessageChatbot,
+  IconPencil: IconPencil,
+  IconMessageCircleQuestion: IconMessageCircleQuestion,
+  IconBulb: IconBulb,
+  IconPresentation: IconPresentation,
+  IconListDetails: IconListDetails,
+  IconCheckbox: IconCheckbox,
+  IconMessageReport: IconMessageReport,
+  IconQuestionMark: IconQuestionMark, // Fallback
+};
 
 // 添加主题类型定义
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
@@ -1495,9 +1512,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
 
   // Find the active application configuration
   const activeAppConfig = useMemo(() => {
-    // 使用 difyConfigService 根据 activeAppId 获取相应的文件夹配置
     if (activeAppId === null) return null;
-    
     return difyConfigService.getFolderConfig(activeAppId);
   }, [activeAppId]);
 
@@ -1589,16 +1604,22 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
               </div>
             </div>
           ) : isAppMode ? (
-            // *** 2. Render App Initial Page (if no messages and appId exists) ***
+            // *** 2. Render App Initial Page (Dynamically) ***
             <div className="flex-1 overflow-auto p-4 h-full">
-              {/* Pass the found config to the corresponding component */}
-              {activeAppId === 1 && activeAppConfig && <DeepSeekAppPage config={activeAppConfig} />}
-              {activeAppId === 2 && activeAppConfig && <CourseHelperAppPage config={activeAppConfig} />}
-              {activeAppId === 3 && activeAppConfig && <CampusAssistantAppPage config={activeAppConfig} />}
-              {activeAppId === 4 && activeAppConfig && <TeacherAppPage config={activeAppConfig} />}
-              {/* Add a fallback or warning if config not found? */}
-              {!activeAppConfig && activeAppId !== 0 && (
-                <div className="text-red-500 text-center p-4">Error: Configuration for App ID {activeAppId} not found.</div>
+              {/* Render AppPageTemplate using activeAppConfig */}
+              {activeAppConfig ? (
+                <AppPageTemplate
+                  config={activeAppConfig} // Pass the full folder config
+                  // Pass a default theme color, as it's not in DifyFolderConfig
+                  // Alternatively, AppPageTemplate could define its own default
+                  themeColor={'green'} // Example: using 'green' as default for all apps
+                  iconMap={iconMapForAllCards} // Pass the complete icon map
+                />
+              ) : (
+                // Fallback if config not found for the activeAppId
+                activeAppId !== 0 && (
+                  <div className="text-red-500 text-center p-4">Error: Configuration for App ID {activeAppId} not found.</div>
+                )
               )}
             </div>
           ) : (

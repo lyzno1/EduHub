@@ -1,5 +1,5 @@
-import { IconMessagePlus, IconSearch, IconX, IconBrandChrome, IconSchool, IconBook, IconCode, IconBrain, IconRobot, IconBook2, IconUsers, IconGripVertical, IconTestPipe, IconInfoCircle, IconHelp, IconMoodBoy, IconWorldWww, IconDatabase, IconMessageChatbot, IconPencil, IconMessageCircleQuestion, IconBulb, IconPresentation, IconListDetails, IconCheckbox, IconMessageReport, IconQuestionMark } from '@tabler/icons-react';
-import { FC, useContext, useEffect, useState, useRef, CSSProperties } from 'react';
+import { IconMessagePlus, IconSearch, IconX, IconBrandChrome, IconSchool, IconBook, IconCode, IconBrain, IconRobot, IconBook2, IconUsers, IconGripVertical, IconMenu2 } from '@tabler/icons-react';
+import { FC, useContext, useEffect, useState, useRef, CSSProperties, useMemo } from 'react';
 import { useTranslation } from 'next-i18next';
 import {
   DndContext, 
@@ -29,7 +29,7 @@ import { Conversation } from '@/types/chat';
 import { ConversationComponent } from './components/Conversation';
 import Link from 'next/link';
 import { saveConversations } from '@/utils/app/conversation';
-import { DifyFolderConfig } from '@/types/dify';
+import { AppConfig } from '@/pages/api/home/home';
 
 // 可排序对话组件接口
 interface SortableConversationProps {
@@ -86,43 +86,8 @@ const SortableConversation: FC<SortableConversationProps> = ({ conversation, act
   );
 };
 
-// --- Icon Mapping for Sidebar ---
-// Maps icon name strings (expected from config) to actual Icon components
-const sidebarIconMap: { [key: string]: React.ComponentType<any> } = {
-  // Icons potentially from AppConfigs (based on AppPages)
-  IconCode: IconCode,
-  IconTestPipe: IconTestPipe,
-  IconInfoCircle: IconInfoCircle,
-  IconHelp: IconHelp,
-  IconMoodBoy: IconMoodBoy,
-  IconWorldWww: IconWorldWww,
-  IconDatabase: IconDatabase,
-  IconBook: IconBook, // Note: App page might use this
-  IconMessageChatbot: IconMessageChatbot,
-  IconPencil: IconPencil,
-  IconMessageCircleQuestion: IconMessageCircleQuestion,
-  IconBulb: IconBulb,
-  IconPresentation: IconPresentation,
-  IconListDetails: IconListDetails,
-  IconCheckbox: IconCheckbox,
-  IconMessageReport: IconMessageReport,
-  // Icons currently hardcoded in SidebarNav (might overlap or differ)
-  IconBook2: IconBook2, // Note: Sidebar currently uses this for Course Helper
-  IconRobot: IconRobot,
-  IconUsers: IconUsers,
-  // Fallback Icon
-  IconQuestionMark: IconQuestionMark,
-};
-
-// --- Color Mapping for Sidebar ---
-// Maps themeColor strings (expected from config) to sidebar background classes
-const sidebarColorMap: Record<string, string> = {
-  blue: 'bg-blue-100 dark:bg-blue-900/30',
-  amber: 'bg-yellow-100 dark:bg-yellow-900/30', // Assuming config uses 'amber' for yellow theme
-  green: 'bg-green-100 dark:bg-green-900/30',
-  purple: 'bg-purple-100 dark:bg-purple-900/30',
-  default: 'bg-gray-100 dark:bg-gray-700' // Fallback color
-};
+// --- Default background color for app buttons ---
+const defaultAppBgColor = 'bg-gray-100 dark:bg-gray-700'; // Default background color
 
 interface Props {
   onToggle: () => void;
@@ -149,14 +114,34 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   // --- End Swipe Gesture State ---
 
   const {
-    state: { conversations, selectedConversation, activeAppId },
+    state, // Get the whole state object
+    dispatch,
     handleNewConversation,
     handleSelectConversation,
     handleSelectOrStartAppConversation,
-    appConfigs,
-    dispatch,
+    appConfigs, // Get appConfigs directly from context
   } = useContext(HomeContext);
   
+  // Destructure needed state properties
+  const { conversations, selectedConversation, activeAppId } = state;
+
+  // --- Dynamically generate application list from appConfigs (Record<number, AppConfig>) ---
+  const dynamicApplications = useMemo(() => {
+    // Check if appConfigs is a valid object
+    if (!appConfigs || typeof appConfigs !== 'object') {
+        console.warn("[SidebarNav] appConfigs provided by context is not a valid object:", appConfigs);
+        return [];
+    }
+    // Convert the Record object's values into an array
+    return Object.values(appConfigs).map((config: AppConfig) => {
+      // AppConfig already has id, name, and icon (JSX)
+      return {
+        ...config, // Spread id, name, icon
+        color: defaultAppBgColor, // Add the default background color class
+      };
+    });
+  }, [appConfigs]); // Dependency on appConfigs from context
+
   // 设置拖拽传感器
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -306,14 +291,6 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
       }
     }
   };
-
-  // 应用列表数据
-  const applications = [
-    { id: 1, name: 'DeepSeek', icon: <IconCode size={20} />, color: 'bg-blue-100 dark:bg-blue-900/30' },
-    { id: 2, name: '课程助手', icon: <IconBook2 size={20} />, color: 'bg-yellow-100 dark:bg-yellow-900/30' },
-    { id: 3, name: '校园助理', icon: <IconRobot size={20} />, color: 'bg-green-100 dark:bg-green-900/30' },
-    { id: 4, name: '教师助手', icon: <IconUsers size={20} />, color: 'bg-purple-100 dark:bg-purple-900/30' },
-  ];
 
   // --- New simplified click handler --- 
   const handleAppClick = (appId: number) => {
@@ -491,7 +468,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
           校园应用
         </div>
         <div className="space-y-2">
-          {applications.map((app) => (
+          {dynamicApplications.map((app) => (
             <button
               key={app.id}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 group ${
