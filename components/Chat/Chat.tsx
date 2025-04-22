@@ -1,4 +1,4 @@
-import { IconClearAll, IconSettings, IconTestPipe, IconCode, IconInfoCircle, IconHelp, IconMoodBoy, IconWorldWww, IconDatabase, IconBook, IconMessageChatbot, IconPencil, IconMessageCircleQuestion, IconBulb, IconPresentation, IconListDetails, IconCheckbox, IconMessageReport, IconQuestionMark } from '@tabler/icons-react';
+import { IconClearAll, IconSettings, IconTestPipe, IconCode, IconInfoCircle, IconHelp, IconMoodBoy, IconWorldWww, IconDatabase, IconBook, IconMessageChatbot, IconPencil, IconMessageCircleQuestion, IconBulb, IconPresentation, IconListDetails, IconCheckbox, IconMessageReport, IconQuestionMark, IconUsers } from '@tabler/icons-react';
 import {
   MutableRefObject,
   memo,
@@ -62,10 +62,15 @@ const iconMapForAllCards: { [key: string]: React.ComponentType<any> } = {
   IconListDetails: IconListDetails,
   IconCheckbox: IconCheckbox,
   IconMessageReport: IconMessageReport,
+  IconUsers: IconUsers,
   IconQuestionMark: IconQuestionMark, // Fallback
 };
 
-// 添加主题类型定义
+// Define the cycle of theme colors for App Pages
+// Ensure this aligns with the ThemeColor type expected by AppPageTemplate
+const themeColorCycle = ['green', 'amber', 'blue', 'purple'] as const;
+
+// ThemeMode for overall theme might still be needed
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
 
 interface Props {
@@ -1510,11 +1515,38 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   const isInputDisabled = activeAppId !== null && homeState.selectedCardId === null;
   // ===== 添加结束 =====
 
+  // Get all folder configs in a stable order (Object.values should be stable for numeric-like keys from service)
+  const allFolderConfigsArray = useMemo(() => {
+      try {
+          const configsObject = difyConfigService.getAllFolderConfigs();
+          return Object.values(configsObject); // Convert Record to Array
+      } catch (error) {
+          console.error("[Chat] Error getting all folder configs:", error);
+          return [];
+      }
+  }, []); // Assuming configs load once and don't change during lifecycle
+
   // Find the active application configuration
   const activeAppConfig = useMemo(() => {
     if (activeAppId === null) return null;
-    return difyConfigService.getFolderConfig(activeAppId);
-  }, [activeAppId]);
+    // Find the config in the array to ensure we use the same object reference
+    return allFolderConfigsArray.find(config => config.appId === activeAppId) || null;
+  }, [activeAppId, allFolderConfigsArray]);
+
+  // Calculate theme color based on cycle and index
+  const activeThemeColor = useMemo(() => {
+    if (!activeAppConfig) return themeColorCycle[0]; // Default to the first color
+    
+    const index = allFolderConfigsArray.findIndex(config => config.appId === activeAppId);
+    
+    if (index === -1) {
+        console.warn(`[Chat] Active app config (ID: ${activeAppId}) not found in allFolderConfigsArray.`);
+        return themeColorCycle[0]; // Default if not found (should not happen)
+    }
+    
+    // Cycle through the colors based on index
+    return themeColorCycle[index % themeColorCycle.length];
+  }, [activeAppId, activeAppConfig, allFolderConfigsArray]);
 
   return (
     <div
@@ -1610,9 +1642,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
               {activeAppConfig ? (
                 <AppPageTemplate
                   config={activeAppConfig} // Pass the full folder config
-                  // Pass a default theme color, as it's not in DifyFolderConfig
-                  // Alternatively, AppPageTemplate could define its own default
-                  themeColor={'green'} // Example: using 'green' as default for all apps
+                  themeColor={activeThemeColor} // Pass the calculated cycle color
                   iconMap={iconMapForAllCards} // Pass the complete icon map
                 />
               ) : (

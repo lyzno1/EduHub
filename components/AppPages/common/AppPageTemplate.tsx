@@ -120,6 +120,13 @@ export const AppPageTemplate: React.FC<Props> = ({ config, themeColor, iconMap }
         {processedCards.map((card: ProcessedAppCard) => {
           // Look up icon component from the passed map
           const IconComponent = iconMap[card.iconName];
+          
+          // --- Add logging for debugging icon issues ---
+          if (!IconComponent) {
+            console.warn(`[AppPageTemplate] Icon component not found in provided iconMap for card '${card.name}' (ID: ${card.cardId}). iconName specified in config: '${card.iconName}'. Rendering fallback or nothing.`);
+          }
+          // --- End logging ---
+          
           return (
             <button
               key={card.cardId}

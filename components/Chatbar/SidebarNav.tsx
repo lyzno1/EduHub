@@ -86,15 +86,23 @@ const SortableConversation: FC<SortableConversationProps> = ({ conversation, act
   );
 };
 
-// --- Default background color for app buttons ---
-const defaultAppBgColor = 'bg-gray-100 dark:bg-gray-700'; // Default background color
+// Default background color (no longer primary, but keep as fallback?)
+const defaultAppBgColor = 'bg-gray-100 dark:bg-gray-700';
+
+// Define the cycle of background colors for Sidebar app icons
+const sidebarBgColorCycle: ReadonlyArray<string> = [
+    'bg-green-100 dark:bg-green-900/30',
+    'bg-yellow-100 dark:bg-yellow-900/30',
+    'bg-blue-100 dark:bg-blue-900/30',
+    'bg-purple-100 dark:bg-purple-900/30',
+];
 
 interface Props {
   onToggle: () => void;
   isOpen: boolean;
 }
 
-const SIDEBAR_WIDTH = 260; // 定义侧边栏宽度常量
+const SIDEBAR_WIDTH = 260;
 
 export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const { t } = useTranslation('sidebar');
@@ -104,61 +112,24 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [modalOpenConversationId, setModalOpenConversationId] = useState<string | null>(null);
-  
   const prevSelectedConversationRef = useRef<string | null>(null);
-  const sidebarRef = useRef<HTMLDivElement>(null); // Ref for the sidebar itself
-  
-  // --- Swipe Gesture State ---
-  const [translateX, setTranslateX] = useState(0); // 当前拖拽的 X 位移
-  const [isDraggingSidebar, setIsDraggingSidebar] = useState(false); // 是否正在拖拽侧边栏
-  // --- End Swipe Gesture State ---
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const [translateX, setTranslateX] = useState(0);
+  const [isDraggingSidebar, setIsDraggingSidebar] = useState(false);
 
   const {
-    state, // Get the whole state object
+    state,
     dispatch,
     handleNewConversation,
     handleSelectConversation,
     handleSelectOrStartAppConversation,
-    appConfigs, // Get appConfigs directly from context
+    appConfigs,
   } = useContext(HomeContext);
-  
-  // Destructure needed state properties
   const { conversations, selectedConversation, activeAppId } = state;
 
-  // --- Dynamically generate application list from appConfigs (Record<number, AppConfig>) ---
-  const dynamicApplications = useMemo(() => {
-    // Check if appConfigs is a valid object
-    if (!appConfigs || typeof appConfigs !== 'object') {
-        console.warn("[SidebarNav] appConfigs provided by context is not a valid object:", appConfigs);
-        return [];
-    }
-    // Convert the Record object's values into an array
-    return Object.values(appConfigs).map((config: AppConfig) => {
-      // AppConfig already has id, name, and icon (JSX)
-      return {
-        ...config, // Spread id, name, icon
-        color: defaultAppBgColor, // Add the default background color class
-      };
-    });
-  }, [appConfigs]); // Dependency on appConfigs from context
-
-  // 设置拖拽传感器
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  // 检测是否为移动设备 (使用 768 断点保持一致)
   useEffect(() => {
     const checkMobile = () => {
-      // 使用 768px 作为移动端判断标准，与之前适配保持一致
-      setIsMobile(window.innerWidth < 768); 
+      setIsMobile(window.innerWidth < 768);
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
@@ -168,7 +139,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   useEffect(() => {
     if (searchTerm) {
       setIsSearching(true);
-      const filtered = conversations.filter((conversation) =>
+      const filtered = conversations.filter((conversation: Conversation) =>
         conversation.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredConversations(filtered);
@@ -179,7 +150,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   }, [searchTerm, conversations]);
 
   const displayedConversations = isSearching ? filteredConversations : conversations;
-  const hasNoResults = isSearching && filteredConversations.length === 0;
+  const hasNoResults = isSearching && displayedConversations.length === 0;
 
   const handleClearSearch = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -224,60 +195,48 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     e.stopPropagation();
   };
   
-  // 处理拖拽开始
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     setActiveDragId(active.id as string);
     
-    // 添加全局拖拽状态类
     document.body.classList.add('dragging-conversation');
   };
   
-  // 处理拖拽结束
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragId(null);
     
-    // 移除全局拖拽状态类
     document.body.classList.remove('dragging-conversation');
     
     if (over && active.id !== over.id) {
-      // 找到拖拽项和目标项在数组中的索引
       const oldIndex = conversations.findIndex(conv => conv.id === active.id);
       const newIndex = conversations.findIndex(conv => conv.id === over.id);
       
       if (oldIndex !== -1 && newIndex !== -1) {
-        // 重新排序对话列表
         const reorderedConversations = arrayMove(conversations, oldIndex, newIndex);
         
-        // 更新Context和持久化存储
         dispatch({ field: 'conversations', value: reorderedConversations });
         saveConversations(reorderedConversations);
       }
     }
     
-    // 隐藏所有指示器
     const indicators = document.querySelectorAll('.drag-indicator');
     indicators.forEach(ind => ind.classList.add('hidden'));
   };
   
-  // 处理拖拽过程中
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     
     if (over && active.id !== over.id) {
-      // 获取所有指示器
       const indicators = document.querySelectorAll('.drag-indicator');
       indicators.forEach(ind => ind.classList.add('hidden'));
       
-      // 获取拖拽方向
       const activeRect = document.querySelector(`[data-id="${active.id}"]`)?.getBoundingClientRect();
       const overRect = document.querySelector(`[data-id="${over.id}"]`)?.getBoundingClientRect();
       
       if (activeRect && overRect) {
         const isMovingDown = activeRect.top < overRect.top;
         
-        // 显示当前悬停项的相应指示器
         const overElement = document.querySelector(`[data-id="${over.id}"]`);
         if (overElement) {
           const indicator = isMovingDown 
@@ -292,88 +251,98 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     }
   };
 
-  // --- New simplified click handler --- 
   const handleAppClick = (appId: number) => {
-     handleSelectOrStartAppConversation(appId); // Call the context function
-     // Mobile toggle logic
+     handleSelectOrStartAppConversation(appId);
      if (isMobile) {
        setTimeout(() => {
          onToggle();
        }, 100);
      }
   };
-  // --- End New Handler ---
 
-  // 新增：处理来自 ConversationComponent 的回调
   const handleSetModalOpen = (conversationId: string | null) => {
     setModalOpenConversationId(conversationId);
   };
 
-  // --- Swipe Gesture Logic --- 
   const bind = useDrag(
     ({ down, movement: [mx], velocity: [vx], direction: [dx], cancel, last }) => {
-      setIsDraggingSidebar(down); // 更新拖拽状态
+      setIsDraggingSidebar(down);
       
-      // 如果向右滑动，则取消手势 (我们只关心向左滑关闭)
       if (dx > 0) {
         if(cancel) cancel();
-        // 如果不是最后一次事件 (手指还在屏幕上)，则将位移重置为0
         if (!last) setTranslateX(0);
         return;
       } 
       
-      // 实时更新 X 位移，限制在 [-SIDEBAR_WIDTH, 0] 范围内
-      // 使用 Math.max 确保不会向右滑超过0，Math.min 确保不会向左滑超过负宽度
       let newTranslateX = Math.min(0, Math.max(-SIDEBAR_WIDTH, mx));
       setTranslateX(newTranslateX);
 
-      // 手指/鼠标抬起时判断
       if (last) {
-        // 计算关闭阈值
-        const closeThreshold = SIDEBAR_WIDTH / 3; // 滑动超过 1/3 宽度则关闭
-        const velocityThreshold = 0.5; // 或者速度足够快也关闭
+        const closeThreshold = SIDEBAR_WIDTH / 3;
+        const velocityThreshold = 0.5;
 
-        // 判断是否应该关闭：向左滑动超过阈值，或者向左滑动速度足够快
         if ((Math.abs(mx) > closeThreshold || Math.abs(vx) > velocityThreshold) && dx < 0) {
           console.log("Swipe close triggered");
-          onToggle(); // 调用父组件的关闭函数
+          onToggle();
         } 
-        // 否则，弹回打开状态 (动画将在 style 中通过 transition 实现)
         setTranslateX(0);
       }
     },
     {
-      axis: 'x', // 只关心水平轴
-      enabled: isMobile && isOpen, // 只在移动端且侧边栏打开时启用
-      filterTaps: true, // 忽略点击
-      // bounds: { left: -SIDEBAR_WIDTH, right: 0 }, // 使用 clamp 手动处理边界更灵活
-      // rubberband: 0.1, // 轻微的橡皮筋效果
-      pointer: { touch: true }, // 确保在触摸设备上工作
+      axis: 'x',
+      enabled: isMobile && isOpen,
+      filterTaps: true,
+      pointer: { touch: true },
     }
   );
-  // --- End Swipe Gesture Logic ---
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const dynamicApplications = useMemo(() => {
+    if (!appConfigs || typeof appConfigs !== 'object') {
+        console.warn("[SidebarNav] appConfigs provided by context is not a valid object:", appConfigs);
+        return [];
+    }
+    
+    const allAppConfigsArray = Object.values(appConfigs);
+    
+    return allAppConfigsArray.map((config: AppConfig, index: number) => {
+      const bgColor = sidebarBgColorCycle[index % sidebarBgColorCycle.length];
+      
+      return {
+        ...config,
+        color: bgColor,
+      };
+    });
+  }, [appConfigs]);
 
   return (
     <div 
       id="mobile-sidebar-container"
-      ref={sidebarRef} // 添加 ref
-      {...(isMobile && isOpen ? bind() : {})} // 在移动端且打开时绑定手势
-      className={`fixed top-0 flex h-full w-[${SIDEBAR_WIDTH}px] max-w-[85vw] flex-col border-r border-gray-200 bg-[#f5f5f5] dark:border-gray-800 dark:bg-[#202123] left-0 sm:left-[60px] touch-pan-y ${ // 添加 touch-pan-y 允许垂直滚动
+      ref={sidebarRef}
+      {...(isMobile && isOpen ? bind() : {})}
+      className={`fixed top-0 flex h-full w-[${SIDEBAR_WIDTH}px] max-w-[85vw] flex-col border-r border-gray-200 bg-[#f5f5f5] dark:border-gray-800 dark:bg-[#202123] left-0 sm:left-[60px] touch-pan-y ${
         isOpen 
           ? 'translate-x-0' 
           : '-translate-x-full'
       } ${
-        // 拖拽时禁用 transition，结束时或状态改变时启用
         isDraggingSidebar ? '' : 'transition-transform duration-300 ease-in-out'
       }`}
       onClick={stopPropagation}
       style={{
         zIndex: isMobile ? 9999 : 40,
-        // 应用实时位移，但只在移动端拖拽时生效
         transform: isMobile && isDraggingSidebar ? `translateX(${translateX}px)` : (isOpen ? 'translateX(0)' : `translateX(-${SIDEBAR_WIDTH}px)`),
       }}
     >
-      {/* 顶部区域 */}
       <div className="sticky top-0 z-10 bg-[#f5f5f5] dark:bg-[#202123]">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center">
@@ -386,7 +355,6 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
           </div>
         </div>
         
-        {/* 新建聊天按钮 */}
         <div className="px-4 mb-4">
           <button
             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 rounded-full transition-colors duration-200 text-gray-700 dark:text-gray-200"
@@ -397,7 +365,6 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
           </button>
         </div>
 
-        {/* 近期对话标题 */}
         <div className="px-4 pb-2">
           <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
             近期对话
@@ -405,7 +372,6 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
         </div>
       </div>
 
-      {/* 聊天记录区域 - 使用DndKit包装 */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="px-4">
           {hasNoResults ? (
@@ -431,7 +397,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
                       key={conversation.id}
                       conversation={conversation}
                       activeAppId={activeAppId}
-                      appConfigs={appConfigs}
+                      appConfigs={appConfigs as any}
                       isDragging={conversation.id === activeDragId}
                       modalOpen={modalOpenConversationId === conversation.id}
                       onSetModalOpen={handleSetModalOpen}
@@ -440,15 +406,15 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
                 </div>
               </SortableContext>
               
-              {/* 拖拽叠加层 - 可选，但会增强用户体验 */}
               <DragOverlay>
                 {activeDragId ? (
                   <div className="p-1 bg-gray-100 dark:bg-gray-700 rounded-lg shadow-lg border border-gray-300 dark:border-gray-600 w-[230px]">
                     <ConversationComponent
-                        conversation={conversations.find(c => c.id === activeDragId)!}
+                        conversation={conversations.find((c: Conversation) => c.id === activeDragId)!}
                         activeAppId={activeAppId}
-                        appConfigs={appConfigs}
-                        onSetModalOpen={() => { } } modalOpen={null}                    />
+                        appConfigs={appConfigs as any}
+                        onSetModalOpen={() => { } } modalOpen={null}
+                    />
                   </div>
                 ) : null}
               </DragOverlay>
@@ -457,12 +423,10 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
         </div>
       </div>
 
-      {/* 分割线 */}
       <div className="px-4 py-2">
         <div className="h-[1px] bg-gray-200 dark:bg-gray-700"></div>
       </div>
 
-      {/* 应用区域 */}
       <div className="flex-shrink-0 px-4 py-2">
         <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
           校园应用
