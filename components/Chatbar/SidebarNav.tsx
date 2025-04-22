@@ -343,7 +343,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
         transform: isMobile && isDraggingSidebar ? `translateX(${translateX}px)` : (isOpen ? 'translateX(0)' : `translateX(-${SIDEBAR_WIDTH}px)`),
       }}
     >
-      <div className="sticky top-0 z-10 bg-[#f5f5f5] dark:bg-[#202123]">
+      <div className="sticky top-0 z-10 bg-[#f5f5f5] dark:bg-[#202123] flex-shrink-0">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center">
             <button 
@@ -372,8 +372,8 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0 max-h-96">
-        <div className="px-4">
+      <div className="flex-grow flex-shrink-0 overflow-y-auto h-0">
+        <div className="px-4 pb-4">
           {hasNoResults ? (
             <div className="text-center text-gray-500 dark:text-gray-400 py-2">
               未找到相关聊天
@@ -423,33 +423,31 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
         </div>
       </div>
 
-      <div className="px-4 py-2">
-        <div className="h-[1px] bg-gray-200 dark:bg-gray-700"></div>
-      </div>
-
-      <div className="flex-shrink-0 px-4 py-2">
-        <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-          校园应用
-        </div>
-        <div className="space-y-2">
-          {dynamicApplications.map((app) => (
-            <button
-              key={app.id}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 group ${
-                activeAppId === app.id 
-                  ? 'bg-gray-200 dark:bg-gray-700 font-medium'
-                  : ''
-              }`}
-              onClick={() => handleAppClick(app.id)}
-            >
-              <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${app.color} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}>
-                {app.icon}
-              </div>
-              <span className={`text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white ${
-                activeAppId === app.id ? 'text-gray-900 dark:text-white' : ''
-              }`}>{app.name}</span>
-            </button>
-          ))}
+      <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 overflow-y-auto min-h-0">
+        <div className="px-4 pt-2 pb-4">
+          <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+            校园应用
+          </div>
+          <div className="space-y-2">
+            {dynamicApplications.map((app) => (
+              <button
+                key={app.id}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 group ${
+                  activeAppId === app.id 
+                    ? 'bg-gray-200 dark:bg-gray-700 font-medium'
+                    : ''
+                }`}
+                onClick={() => handleAppClick(app.id)}
+              >
+                <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${app.color} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}>
+                  {app.icon}
+                </div>
+                <span className={`text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white ${
+                  activeAppId === app.id ? 'text-gray-900 dark:text-white' : ''
+                }`}>{app.name}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

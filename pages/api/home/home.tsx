@@ -105,31 +105,30 @@ const Home = ({
   useEffect(() => {
     try {
       const loadedFolderConfigs = difyConfigService.getAllFolderConfigs();
+      
       const generatedAppConfigs: Record<number, AppConfig> = {};
       
       Object.entries(loadedFolderConfigs).forEach(([appIdStr, folder]) => {
         const appId = parseInt(appIdStr, 10);
-        if (isNaN(appId) || appId === 0) return;
+        if (isNaN(appId) || appId === 0) return; // Skip global and invalid
         
-        const firstCard = folder.cards?.[0];
-        if (!firstCard) {
-            console.warn(`[Home Init] Folder ${folder.folderKey} (ID: ${appId}) has no cards, skipping AppConfig generation.`);
-            return; 
-        }
+        const firstCard = folder.cards?.[0]; // Use optional chaining
+        
+        const icon = DefaultAppConfigIcon;
 
         generatedAppConfigs[appId] = {
           id: appId,
           name: folder.displayName,
+          // Safely access difyConfig properties using optional chaining
           apiKey: process.env.NEXT_PUBLIC_DIFY_APP_GENERIC_API_KEY || 
-                  firstCard.difyConfig.apiKey || '',
+                  firstCard?.difyConfig?.apiKey || '',
           apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_GENERIC_API_URL || 
-                  firstCard.difyConfig.apiUrl,
-          icon: DefaultAppConfigIcon,
+                  firstCard?.difyConfig?.apiUrl, // Will be undefined if firstCard or difyConfig is missing
+          icon: icon,
         };
       });
       
       setAppConfigsInState(generatedAppConfigs);
-      console.log('[Home Init] appConfigs generated and set in state (using default icon):', generatedAppConfigs);
 
     } catch (error) {
         console.error("[Home Init] Error processing folder configs:", error);
