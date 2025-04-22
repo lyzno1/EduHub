@@ -476,7 +476,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
                        <IconChevronDown size={18} className="text-gray-500 dark:text-gray-400" />
                     </div>
                     <span className="text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white">
-                      展开另外 {dynamicApplications.length - INITIAL_APP_DISPLAY_LIMIT} 个应用
+                      更多
                     </span>
                  </>
               )}
