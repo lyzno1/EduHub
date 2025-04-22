@@ -44,7 +44,7 @@ import teacherChat from '@/teacherChat.json';
 import whitelist from '@/whitelist.json';
 import Cookie from 'js-cookie';
 import { v4 as uuidv4 } from 'uuid';
-import { IconMenu2 } from '@tabler/icons-react';
+import { IconMenu2, IconAppWindow } from '@tabler/icons-react';
 import { DifyClient } from '@/services/dify/client';
 import { getDifyConfig } from '@/config/dify';
 import { toast } from 'react-hot-toast';
@@ -56,7 +56,7 @@ export interface AppConfig {
   id: number;
   name: string;
   apiKey: string;
-  apiUrl?: string; // Optional app-specific API URL
+  apiUrl?: string;
   icon: JSX.Element;
 }
 
@@ -77,35 +77,8 @@ interface UpdateConversationData {
   value: any;
 }
 
-// 定义应用配置数据 - 使用 difyConfigService 获取配置
-const appConfigs: Record<number, AppConfig> = {};
-
-// 从配置服务中获取所有文件夹配置并转换为 AppConfig 格式
-const folderConfigs = difyConfigService.getAllFolderConfigs();
-
-// 遍历所有文件夹配置，为每个文件夹创建 AppConfig
-Object.entries(folderConfigs).forEach(([appIdStr, folder]) => {
-  const appId = parseInt(appIdStr, 10);
-  if (isNaN(appId) || appId === 0) return; // 跳过 global 和无效的 appId
-  
-  // 从文件夹的第一张卡片获取 API 配置
-  // 这是一个临时方案，我们现在只使用文件夹下第一张卡片的 API 配置
-  // 未来需要更新 UI 界面，让用户可以选择特定的卡片
-  const firstCard = folder.cards[0];
-  
-  // 如果文件夹没有任何卡片，跳过
-  if (!firstCard) return;
-  
-  appConfigs[appId] = {
-    id: appId,
-    name: folder.displayName,
-    apiKey: process.env.NEXT_PUBLIC_DIFY_APP_GENERIC_API_KEY || 
-            firstCard.difyConfig.apiKey || '',
-    apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_GENERIC_API_URL || 
-            firstCard.difyConfig.apiUrl,
-    icon: <IconMenu2 size={24} />, // 使用统一图标，未来可以根据需要拓展
-  };
-});
+// Default Icon component to use for all apps from config
+const DefaultAppConfigIcon = <IconAppWindow size={24} />;
 
 const Home = ({
   serverSideApiKeyIsSet,
@@ -124,6 +97,45 @@ const Home = ({
   const contextValue = useCreateReducer<HomeInitialState>({
     initialState,
   });
+
+  // ADD state for appConfigs
+  const [appConfigsInState, setAppConfigsInState] = useState<Record<number, AppConfig>>({});
+
+  // ADD useEffect to load and process configs on mount
+  useEffect(() => {
+    try {
+      const loadedFolderConfigs = difyConfigService.getAllFolderConfigs();
+      const generatedAppConfigs: Record<number, AppConfig> = {};
+      
+      Object.entries(loadedFolderConfigs).forEach(([appIdStr, folder]) => {
+        const appId = parseInt(appIdStr, 10);
+        if (isNaN(appId) || appId === 0) return;
+        
+        const firstCard = folder.cards?.[0];
+        if (!firstCard) {
+            console.warn(`[Home Init] Folder ${folder.folderKey} (ID: ${appId}) has no cards, skipping AppConfig generation.`);
+            return; 
+        }
+
+        generatedAppConfigs[appId] = {
+          id: appId,
+          name: folder.displayName,
+          apiKey: process.env.NEXT_PUBLIC_DIFY_APP_GENERIC_API_KEY || 
+                  firstCard.difyConfig.apiKey || '',
+          apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_GENERIC_API_URL || 
+                  firstCard.difyConfig.apiUrl,
+          icon: DefaultAppConfigIcon,
+        };
+      });
+      
+      setAppConfigsInState(generatedAppConfigs);
+      console.log('[Home Init] appConfigs generated and set in state (using default icon):', generatedAppConfigs);
+
+    } catch (error) {
+        console.error("[Home Init] Error processing folder configs:", error);
+        setAppConfigsInState({});
+    }
+  }, []);
 
   const {
     state: {
@@ -220,12 +232,12 @@ const Home = ({
 
   // --- New Function to handle selecting or starting an app conversation ---
   const handleSelectOrStartAppConversation = (appId: number) => {
-    const appConfig = appConfigs[appId];
+    // Now use appConfigsInState from component state
+    const appConfig = appConfigsInState[appId]; 
     if (!appConfig) {
       console.error(`[App Click] Invalid appId: ${appId}`);
       return;
     }
-
 
     // 先保存当前对话的状态 (如果存在且有消息)
     if (selectedConversation && selectedConversation.messages.length > 0) {
@@ -240,32 +252,6 @@ const Home = ({
     dispatch({ field: 'selectedCardId', value: null });
     dispatch({ field: 'cardInputPrompt', value: '' });
     // ===== 添加结束 =====
-
-    /* 移除原有逻辑
-    // 查找是否已存在该应用的对话 (可以允许多个同 appId 对话，这里只找第一个)
-    const existingAppConversation = conversations.find(conv => conv.appId === appId);
-
-    if (existingAppConversation) {
-      console.log(`[App Click] Found existing conversation for appId ${appId}. Selecting it.`);
-      // 如果已存在，直接选中它
-      dispatch({ field: 'selectedConversation', value: existingAppConversation });
-      // 可选: 更新 activeAppId 用于高亮，但主要依赖 selectedConversation.appId
-      dispatch({ field: 'activeAppId', value: appId }); 
-    } else {
-      console.log(`[App Click] No existing conversation found for appId ${appId}. Setting activeAppId.`);
-      // 如果不存在，只设置 activeAppId 并清除 selectedConversation
-      dispatch({ field: 'selectedConversation', value: undefined }); // 清除选中的对话
-      dispatch({ field: 'activeAppId', value: appId }); // 设置激活的应用ID
-      // 移除创建新对话的逻辑
-      // const newAppConversation: Conversation = { ... };
-      // const updatedConversations = [newAppConversation, ...conversations];
-      // saveConversations(updatedConversations);
-      // dispatch({ field: 'conversations', value: updatedConversations });
-      // dispatch({ field: 'selectedConversation', value: newAppConversation });
-      // saveConversation(newAppConversation);
-      // console.log('[App Click] New app conversation creation skipped. Active app set.');
-    }
-    */
   };
   // --- End New Function ---
 
@@ -418,7 +404,7 @@ const Home = ({
       console.warn("[startConversationFromActiveApp] No activeAppId set.");
       return;
     }
-    const appConfig = appConfigs[currentActiveAppId];
+    const appConfig = appConfigsInState[currentActiveAppId];
     if (!appConfig || !appConfig.apiKey) {
        console.error(`[startConversationFromActiveApp] Invalid or missing config/apiKey for activeAppId: ${currentActiveAppId}`);
       return;
@@ -757,7 +743,7 @@ const Home = ({
     <HomeContext.Provider
       value={{
         ...contextValue,
-        appConfigs,
+        appConfigs: appConfigsInState,
         handleNewConversation,
         handleSelectConversation,
         handleUpdateConversation,

@@ -372,7 +372,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 max-h-96">
         <div className="px-4">
           {hasNoResults ? (
             <div className="text-center text-gray-500 dark:text-gray-400 py-2">
