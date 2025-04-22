@@ -1,4 +1,4 @@
-import { IconMessagePlus, IconSearch, IconX, IconBrandChrome, IconSchool, IconBook, IconCode, IconBrain, IconRobot, IconBook2, IconUsers, IconGripVertical } from '@tabler/icons-react';
+import { IconMessagePlus, IconSearch, IconX, IconBrandChrome, IconSchool, IconBook, IconCode, IconBrain, IconRobot, IconBook2, IconUsers, IconGripVertical, IconTestPipe, IconInfoCircle, IconHelp, IconMoodBoy, IconWorldWww, IconDatabase, IconMessageChatbot, IconPencil, IconMessageCircleQuestion, IconBulb, IconPresentation, IconListDetails, IconCheckbox, IconMessageReport, IconQuestionMark } from '@tabler/icons-react';
 import { FC, useContext, useEffect, useState, useRef, CSSProperties } from 'react';
 import { useTranslation } from 'next-i18next';
 import {
@@ -29,6 +29,7 @@ import { Conversation } from '@/types/chat';
 import { ConversationComponent } from './components/Conversation';
 import Link from 'next/link';
 import { saveConversations } from '@/utils/app/conversation';
+import { DifyFolderConfig } from '@/types/dify';
 
 // 可排序对话组件接口
 interface SortableConversationProps {
@@ -83,6 +84,44 @@ const SortableConversation: FC<SortableConversationProps> = ({ conversation, act
       <div className="drag-indicator hidden absolute left-0 right-0 -bottom-1 h-[1px] bg-gray-500 dark:bg-gray-400 rounded-full" />
     </div>
   );
+};
+
+// --- Icon Mapping for Sidebar ---
+// Maps icon name strings (expected from config) to actual Icon components
+const sidebarIconMap: { [key: string]: React.ComponentType<any> } = {
+  // Icons potentially from AppConfigs (based on AppPages)
+  IconCode: IconCode,
+  IconTestPipe: IconTestPipe,
+  IconInfoCircle: IconInfoCircle,
+  IconHelp: IconHelp,
+  IconMoodBoy: IconMoodBoy,
+  IconWorldWww: IconWorldWww,
+  IconDatabase: IconDatabase,
+  IconBook: IconBook, // Note: App page might use this
+  IconMessageChatbot: IconMessageChatbot,
+  IconPencil: IconPencil,
+  IconMessageCircleQuestion: IconMessageCircleQuestion,
+  IconBulb: IconBulb,
+  IconPresentation: IconPresentation,
+  IconListDetails: IconListDetails,
+  IconCheckbox: IconCheckbox,
+  IconMessageReport: IconMessageReport,
+  // Icons currently hardcoded in SidebarNav (might overlap or differ)
+  IconBook2: IconBook2, // Note: Sidebar currently uses this for Course Helper
+  IconRobot: IconRobot,
+  IconUsers: IconUsers,
+  // Fallback Icon
+  IconQuestionMark: IconQuestionMark,
+};
+
+// --- Color Mapping for Sidebar ---
+// Maps themeColor strings (expected from config) to sidebar background classes
+const sidebarColorMap: Record<string, string> = {
+  blue: 'bg-blue-100 dark:bg-blue-900/30',
+  amber: 'bg-yellow-100 dark:bg-yellow-900/30', // Assuming config uses 'amber' for yellow theme
+  green: 'bg-green-100 dark:bg-green-900/30',
+  purple: 'bg-purple-100 dark:bg-purple-900/30',
+  default: 'bg-gray-100 dark:bg-gray-700' // Fallback color
 };
 
 interface Props {
