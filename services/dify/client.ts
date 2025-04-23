@@ -821,7 +821,7 @@ export class DifyClient {
       return { result: 'failed', message: '任务ID不能为空' };
     }
 
-    const apiEndpoint = `${this.baseUrl}/chat-messages/${taskId}/stop`;
+    const apiEndpoint = `${this.baseUrl}/${API_PATHS.CHAT_MESSAGES_STOP.replace('{taskId}', taskId)}`;
 
     try {
       const response = await fetch(apiEndpoint, {
