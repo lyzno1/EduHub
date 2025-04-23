@@ -39,7 +39,7 @@ export interface Conversation {
   name: string;
   originalName?: string;
   messages: Message[];
-  // model: string;
+  model: string;
   prompt: string;
   temperature: number;
   folderId: string | null;

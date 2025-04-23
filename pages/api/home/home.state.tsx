@@ -5,6 +5,7 @@ import { OpenAIModel, OpenAIModelID } from '@/types/openai';
 import { OpenAIModels, fallbackModelID } from '@/types/openai';
 import { PluginKey } from '@/types/plugin';
 import { Prompt } from '@/types/prompt';
+import { DifyModelConfig } from '@/types/dify';
 
 // HomeInitialState接口包含的属性
 export interface HomeInitialState {
@@ -35,6 +36,8 @@ export interface HomeInitialState {
   activeAppId: number | null;
   selectedCardId: string | null;
   cardInputPrompt: string;
+  availableGlobalModels: DifyModelConfig[];
+  selectedGlobalModelName: string | null;
 }
 
 // 首页的初始状态
@@ -66,4 +69,6 @@ export const initialState: HomeInitialState = {
   activeAppId: null,
   selectedCardId: null,
   cardInputPrompt: '',
+  availableGlobalModels: [],
+  selectedGlobalModelName: null,
 };

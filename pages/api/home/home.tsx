@@ -28,6 +28,7 @@ import { getSettings } from '@/utils/app/settings';
 import { Conversation, Message } from '@/types/chat';
 import { FolderInterface, FolderType } from '@/types/folder';
 import { Prompt } from '@/types/prompt';
+import { DifyModelConfig } from '@/types/dify';
 
 import { Chat } from '@/components/Chat/Chat';
 import { Navbar } from '@/components/Mobile/Navbar';
@@ -264,13 +265,28 @@ const Home = ({
     accumulation: { response: string; convId: string | undefined; msgId: string | undefined }
   ) => {
     console.log(`[handleDifyApiCall] Starting API call for temporary ID: ${temporaryId}`);
-    // ... implementation of handleDifyApiCall ...
-    // (This function seems complex and might need review later, but restoring it first)
     try {
-      const apiConfig = accumulation; // 继续使用之前的流式结果
-      // 使用 difyConfigService 获取全局配置
-      const apiUrlToUse = appConfig.apiUrl || process.env.NEXT_PUBLIC_DIFY_API_URL || difyConfigService.getGlobalConfig().apiUrl || getDifyConfig().apiUrl;
+      const apiConfig = accumulation; 
       
+      // 修复：获取 API URL，优先使用 appConfig.apiUrl，然后是全局 URL，再是环境变量和静态配置
+      const apiUrlToUse = appConfig.apiUrl || difyConfigService.getGlobalApiUrl() || process.env.NEXT_PUBLIC_DIFY_API_URL || getDifyConfig().apiUrl;
+
+      if (!apiUrlToUse) {
+        console.error(`[handleDifyApiCall] 无法确定 API URL for app ${appConfig.id}`);
+        toast.error(`应用配置错误: 缺少 API URL`);
+        dispatch({ field: 'messageIsStreaming', value: false });
+        dispatch({ field: 'loading', value: false });
+        const currentConversations = contextValue.state.conversations;
+        const conversationsWithoutTemp = currentConversations.filter(conv => conv.id !== temporaryId);
+        dispatch({ field: 'conversations', value: conversationsWithoutTemp });
+        if (conversationsWithoutTemp.length > 0) {
+            dispatch({ field: 'selectedConversation', value: conversationsWithoutTemp[0] });
+        } else {
+            handleNewConversation(); 
+        }
+        return; // 提前退出
+      }
+
       const difyClient = new DifyClient({
         apiUrl: apiUrlToUse,
         timeout: getDifyConfig().timeout,
@@ -281,7 +297,7 @@ const Home = ({
         query: originalMessage.content,
         key: apiKey,
         user: user || 'unknown',
-        conversationId: '', // Always starts a new Dify conversation?
+        conversationId: '', 
         inputs: {},
       });
 
@@ -307,18 +323,26 @@ const Home = ({
         toast.error(`应用消息错误: ${error.message || '请求失败'}`);
         dispatch({ field: 'messageIsStreaming', value: false });
         dispatch({ field: 'loading', value: false });
+         const currentConversations = contextValue.state.conversations;
+         const conversationsWithoutTemp = currentConversations.filter(conv => conv.id !== temporaryId);
+         dispatch({ field: 'conversations', value: conversationsWithoutTemp });
+         if (conversationsWithoutTemp.length > 0) {
+             dispatch({ field: 'selectedConversation', value: conversationsWithoutTemp[0] });
+         } else {
+             handleNewConversation();
+         }
       });
 
       stream.onComplete(() => {
         if (stopConversationRef.current === true) return;
         console.log("[handleDifyApiCall] Dify stream complete for temp ID:", temporaryId);
         
-        const currentState = contextValue.state; // Get current state
+        const currentState = contextValue.state;
         const currentConversationsList = currentState.conversations;
 
         console.log("[handleDifyApiCall onComplete] Values from accumulation object:", JSON.stringify(accumulation));
 
-        let finalDifyConversationIdFromStream: string | undefined = accumulation.convId; // Use accumulated first
+        let finalDifyConversationIdFromStream: string | undefined = accumulation.convId;
          try {
              // @ts-ignore
              if (stream && typeof stream === 'object' && 'conversationId' in stream && stream.conversationId) {
@@ -347,15 +371,14 @@ const Home = ({
           conversationID: finalDifyConversationIdFromStream || '', 
           deletable: true,
           appId: appConfig.id,
+          model: 'dify'
         };
 
         console.log("[handleDifyApiCall onComplete] Final conversation object built:", JSON.stringify(finalConversation, null, 2));
 
-        // Find the placeholder and replace it, or add if not found (shouldn't happen)
         const finalConversationsList = currentConversationsList.map(conv => 
            conv.id === temporaryId ? finalConversation : conv
         );
-        // Check if placeholder was found and replaced
         if (!finalConversationsList.some(conv => conv.id === temporaryId)) {
             console.warn("[handleDifyApiCall onComplete] Placeholder conversation not found, adding to start.");
             finalConversationsList.unshift(finalConversation);
@@ -377,11 +400,9 @@ const Home = ({
       toast.error(`启动应用对话失败: ${error.message || '未知错误'}`);
       dispatch({ field: 'messageIsStreaming', value: false });
       dispatch({ field: 'loading', value: false });
-      // Remove the temporary conversation on error
       const currentConversations = contextValue.state.conversations;
       const conversationsWithoutTemp = currentConversations.filter(conv => conv.id !== temporaryId);
       dispatch({ field: 'conversations', value: conversationsWithoutTemp });
-      // Optionally select the previous conversation or a new one
       if (conversationsWithoutTemp.length > 0) {
           dispatch({ field: 'selectedConversation', value: conversationsWithoutTemp[0] });
       } else {
@@ -429,6 +450,7 @@ const Home = ({
       conversationID: '', 
       deletable: true, // Initially deletable, might change after completion
       appId: currentActiveAppId,
+      model: 'dify'
     };
 
     // Add temporary conversation to the list for UI update first
@@ -477,6 +499,7 @@ const Home = ({
       conversationID: '',
       deletable: true,
       appId: null,
+      model: 'default'
     };
     const updatedConversations = [newConversation, ...conversations];
     saveConversations(updatedConversations);
@@ -537,25 +560,15 @@ const Home = ({
     setReady(true);
 
     const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-      dispatch({
-        field: 'lightMode',
-        value: savedTheme,
-      });
-      
-      if (savedTheme === 'dark') {
-        document.documentElement.classList.add('dark');
-        document.documentElement.classList.remove('light');
-      } else {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.add('light');
-      }
-    } else {
-      dispatch({
-        field: 'lightMode',
-        value: 'light',
-      });
+    const currentTheme = savedTheme || 'light';
+    dispatch({ field: 'lightMode', value: currentTheme as HomeInitialState['lightMode'] });
+    if (!savedTheme) {
       localStorage.setItem('theme', 'light');
+    }
+    if (currentTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+    } else {
       document.documentElement.classList.remove('dark');
       document.documentElement.classList.add('light');
     }
@@ -563,8 +576,11 @@ const Home = ({
     if (serverSideApiKeyIsSet) {
       dispatch({ field: 'apiKey', value: '' });
       localStorage.removeItem('apiKey');
-    } else if (apiKey) {
-      dispatch({ field: 'apiKey', value: apiKey });
+    } else {
+      const savedApiKey = localStorage.getItem('apiKey');
+      if (savedApiKey) {
+        dispatch({ field: 'apiKey', value: savedApiKey });
+      }
     }
 
     const pluginKeys = localStorage.getItem('pluginKeys');
@@ -572,7 +588,11 @@ const Home = ({
       dispatch({ field: 'pluginKeys', value: [] });
       localStorage.removeItem('pluginKeys');
     } else if (pluginKeys) {
-      dispatch({ field: 'pluginKeys', value: pluginKeys });
+      try {
+        dispatch({ field: 'pluginKeys', value: JSON.parse(pluginKeys) });
+      } catch (e) {
+        dispatch({ field: 'pluginKeys', value: [] });
+      }
     }
 
     if (window.innerWidth < 640) {
@@ -590,64 +610,92 @@ const Home = ({
       dispatch({ field: 'showPromptbar', value: showPromptbar === 'true' });
     }
 
-    const folders = localStorage.getItem('folders');
-    if (folders) {
-      dispatch({ field: 'folders', value: JSON.parse(folders) });
+    const foldersStr = localStorage.getItem('folders');
+    if (foldersStr) {
+      try {
+        dispatch({ field: 'folders', value: JSON.parse(foldersStr) });
+      } catch (e) {
+        dispatch({ field: 'folders', value: [] });
+      }
     }
 
-    const prompts = localStorage.getItem('prompts');
-    if (prompts) {
-      dispatch({ field: 'prompts', value: JSON.parse(prompts) });
+    const promptsStr = localStorage.getItem('prompts');
+    if (promptsStr) {
+      try {
+        dispatch({ field: 'prompts', value: JSON.parse(promptsStr) });
+      } catch (e) {
+        dispatch({ field: 'prompts', value: [] });
+      }
     }
 
     let savedConversations: Conversation[] = [];
-    const conversationHistory = localStorage.getItem('conversationHistory');
-    
-    if (conversationHistory) {
-      const parsedConversationHistory: Conversation[] = JSON.parse(conversationHistory);
-      savedConversations = cleanConversationHistory(parsedConversationHistory);
-      dispatch({ field: 'conversations', value: savedConversations });
+    const conversationHistoryStr = localStorage.getItem('conversationHistory');
+    if (conversationHistoryStr) {
+      try {
+        const parsedConversationHistory: Conversation[] = JSON.parse(conversationHistoryStr);
+        savedConversations = cleanConversationHistory(parsedConversationHistory);
+        dispatch({ field: 'conversations', value: savedConversations });
+      } catch (e) {
+        dispatch({ field: 'conversations', value: [] });
+      }
     }
 
-    const selectedConversation = localStorage.getItem('selectedConversation');
-    
-    if (selectedConversation) {
-      const parsedSelectedConversation: Conversation = JSON.parse(selectedConversation);
-      const cleanedSelectedConversation = cleanSelectedConversation(parsedSelectedConversation);
-      
-      if (!savedConversations.find(conv => conv.id === cleanedSelectedConversation.id)) {
-        savedConversations = [cleanedSelectedConversation, ...savedConversations];
-        dispatch({ field: 'conversations', value: savedConversations });
-        saveConversations(savedConversations);
+    const selectedConversationStr = localStorage.getItem('selectedConversation');
+    if (selectedConversationStr) {
+      try {
+        const parsedSelectedConversation: Conversation = JSON.parse(selectedConversationStr);
+        const cleanedSelectedConversation = cleanSelectedConversation(parsedSelectedConversation);
+        if (savedConversations.find(conv => conv.id === cleanedSelectedConversation.id)) {
+          dispatch({ field: 'selectedConversation', value: cleanedSelectedConversation });
+        } else {
+          // 如果选中的对话不在历史记录中 (可能被清理或删除), 则选择第一个或新建
+          if (savedConversations.length > 0) {
+            dispatch({ field: 'selectedConversation', value: savedConversations[0] });
+            saveConversation(savedConversations[0]);
+          } else {
+            handleNewConversation(); // 需要确保 handleNewConversation 可用
+          }
+        }
+      } catch (e) {
+        // 解析失败，选择第一个或新建
+        if (savedConversations.length > 0) {
+          dispatch({ field: 'selectedConversation', value: savedConversations[0] });
+          saveConversation(savedConversations[0]);
+        } else {
+          handleNewConversation();
+        }
       }
-      dispatch({ field: 'selectedConversation', value: cleanedSelectedConversation });
     } else if (savedConversations.length > 0) {
-       console.log('[Debug useEffect] No selected conversation loaded, selecting first from loaded history.');
+       console.log('[Debug useEffect] No selected conversation in storage, selecting first from history.');
       dispatch({ field: 'selectedConversation', value: savedConversations[0] });
       saveConversation(savedConversations[0]);
     } else {
        console.log('[Debug useEffect] No conversations found, creating default new conversation.');
-      const newConversation: Conversation = {
-        id: uuidv4(),
-        name: t('New Conversation'),
-        originalName: '',
-        messages: [],
-        prompt: DEFAULT_SYSTEM_PROMPT,
-        temperature: DEFAULT_TEMPERATURE,
-        folderId: null,
-        conversationID: '',
-        deletable: true,
-         appId: null,
-      };
-
-      const updatedConversations = [newConversation];
-      
-      dispatch({ field: 'selectedConversation', value: newConversation });
-      dispatch({ field: 'conversations', value: updatedConversations });
-      
-      saveConversation(newConversation);
-      saveConversations(updatedConversations);
+       // 确保 handleNewConversation 在这里被调用或其逻辑在此处实现
+       // 如果 handleNewConversation 依赖其他状态，可能需要先确保那些状态已设置
+       handleNewConversation();
     }
+
+    // 新增：加载全局模型配置 (确保 difyConfigService 已初始化)
+    if (difyConfigService) { // 确保服务可用
+      const globalModels = difyConfigService.getGlobalModels();
+      dispatch({ field: 'availableGlobalModels', value: globalModels });
+      
+      const defaultGlobalModel = difyConfigService.getDefaultGlobalModel();
+      if (defaultGlobalModel) {
+        dispatch({ field: 'selectedGlobalModelName', value: defaultGlobalModel.name });
+        console.log('[Home Init] 设置默认全局模型:', defaultGlobalModel.name);
+      } else if (globalModels.length > 0) {
+        dispatch({ field: 'selectedGlobalModelName', value: globalModels[0].name });
+         console.log('[Home Init] 未找到默认全局模型，使用第一个模型:', globalModels[0].name);
+      } else {
+         console.warn('[Home Init] 未配置任何全局模型！');
+         dispatch({ field: 'selectedGlobalModelName', value: null });
+      }
+    } else {
+      console.error("[Home Init] DifyConfigService 未初始化或不可用！");
+    }
+
   }, [dispatch, serverSideApiKeyIsSet, serverSidePluginKeysSet]);
 
   useEffect(() => {
@@ -684,6 +732,7 @@ const Home = ({
           temperature: DEFAULT_TEMPERATURE,
           deletable: false,
           appId: null,
+          model: 'default'
         }),
       );
 
@@ -700,6 +749,7 @@ const Home = ({
           conversationID: '',
           deletable: true,
           appId: null,
+          model: 'default'
         };
         
         const initialConversations = [newConversation, ...defaultConversations];
