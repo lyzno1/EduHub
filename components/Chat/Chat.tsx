@@ -49,6 +49,7 @@ import { useChatScroll } from '@/hooks/useChatScroll'; // Import the chat scroll
 import { WelcomeScreen } from './WelcomeScreen'; // Import the new WelcomeScreen component
 import { useInputHeightObserver } from '@/hooks/useInputHeightObserver'; // Import the input height observer hook
 import { AppInitialPage } from './AppInitialPage'; // Import the new AppInitialPage component
+import { MessageList } from './MessageList'; // Import the new MessageList component
 
 // ThemeMode for overall theme might still be needed
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
@@ -1403,48 +1404,22 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
           ref={chatContainerRef}
         >
           {/* === Rendering Logic Start === */}
-          {messagesLength > 0 ? (
+          {messagesLength > 0 && selectedConversation ? (
             // *** 1. Render Chat Messages (if messages exist) ***
-            <div className="flex-1 overflow-y-auto">
-              <div className="md:pt-6 pt-2">
-                {/* Optional settings display */} 
-                {showSettings && ( 
-                  <div className="flex flex-col space-y-10 md:mx-auto md:max-w-xl md:gap-6 md:py-3 md:pt-6 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
-                    <div className="flex h-full flex-col space-y-4 border-b border-neutral-200 p-4 dark:border-neutral-600 md:rounded-lg md:border">
-                    </div>
-                  </div>
-                )}
-
-                {/* Message list */} 
-                {selectedConversation?.messages?.map((message, index) => (
-                  <MemoizedChatMessage
-                    key={message.id || index}
-                    message={message}
-                    messageIndex={index}
-                    onEdit={(editedMessage) => {
-                      // Logic to handle message editing 
-                      const deleteCount = (selectedConversation?.messages?.length || 0) - index;
-                      onSend(editedMessage, deleteCount - 1);
-                    }}
-                    lightMode={currentTheme}
-                     // Pass streaming/waiting state only to the last message 
-                    isStreaming={index === messagesLength - 1 && messageIsStreaming}
-                    isWaiting={index === messagesLength - 1 && modelWaiting}
-                    userAvatar={user?.length === 8 ? "/teacher-avatar.png" : "/student-avatar.png"}
-                    assistantAvatar="/logon.png"
-                  />
-                ))}
-
-                 {/* Loading indicator */} 
-                {<ChatLoader messageIsStreaming={messageIsStreaming} modelWaiting={modelWaiting} />}
-
-                 {/* Bottom spacer for scrolling */} 
-                <div  
-                  style={{ height: `${bottomInputHeight + 60}px`, transition: 'none' }}  
-                  ref={messagesEndRef}  
-                />
-              </div>
-            </div>
+            <MessageList
+              messages={selectedConversation.messages} // Now safe to access
+              messageIsStreaming={messageIsStreaming}
+              modelWaiting={modelWaiting}
+              currentTheme={currentTheme}
+              user={user}
+              messagesEndRef={messagesEndRef}
+              bottomInputHeight={bottomInputHeight}
+              onEdit={(editedMessage, index) => {
+                // Reconstruct the onEdit logic here
+                const deleteCount = (selectedConversation?.messages?.length || 0) - index;
+                onSend(editedMessage, deleteCount - 1);
+              }}
+            />
           ) : isAppMode ? (
             // *** 2. Render App Initial Page (Dynamically) ***
             <AppInitialPage
