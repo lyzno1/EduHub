@@ -130,12 +130,12 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
 
   // --- Event Handlers ---
   const handleMenuClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Keep stopping propagation for click
     if (isMobile) {
       // 移动端：打开底部操作表
       setShowMobileBottomSheet(true);
       // 移动端不需要计算 menuPosition 或显示 showMenu
-      setShowMenu(false); 
+      setShowMenu(false);
       setMenuPosition(null);
     } else {
       // 桌面端：计算位置并显示浮动菜单
@@ -152,6 +152,11 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
       // 桌面端不需要显示底部操作表
       setShowMobileBottomSheet(false);
     }
+  };
+
+  // 关键：阻止可能触发拖动的 mousedown/touchstart 事件冒泡
+  const stopDragInitiation = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
   };
 
   // 外部点击关闭 - 需要同时处理桌面菜单和移动底部菜单
@@ -433,7 +438,13 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
       {/* 操作按钮 - 移动端常亮，桌面端悬停显示 */}
       <div className="absolute right-2 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
         <div ref={buttonRef} className="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer">
-          <IconDotsVertical size={16} className="text-gray-500 dark:text-gray-400" onClick={handleMenuClick} />
+          <IconDotsVertical
+            size={16}
+            className="text-gray-500 dark:text-gray-400"
+            onClick={handleMenuClick}
+            onMouseDown={stopDragInitiation} // Add mousedown stop
+            onTouchStart={stopDragInitiation} // Add touchstart stop
+          />
         </div>
       </div>
 
