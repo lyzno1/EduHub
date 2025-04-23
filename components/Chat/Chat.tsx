@@ -48,6 +48,7 @@ import { useMobileDetection } from '@/hooks/useMobileDetection'; // Import the n
 import { useChatScroll } from '@/hooks/useChatScroll'; // Import the chat scroll hook
 import { WelcomeScreen } from './WelcomeScreen'; // Import the new WelcomeScreen component
 import { useInputHeightObserver } from '@/hooks/useInputHeightObserver'; // Import the input height observer hook
+import { AppInitialPage } from './AppInitialPage'; // Import the new AppInitialPage component
 
 // ThemeMode for overall theme might still be needed
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
@@ -1446,21 +1447,12 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             </div>
           ) : isAppMode ? (
             // *** 2. Render App Initial Page (Dynamically) ***
-            <div className="flex-1 overflow-auto p-4 h-full">
-              {/* Render AppPageTemplate using activeAppConfig */}
-              {activeAppConfig ? (
-                <AppPageTemplate
-                  config={activeAppConfig} // Pass the full folder config
-                  themeColor={activeThemeColor} // Pass the calculated cycle color
-                  iconMap={iconMapForAllCards} // Pass the complete icon map
-                />
-              ) : (
-                // Fallback if config not found for the activeAppId
-                activeAppId !== 0 && (
-                  <div className="text-red-500 text-center p-4">Error: Configuration for App ID {activeAppId} not found.</div>
-                )
-              )}
-            </div>
+            <AppInitialPage
+              activeAppConfig={activeAppConfig}
+              activeThemeColor={activeThemeColor}
+              iconMap={iconMapForAllCards}
+              activeAppId={activeAppId}
+            />
           ) : (
             // *** 3. Render General Welcome Screen (if no messages and no appId) ***
             <WelcomeScreen 
