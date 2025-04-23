@@ -796,10 +796,18 @@ const Home = ({
 
   // 新增：处理模型选择的回调函数
   const handleSelectGlobalModel = (modelName: string) => {
+    const currentModelName = selectedGlobalModelName; // 保存旧名称
     dispatch({ field: 'selectedGlobalModelName', value: modelName });
-    // 可以在这里添加保存到 localStorage 的逻辑 (可选)
-    // localStorage.setItem('selectedGlobalModel', modelName);
-    setIsModelModalOpen(false); // 选择后关闭模态框
+    
+    // 关闭模态框
+    setIsModelModalOpen(false);
+
+    // 检查模型是否真的改变了
+    if (currentModelName !== modelName) {
+      console.log(`全局模型已从 "${currentModelName || '未设置'}" 切换到 "${modelName}"，将创建新对话。`);
+      // 模型改变后，强制创建新对话
+      handleNewConversation(); 
+    }
   };
 
   // 新增：打开模态框的回调函数

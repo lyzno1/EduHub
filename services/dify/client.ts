@@ -80,14 +80,7 @@ export class DifyClient {
     this.debug = safeConfig.debug || false;
     this.timeout = safeConfig.timeout || Number(process.env.NEXT_PUBLIC_DIFY_TIMEOUT) || DEFAULT_TIMEOUT;
     
-    if (this.debug) {
-      console.log('DifyClient初始化配置:', {
-        baseUrl: this.baseUrl,
-        model: this.currentModel,
-        timeout: this.timeout,
-        apiKey: process.env.NEXT_PUBLIC_DIFY_API_KEY
-      });
-    }
+
     // 暂时隐藏环境变量检查
     // console.log('环境变量检查:', {
     //   NEXT_PUBLIC_DIFY_API_KEY: process.env.NEXT_PUBLIC_DIFY_API_KEY,
