@@ -43,32 +43,7 @@ import { ChatMessage } from './ChatMessage';
 import { AppPageTemplate } from '@/components/AppPages/common/AppPageTemplate';
 import difyConfigService from '@/services/difyConfigService';
 import { DifyFolderConfig } from '@/types/dify';
-
-// Define the mapping for all possible card icons here
-const iconMapForAllCards: { [key: string]: React.ComponentType<any> } = {
-  IconTestPipe: IconTestPipe,
-  IconCode: IconCode,
-  IconInfoCircle: IconInfoCircle,
-  IconHelp: IconHelp,
-  IconMoodBoy: IconMoodBoy,
-  IconWorldWww: IconWorldWww,
-  IconDatabase: IconDatabase,
-  IconBook: IconBook,
-  IconMessageChatbot: IconMessageChatbot,
-  IconPencil: IconPencil,
-  IconMessageCircleQuestion: IconMessageCircleQuestion,
-  IconBulb: IconBulb,
-  IconPresentation: IconPresentation,
-  IconListDetails: IconListDetails,
-  IconCheckbox: IconCheckbox,
-  IconMessageReport: IconMessageReport,
-  IconUsers: IconUsers,
-  IconQuestionMark: IconQuestionMark, // Fallback
-};
-
-// Define the cycle of theme colors for App Pages
-// Ensure this aligns with the ThemeColor type expected by AppPageTemplate
-const themeColorCycle = ['green', 'amber', 'blue', 'purple'] as const;
+import { iconMapForAllCards, themeColorCycle } from '@/constants/uiConstants';
 
 // ThemeMode for overall theme might still be needed
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
