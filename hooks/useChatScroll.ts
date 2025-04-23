@@ -22,11 +22,13 @@ export const useChatScroll = ({
   const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(true);
   const [showScrollDownButton, setShowScrollDownButton] = useState<boolean>(false);
   const scrollButtonLockRef = useRef<boolean>(false);
+  const isProgrammaticScrollRef = useRef<boolean>(false);
   const messagesLength = selectedConversation?.messages?.length || 0;
 
   // Scrolls the chat container to the bottom smoothly.
   const handleScrollDown = useCallback(() => {
     if (chatContainerRef?.current) {
+      isProgrammaticScrollRef.current = true;
       scrollButtonLockRef.current = true;
       setShowScrollDownButton(false);
 
@@ -46,6 +48,7 @@ export const useChatScroll = ({
   // Scrolls precisely to the end of messages using messagesEndRef.
   const scrollDown = useCallback(() => {
     if (chatContainerRef?.current && messagesEndRef.current) {
+      isProgrammaticScrollRef.current = true;
       scrollButtonLockRef.current = true;
       setShowScrollDownButton(false);
 
@@ -82,62 +85,52 @@ export const useChatScroll = ({
   }, [selectedConversation?.id, messagesLength]);
 
 
-  // Effect 2: Handle scroll events, user interaction, and update scroll button visibility.
+  // Effect 2: Handle scroll events and update scroll button visibility based on user scroll.
   useEffect(() => {
     const container = chatContainerRef.current;
     if (!container) return;
 
     const handleScroll = () => {
-      if (!chatContainerRef.current) return;
+      const target = chatContainerRef.current;
+      if (!target) return;
 
-      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+      if (isProgrammaticScrollRef.current) {
+        isProgrammaticScrollRef.current = false;
+        return;
+      }
+
+      const { scrollTop, scrollHeight, clientHeight } = target;
       const scrollPosition = scrollHeight - scrollTop - clientHeight;
+      const bottomThreshold = 5;
+      const isNearBottom = scrollPosition < bottomThreshold;
 
-      const isInitialState = !selectedConversation || selectedConversation.messages.length === 0;
-      const isUserInteracting = document.body.classList.contains('user-is-interacting');
-
-      if (scrollPosition > 100 && !scrollButtonLockRef.current && !isUserInteracting) {
-        setAutoScrollEnabled(false);
-        if (!isInitialState) {
-          setShowScrollDownButton(true);
-        } else {
-          setShowScrollDownButton(false); // Don't show button on welcome screen
-        }
-      } else if (scrollPosition <= 100 && !isUserInteracting) {
-        setAutoScrollEnabled(true);
-        setShowScrollDownButton(false);
+      if (!isNearBottom) {
+        setAutoScrollEnabled(current => {
+          if (current === true) return false;
+          return current;
+        });
+        setShowScrollDownButton(current => {
+          if (!current && !scrollButtonLockRef.current) return true;
+          return current;
+        });
+      } else {
+        setAutoScrollEnabled(current => {
+          if (current === false) return true;
+          return current;
+        });
+        setShowScrollDownButton(current => {
+          if (current === true) return false;
+          return current;
+        });
       }
     };
 
-    const handleInteractionStart = () => {
-      document.body.classList.add('user-is-interacting');
-    };
-
-    const handleInteractionEnd = () => {
-      document.body.classList.remove('user-is-interacting');
-      // Re-evaluate scroll state after interaction ends
-      handleScroll();
-    };
-
-    // Touch events
-    container.addEventListener('touchstart', handleInteractionStart, { passive: true });
-    container.addEventListener('touchend', handleInteractionEnd, { passive: true });
-    // Mouse events
-    container.addEventListener('mousedown', handleInteractionStart);
-    container.addEventListener('mouseup', handleInteractionEnd);
-    // Scroll event
     container.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
-      container.removeEventListener('touchstart', handleInteractionStart);
-      container.removeEventListener('touchend', handleInteractionEnd);
-      container.removeEventListener('mousedown', handleInteractionStart);
-      container.removeEventListener('mouseup', handleInteractionEnd);
       container.removeEventListener('scroll', handleScroll);
-      // Ensure class is removed on unmount/cleanup
-      document.body.classList.remove('user-is-interacting');
     };
-  }, [chatContainerRef, selectedConversation, messagesLength]); // Dependencies
+  }, [chatContainerRef, autoScrollEnabled, showScrollDownButton]);
 
 
   // Effect 3: Scroll down automatically when new messages arrive or streaming ends, if autoScrollEnabled.
@@ -147,30 +140,25 @@ export const useChatScroll = ({
       const lastMessage = selectedConversation?.messages[messagesLength - 1];
       if (!lastMessage) return;
 
-      // Scrolls down when message content updates (streaming) or when streaming stops
       const updateScroll = () => {
           if (!chatContainerRef.current || !autoScrollEnabled) return;
 
-          // Only scroll if user is not actively interacting
-          const shouldScroll = !document.body.classList.contains('user-is-interacting');
-          if (shouldScroll) {
-              // Use precise scroll for streaming updates
-              messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
-          }
+          isProgrammaticScrollRef.current = true;
+          messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+
       };
 
-      // Scroll when message content exists or streaming finishes
-       if (lastMessage.content || !messageIsStreaming) {
+      if (lastMessage.content || !messageIsStreaming) {
            requestAnimationFrame(updateScroll);
        }
 
   }, [
-    selectedConversation?.messages, // React to message list changes
-    messageIsStreaming, // React to streaming state changes
+    selectedConversation?.messages,
+    messageIsStreaming,
     autoScrollEnabled,
     chatContainerRef,
     messagesEndRef,
-    messagesLength // Include messagesLength to react to new messages being added
+    messagesLength
   ]);
 
   return { showScrollDownButton, handleScrollDown, autoScrollEnabled };

@@ -487,7 +487,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
                     <div className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-600/30 dark:to-gray-700/30 text-gray-900 dark:text-gray-100 px-4 py-3 rounded-[20px] text-sm leading-relaxed shadow-[0_2px_8px_-2px_rgba(0,0,0,0.1)] dark:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.3)] font-medium whitespace-pre-wrap break-words">
                       {message.content}
                     </div>
-                    <div className="absolute bottom-2 right-0 flex items-center gap-1.5 invisible group-hover:visible">
+                    <div className="absolute bottom-2 right-0 flex items-center gap-1.5 flex md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
                       <button
                         className={`flex items-center justify-center rounded-md p-1 px-1.5 text-xs
                         text-gray-500 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800
