@@ -1,4 +1,4 @@
-import { IconArrowUp, IconPlus, IconX } from '@tabler/icons-react';
+import { IconArrowUp, IconPlus, IconX, IconHelpCircle } from '@tabler/icons-react';
 import {
   KeyboardEvent,
   MutableRefObject,
@@ -537,14 +537,24 @@ export const ModernChatInput = ({
             backgroundColor: isDarkMode() ? '#343541' : getBgColor()
           }}
         >
-          {/* 左下角模型名称显示区域 - 增大圆角 */}
+          {/* 左下角模型名称显示区域 - 使用 data-tooltip */}
           {(!selectedConversation || selectedConversation.appId === 0 || selectedConversation.appId == null) && selectedGlobalModelName ? (
              <div
-               className="flex items-center px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-gray-600 text-xs text-gray-600 dark:text-gray-300 pointer-events-none mr-auto"
-               title={`当前模型: ${selectedGlobalModelName}`}
+               className="flex items-center px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-gray-600 text-xs text-gray-600 dark:text-gray-300 mr-auto" // 移除 pointer-events-none
              >
                <span className="truncate max-w-[100px] sm:max-w-[150px]"> 
                  {selectedGlobalModelName}
+               </span>
+               {/* 将 data-tooltip 添加到包裹图标的 span */}
+               <span 
+                 className="ml-1 flex-shrink-0 cursor-help" 
+                 data-tooltip="点击左下角设置按钮切换全局模型" // 使用 data-tooltip
+                 data-placement="right" // 设置 tooltip 位置 (可调整)
+               >
+                 <IconHelpCircle 
+                   size={14} 
+                   className="text-gray-400 dark:text-gray-500" 
+                 />
                </span>
              </div>
           ) : null}
