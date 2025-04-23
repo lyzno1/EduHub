@@ -1,4 +1,5 @@
 import { OpenAIModel } from './openai';
+import { Plugin } from './plugin';
 
 export interface Message {
   id?: string;
@@ -6,7 +7,7 @@ export interface Message {
   content: string;
 }
 
-export type Role = 'assistant' | 'user';
+export type Role = 'assistant' | 'user' | 'system' | 'tool' | 'function';
 
 export interface ChatBody {
   query: string;
@@ -15,6 +16,11 @@ export interface ChatBody {
   user: string;
   conversation_id?: string;
   auto_generate_name?: boolean;
+  model: string;
+  messages: Message[];
+  key: string;
+  prompt: string;
+  temperature: number;
 }
 
 export interface ChatResponse {
@@ -31,13 +37,14 @@ export interface ChatResponse {
 export interface Conversation {
   id: string;
   name: string;
-  originalName: string;
+  originalName?: string;
   messages: Message[];
+  // model: string;
   prompt: string;
   temperature: number;
   folderId: string | null;
-  conversationID: string;
-  deletable: boolean;
+  conversationID?: string;
+  deletable?: boolean;
   appId?: number | null;
   cardId?: string | null;
 }

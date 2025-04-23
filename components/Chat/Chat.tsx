@@ -50,6 +50,7 @@ import { WelcomeScreen } from './WelcomeScreen'; // Import the new WelcomeScreen
 import { useInputHeightObserver } from '@/hooks/useInputHeightObserver'; // Import the input height observer hook
 import { AppInitialPage } from './AppInitialPage'; // Import the new AppInitialPage component
 import { MessageList } from './MessageList'; // Import the new MessageList component
+import { useDifyCredentials } from '@/hooks/useDifyCredentials'; // 导入新的Hook
 
 // ThemeMode for overall theme might still be needed
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
@@ -232,6 +233,9 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     }
   }, [cardInputPrompt]);
 
+  // 添加useDifyCredentials hook
+  const { getDifyCredentials } = useDifyCredentials();
+
   const onSend = async (message: Message, deleteCount = 0) => {
     // ===== 添加新逻辑开始: 检测是否为"应用首页+卡片选中"的发送场景 =====
     const currentActiveAppId = homeContext.state.activeAppId;
@@ -276,6 +280,7 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         temperature: DEFAULT_TEMPERATURE,
         folderId: null,
         conversationID: '', // Dify后端ID初始为空
+        // model: 'dify',
         deletable: true,
         appId: currentActiveAppId,
         cardId: currentSelectedCardId, // 保存卡片ID
@@ -301,19 +306,21 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       // 现在selectedConversation已更新，继续执行原有逻辑
       // 这个return将跳过下面的检查，因为我们已经手动设置了selectedConversation
       try {
-        // --- 确定API URL和Key基于appId ---
-        let targetApiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || '/api/dify'; // 默认全局URL
-        let targetApiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || ''; // 默认全局Key
-
-        if (appConfig) {
-          console.log(`[Card Send] Using App Config for appId: ${currentActiveAppId}`);
-          targetApiKey = appConfig.apiKey;
-          if (appConfig.apiUrl) {
-            targetApiUrl = appConfig.apiUrl;
-          }
+        // --- 从dify_keys.json获取API配置 ---
+        const difyConfig = getDifyCredentials(currentActiveAppId, currentSelectedCardId);
+        
+        if (!difyConfig) {
+          console.error(`[Card Send] 无法获取Dify配置，appId: ${currentActiveAppId}, cardId: ${currentSelectedCardId}`);
+          toast.error('无法获取API配置，请联系管理员');
+          homeDispatch({ field: 'messageIsStreaming', value: false });
+          setModelWaiting(false);
+          return;
         }
-
-        console.log(`[Card Send] Final Dify Config - URL: ${targetApiUrl}, Key Used: ${targetApiKey ? 'Yes' : 'No'}`);
+        
+        const targetApiUrl = difyConfig.apiUrl;
+        const targetApiKey = difyConfig.apiKey;
+        
+        console.log(`[Card Send] 使用Dify配置 - URL: ${targetApiUrl}, Key已设置: ${targetApiKey ? 'Yes' : 'No'}`);
 
         const difyClient = new DifyClient({
           apiUrl: targetApiUrl,
@@ -548,27 +555,25 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     setCurrentTaskId(null);
 
     try {
-      // --- Start modification: Determine API URL and Key based on appId ---
+      // --- 使用Hook获取API配置 ---
       const currentAppId = selectedConversation.appId;
-      let targetApiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || '/api/dify'; // Default global URL (or reverse proxy)
-      let targetApiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || ''; // Default global Key
-
-      if (currentAppId !== null && currentAppId !== undefined && appConfigs && appConfigs[currentAppId]) {
-        const appConfig = appConfigs[currentAppId];
-        console.log(`[Chat Send] Detected App Conversation (appId: ${currentAppId}). Using App Config:`, appConfig);
-        targetApiKey = appConfig.apiKey;
-        if (appConfig.apiUrl) {
-          targetApiUrl = appConfig.apiUrl;
-        }
-        // If the app doesn't specify apiUrl, continue using the global default apiUrl
-      } else {
-        console.log(`[Chat Send] Detected Normal Conversation or App Config not found (appId: ${currentAppId}). Using Global Config.`);
+      const currentCardId = selectedConversation.cardId;
+      
+      const difyConfig = getDifyCredentials(currentAppId, currentCardId);
+      
+      if (!difyConfig) {
+        console.error(`[Chat Send] 无法获取Dify配置，appId: ${currentAppId}, cardId: ${currentCardId}`);
+        toast.error('无法获取API配置，请联系管理员');
+        return;
       }
-
-      console.log(`[Chat Send] Final Dify Config - URL: ${targetApiUrl}, Key Used: ${targetApiKey ? 'Yes' : 'No'}`);
+      
+      const targetApiUrl = difyConfig.apiUrl;
+      const targetApiKey = difyConfig.apiKey;
+      
+      console.log(`[Chat Send] 使用Dify配置 - URL: ${targetApiUrl}, Key已设置: ${targetApiKey ? 'Yes' : 'No'}`);
 
       const difyClient = new DifyClient({
-        apiUrl: targetApiUrl, // Use the finally determined URL
+        apiUrl: targetApiUrl,
         debug: true
       });
 
@@ -694,10 +699,11 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             titleGenerationInitiated.current = true;
                 // console.log(`[Parallel] Conversation ID (${conversationId}) confirmed for new convo. Starting title generation...`);
 
-                // Determine API Key and URL here (ensure context is correct or pass necessary values)
-                const titleApiUrl = targetApiUrl; // Reuse the URL determined for main chat
-                const titleApiKey = targetApiKey; // Reuse the Key determined for main chat
-                const titleUser = user || 'unknown'; // Get user from onSend context
+                // 使用Hook获取与主对话相同的Dify配置
+                const titleDifyConfig = getDifyCredentials(currentAppId, selectedConversation.cardId);
+                const titleApiUrl = titleDifyConfig?.apiUrl || targetApiUrl; // 回退到主对话使用的配置
+                const titleApiKey = titleDifyConfig?.apiKey || targetApiKey;
+                const titleUser = user || 'unknown';
 
             titlePromise.current = (async () => {
               try {
@@ -1243,18 +1249,19 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     // --- Call Dify Stop API ---
     if (currentTaskId) {
       try {
-        // 获取当前对话的API Key和URL
+        // 使用Hook获取当前对话的Dify配置
         const currentAppId = selectedConversation?.appId;
-        let targetApiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || '/api/dify';
-        let targetApiKey = process.env.NEXT_PUBLIC_DIFY_API_KEY || '';
-
-        if (currentAppId !== null && currentAppId !== undefined && appConfigs && appConfigs[currentAppId]) {
-          const appConfig = appConfigs[currentAppId];
-          targetApiKey = appConfig.apiKey;
-          if (appConfig.apiUrl) {
-            targetApiUrl = appConfig.apiUrl;
-          }
+        const currentCardId = selectedConversation?.cardId;
+        
+        const difyConfig = getDifyCredentials(currentAppId, currentCardId);
+        
+        if (!difyConfig) {
+          console.error(`[Stop] 无法获取Dify配置，appId: ${currentAppId}, cardId: ${currentCardId}`);
+          return;
         }
+        
+        const targetApiUrl = difyConfig.apiUrl;
+        const targetApiKey = difyConfig.apiKey;
 
         // 创建新的DifyClient实例并调用停止API
         const difyClient = new DifyClient({
