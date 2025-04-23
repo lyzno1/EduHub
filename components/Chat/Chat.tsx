@@ -51,6 +51,7 @@ import { useInputHeightObserver } from '@/hooks/useInputHeightObserver'; // Impo
 import { AppInitialPage } from './AppInitialPage'; // Import the new AppInitialPage component
 import { MessageList } from './MessageList'; // Import the new MessageList component
 import { useDifyCredentials } from '@/hooks/useDifyCredentials'; // 导入新的Hook
+import { DifyModelConfig } from '@/types/dify';
 
 // ThemeMode for overall theme might still be needed
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
@@ -60,7 +61,7 @@ interface Props {
   showSidebar?: boolean;
 }
 
-export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) => {
+export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
   const { t } = useTranslation('chat');
 
   const homeContext = useContext(HomeContext);
@@ -1595,5 +1596,4 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       </>
     </div>
   );
-});
-Chat.displayName = 'Chat';
+};

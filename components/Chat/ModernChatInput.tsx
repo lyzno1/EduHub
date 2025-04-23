@@ -55,6 +55,7 @@ export const ModernChatInput = ({
     state: {
       selectedConversation,
       lightMode,
+      selectedGlobalModelName
     },
   } = useContext(HomeContext);
 
@@ -459,7 +460,6 @@ export const ModernChatInput = ({
     }
   }, [inputHeight]);
 
-  // 在返回部分调整样式以适应移动端
   return (
     <div 
       className={`${isCentered 
@@ -532,64 +532,58 @@ export const ModernChatInput = ({
 
         {/* 按钮区域，高度固定 */}
         <div 
-          className={`${isDeviceMobile ? 'h-[32px]' : 'h-[36px] sm:h-[42px]'} relative ${isDeviceMobile ? 'rounded-b-xl' : 'rounded-b-xl sm:rounded-b-3xl'}`}
+          className={`${isDeviceMobile ? 'h-[32px]' : 'h-[36px] sm:h-[42px]'} relative ${isDeviceMobile ? 'rounded-b-xl' : 'rounded-b-xl sm:rounded-b-3xl'} flex items-center px-3`}
           style={{ 
             backgroundColor: isDarkMode() ? '#343541' : getBgColor()
           }}
         >
-          {/* 暂时隐藏更多选项 */}
-          {/* <button
-            className={`absolute top-[45%] -translate-y-1/2 left-2.5 flex ${isDeviceMobile ? 'h-7 w-7' : 'h-8 w-8 sm:h-9 sm:w-9'} items-center justify-center rounded-full z-10`}
-            style={{
-              backgroundColor: isDarkMode() ? '#4b5563' : '#f3f4f6',
-              color: isDarkMode() ? '#d1d5db' : '#6b7280',
-              boxShadow: isDarkMode() ? '0 1px 2px rgba(0, 0, 0, 0.2)' : 'none'
-            }}
-            onClick={() => setShowPluginSelect(!showPluginSelect)}
-            aria-label="更多选项"
-          >
-            <IconPlus size={isDeviceMobile ? 14 : 16} className={isDeviceMobile ? '' : 'sm:text-[18px]'} />
-          </button> */}
+          {/* 左下角模型名称显示区域 - 增大圆角 */}
+          {(!selectedConversation || selectedConversation.appId === 0 || selectedConversation.appId == null) && selectedGlobalModelName ? (
+             <div
+               className="flex items-center px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-gray-600 text-xs text-gray-600 dark:text-gray-300 pointer-events-none mr-auto"
+               title={`当前模型: ${selectedGlobalModelName}`}
+             >
+               <span className="truncate max-w-[100px] sm:max-w-[150px]"> 
+                 {selectedGlobalModelName}
+               </span>
+             </div>
+          ) : null}
 
-          <button
-            className={`absolute top-[45%] -translate-y-1/2 right-2.5 flex ${isDeviceMobile ? 'h-7 w-7' : 'h-8 w-8 sm:h-9 sm:w-9'} items-center justify-center rounded-full z-10`}
-            // --- MODIFY style logic ---
-            style={{
-              // Common styles
-              color: '#FFFFFF',
-              boxShadow: isDarkMode() ? '0 1px 3px rgba(0, 0, 0, 0.3)' : 'none',
-              // Conditional styles
-              ...(messageIsStreaming
-                ? { // STOP BUTTON STYLES
-                    backgroundColor: '#000000', // Always black background
-                    opacity: 1,                // Always fully opaque
-                    cursor: 'pointer'           // Always pointer cursor
-                  }
-                : { // SEND BUTTON STYLES (Original logic)
-                    backgroundColor: '#000000', // Black background
-                    opacity: !content?.trim() ? 0.3 : 1, // Dim if no content
-                    cursor: !content?.trim() ? 'default' : 'pointer' // Default cursor if no content
-                  }
-              )
-            }}
-            // --- END MODIFY ---
-            onClick={messageIsStreaming ? handleStopConversation : handleSend}
-            aria-label={messageIsStreaming ? "停止生成" : "发送消息"}
-            // Ensure disabled logic only applies when NOT streaming
-            disabled={!messageIsStreaming && !content?.trim()}
-          >
-            {/* --- MODIFY button content and style based on streaming state --- */}
-            {messageIsStreaming ? (
-              // STOP BUTTON STATE:
-              // White square icon
+          {/* 暂时隐藏更多选项按钮 - 如果取消注释，需要调整模型指示器的空间 */}
+          {/* <button ... > <IconPlus /> </button> */}
+
+          {/* 发送/停止按钮保持在右侧 */}
+          {messageIsStreaming ? (
+            <button
+              className={`absolute top-1/2 -translate-y-1/2 right-2.5 flex ${isDeviceMobile ? 'h-7 w-7' : 'h-8 w-8 sm:h-9 sm:w-9'} items-center justify-center rounded-full z-10`}
+              style={{
+                backgroundColor: '#000000',
+                opacity: 1,
+                cursor: 'pointer',
+                color: '#FFFFFF' 
+              }}
+              onClick={handleStopConversation}
+              aria-label="停止生成"
+            >
               <div style={{ width: isMobile ? '10px' : '12px', height: isMobile ? '10px' : '12px', backgroundColor: 'white' }}></div>
-            ) : (
-              // SEND BUTTON STATE:
-              // Original Arrow Up icon
+            </button>
+          ) : (
+            <button
+              className={`absolute top-1/2 -translate-y-1/2 right-2.5 flex ${isDeviceMobile ? 'h-7 w-7' : 'h-8 w-8 sm:h-9 sm:w-9'} items-center justify-center rounded-full z-10`}
+              style={{
+                color: '#FFFFFF',
+                boxShadow: isDarkMode() ? '0 1px 3px rgba(0, 0, 0, 0.3)' : 'none',
+                backgroundColor: '#000000',
+                opacity: !content?.trim() ? 0.3 : 1,
+                cursor: !content?.trim() ? 'default' : 'pointer' 
+              }}
+              onClick={handleSend}
+              aria-label="发送消息"
+              disabled={!content?.trim()}
+            >
               <IconArrowUp size={isMobile ? 14 : 16} className={isMobile ? '' : 'sm:text-[18px]'} />
-            )}
-            {/* --- END MODIFY --- */}
-          </button>
+            </button>
+          )}
         </div>
         
         {activePlugin && (
