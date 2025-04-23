@@ -72,6 +72,8 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       messageIsStreaming,
       user,
       cardInputPrompt, // 添加对 cardInputPrompt 的获取
+      selectedCardId,
+      selectedGlobalModelName, // 添加选中的全局模型名称
     },
     handleUpdateConversation,
     dispatch: homeDispatch,
@@ -556,22 +558,46 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     setCurrentTaskId(null);
 
     try {
-      // --- 使用Hook获取API配置 ---
       const currentAppId = selectedConversation.appId;
       const currentCardId = selectedConversation.cardId;
-      
-      const difyConfig = getDifyCredentials(currentAppId, currentCardId);
-      
-      if (!difyConfig) {
-        console.error(`[Chat Send] 无法获取Dify配置，appId: ${currentAppId}, cardId: ${currentCardId}`);
-        toast.error('无法获取API配置，请联系管理员');
-        return;
+      let targetApiKey: string | null = null;
+      let targetApiUrl: string | null = null;
+
+      // --- 区分全局对话和应用对话 --- 
+      if (currentAppId === 0 || currentAppId === null) {
+        // 全局对话：使用 DifyConfigService 获取配置
+        console.log(`[Chat Send] 全局对话，当前选中模型: ${selectedGlobalModelName}`);
+        targetApiUrl = difyConfigService.getGlobalApiUrl();
+        targetApiKey = difyConfigService.getGlobalModelApiKey(selectedGlobalModelName);
+        
+        if (!targetApiKey || !targetApiUrl) {
+            console.error(`[Chat Send] 无法获取全局模型配置，模型: ${selectedGlobalModelName}, URL: ${targetApiUrl}, Key: ${targetApiKey}`);
+            toast.error('无法获取全局API配置，请联系管理员');
+            return;
+        }
+        console.log(`[Chat Send] 使用全局Dify配置 - 模型: ${selectedGlobalModelName}, URL: ${targetApiUrl}, Key已设置: ${targetApiKey ? 'Yes' : 'No'}`);
+
+      } else {
+        // 应用对话：使用 useDifyCredentials hook 获取配置
+        console.log(`[Chat Send] 应用对话，appId: ${currentAppId}, cardId: ${currentCardId}`);
+        const appDifyConfig = getDifyCredentials(currentAppId, currentCardId);
+        if (!appDifyConfig) {
+          console.error(`[Chat Send] 无法获取应用Dify配置，appId: ${currentAppId}, cardId: ${currentCardId}`);
+          toast.error('无法获取应用API配置，请联系管理员');
+          return;
+        }
+        targetApiKey = appDifyConfig.apiKey;
+        targetApiUrl = appDifyConfig.apiUrl;
+        console.log(`[Chat Send] 使用应用Dify配置 - URL: ${targetApiUrl}, Key已设置: ${targetApiKey ? 'Yes' : 'No'}`);
       }
-      
-      const targetApiUrl = difyConfig.apiUrl;
-      const targetApiKey = difyConfig.apiKey;
-      
-      console.log(`[Chat Send] 使用Dify配置 - URL: ${targetApiUrl}, Key已设置: ${targetApiKey ? 'Yes' : 'No'}`);
+      // --- 配置获取结束 --- 
+
+      // 确保获取到了有效的配置
+      if (!targetApiKey || !targetApiUrl) { // 双重检查
+          console.error("[Chat Send] 最终未能获取有效的 API Key 或 URL.");
+          toast.error('API配置无效，无法发送消息。');
+          return;
+      }
 
       const difyClient = new DifyClient({
         apiUrl: targetApiUrl,
@@ -579,7 +605,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
       });
 
       let conversationId = selectedConversation.conversationID || '';
-      // --- End modification ---
       
       console.log('对话ID信息:', {
         conversationId: conversationId,
@@ -610,18 +635,15 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
         }
       }, 50);
 
-      // --- Modification: Use the finally determined Key to call Dify API ---
+      // --- 调用 Dify API (使用获取到的 targetApiKey 和 targetApiUrl) ---
       const chatStream = await difyClient.createChatStream({
         query: message.content,
-        key: targetApiKey, // Use the finally determined Key
+        key: targetApiKey, // 使用最终确定的 Key
         user: user || 'unknown',
-        conversationId, 
+        conversationId,
         inputs: {},
-        autoGenerateName: selectedConversation.messages.length > 1 
+        autoGenerateName: selectedConversation.messages.length <= 1 // 只有第一条用户消息时尝试生成名字
       });
-      // --- End modification ---
-
-      // 保存 chatStream 引用以便可以中止
       chatStreamRef.current = chatStream;
 
       let fullResponse = '';
@@ -672,10 +694,10 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
             return;
         }
 
-        // --- Modification: Title generation also needs to use the correct API Key ---
+        // --- 并行标题生成逻辑 --- 
         const isPotentiallyNewConversationResponse = currentMessages.length === 2;
 
-        // 1. Ensure conversationId is updated if received
+        // 1. 确保 conversationId 更新 (保持不变)
         if (chatStream.conversationId && (!conversationId || conversationId === '')) {
            conversationId = chatStream.conversationId;
            console.log(`[Dify] Received/Confirmed Conversation ID: ${conversationId}`);
@@ -693,45 +715,63 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
            updatedConversation.conversationID = conversationId;
         }
 
-        // 2. Trigger title generation ONLY if it's the first response, ID is confirmed, and not initiated yet
-          if (isPotentiallyNewConversationResponse && !titleGenerationInitiated.current) {
-            // Check again if conversationId is now valid before proceeding
-            if (conversationId) {
+        // 2. 触发标题生成
+        if (isPotentiallyNewConversationResponse && !titleGenerationInitiated.current && conversationId) {
             titleGenerationInitiated.current = true;
-                // console.log(`[Parallel] Conversation ID (${conversationId}) confirmed for new convo. Starting title generation...`);
+            console.log(`[Parallel Title] 开始生成标题 (convId: ${conversationId})`);
 
-                // 使用Hook获取与主对话相同的Dify配置
-                const titleDifyConfig = getDifyCredentials(currentAppId, selectedConversation.cardId);
-                const titleApiUrl = titleDifyConfig?.apiUrl || targetApiUrl; // 回退到主对话使用的配置
-                const titleApiKey = titleDifyConfig?.apiKey || targetApiKey;
-                const titleUser = user || 'unknown';
+            // --- 确定标题生成所需的 API Key 和 URL --- 
+            let titleApiKey: string | null = null;
+            let titleApiUrl: string | null = null;
 
-            titlePromise.current = (async () => {
-              try {
-                    // console.log(`[Debug] Title Gen (onMessage) - Using titleApiUrl: ${titleApiUrl}`);
-                    // console.log(`[Debug] Title Gen (onMessage) - Using titleApiKey is empty: ${titleApiKey === ''}`);
-
-                const titleDifyClient = new DifyClient({
-                  apiUrl: titleApiUrl,
-                  debug: true
-                });
-                const generatedName = await titleDifyClient.generateConversationName(
-                      conversationId, // Use the confirmed ID
-                  titleApiKey,
-                      titleUser
-                );
-                    console.log('[Parallel] Parallel title generation successful:', generatedName);
-                return generatedName || null;
-              } catch (error) {
-                    console.error('[Parallel] Parallel title generation failed:', error);
-                return null;
-              }
-            })();
+            if (currentAppId === 0 || currentAppId === null) {
+                // 全局对话标题生成：使用当前选定全局模型
+                titleApiUrl = difyConfigService.getGlobalApiUrl();
+                titleApiKey = difyConfigService.getGlobalModelApiKey(selectedGlobalModelName);
+                 console.log(`[Parallel Title] 使用全局配置 (模型: ${selectedGlobalModelName})`);
             } else {
-                console.warn('[Title Gen] Could not initiate title generation because conversationId is still missing after stream update.');
-          }
+                // 应用对话标题生成：使用与主消息相同的应用配置
+                const appDifyConfig = getDifyCredentials(currentAppId, currentCardId);
+                if (appDifyConfig) {
+                    titleApiKey = appDifyConfig.apiKey;
+                    titleApiUrl = appDifyConfig.apiUrl;
+                    console.log(`[Parallel Title] 使用应用配置 (appId: ${currentAppId})`);
+                } else {
+                    console.warn(`[Parallel Title] 无法获取应用 ${currentAppId} 的配置，标题生成可能失败或使用回退`);
+                    // 可以选择回退到默认全局模型配置
+                    const defaultModel = difyConfigService.getDefaultGlobalModel();
+                    const globalApiUrl = difyConfigService.getGlobalApiUrl();
+                    if (defaultModel && globalApiUrl) {
+                        titleApiKey = defaultModel.apiKey;
+                        titleApiUrl = globalApiUrl;
+                    }
+                }
+            }
+            // --- 配置确定结束 --- 
+
+            if (!titleApiKey || !titleApiUrl) {
+                console.error("[Parallel Title] 无法确定标题生成的 API Key 或 URL！");
+                // 可以选择不生成标题，或者记录错误
+            } else {
+                const titleUser = user || 'unknown';
+                titlePromise.current = (async () => {
+                    try {
+                        const titleDifyClient = new DifyClient({ apiUrl: titleApiUrl, debug: true });
+                        const generatedName = await titleDifyClient.generateConversationName(
+                            conversationId, 
+                            titleApiKey,
+                            titleUser
+                        );
+                        console.log('[Parallel Title] 成功生成标题:', generatedName);
+                        return generatedName || null;
+                    } catch (error) {
+                        console.error('[Parallel Title] 标题生成失败:', error);
+                        return null;
+                    }
+                })();
+            }
         }
-        // --- End title generation logic modification ---
+        // ... (剩余流处理) ...
         
         const streamUpdatedConversation = {
           ...updatedConversation,
@@ -1229,63 +1269,66 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     };
   }, [messagesLength, bottomInputHeight]);
 
-  // --- handleStopConversation (Keep API call commented out) --- 
+  // --- 修改 handleStopConversation --- 
   const handleStopConversation = async () => { 
     console.log('停止按钮被点击，中止生成');
     stopConversationRef.current = true;
     homeDispatch({ field: 'messageIsStreaming', value: false });
     setModelWaiting(false);
 
-    // 使用 chatStreamRef 中止当前流请求
+    // 中止前端流
     if (chatStreamRef.current) {
-      try {
-        chatStreamRef.current.abort();
-      } catch (error) {
-        console.error('中止流请求时发生错误:', error);
-      }
-      // 清除引用
+      try { chatStreamRef.current.abort(); } catch (error) { console.error('中止前端流时发生错误:', error); }
       chatStreamRef.current = null;
     }
 
-    // --- Call Dify Stop API ---
-    if (currentTaskId) {
+    // 调用 Dify Stop API
+    if (currentTaskId && selectedConversation) { // 确保有任务ID和对话信息
       try {
-        // 使用Hook获取当前对话的Dify配置
-        const currentAppId = selectedConversation?.appId;
-        const currentCardId = selectedConversation?.cardId;
-        
-        const difyConfig = getDifyCredentials(currentAppId, currentCardId);
-        
-        if (!difyConfig) {
-          console.error(`[Stop] 无法获取Dify配置，appId: ${currentAppId}, cardId: ${currentCardId}`);
-          return;
+        const currentAppId = selectedConversation.appId;
+        const currentCardId = selectedConversation.cardId;
+        let targetApiKey: string | null = null;
+        let targetApiUrl: string | null = null;
+
+        // --- 区分全局和应用获取配置 --- 
+        if (currentAppId === 0 || currentAppId === null) {
+          // 全局停止：使用当前选定全局模型配置
+          targetApiUrl = difyConfigService.getGlobalApiUrl();
+          targetApiKey = difyConfigService.getGlobalModelApiKey(selectedGlobalModelName);
+          console.log(`[Stop] 使用全局配置 (模型: ${selectedGlobalModelName}) 停止任务: ${currentTaskId}`);
+        } else {
+          // 应用停止：使用应用配置
+          const appDifyConfig = getDifyCredentials(currentAppId, currentCardId);
+          if (appDifyConfig) {
+            targetApiKey = appDifyConfig.apiKey;
+            targetApiUrl = appDifyConfig.apiUrl;
+            console.log(`[Stop] 使用应用配置 (appId: ${currentAppId}) 停止任务: ${currentTaskId}`);
+          } else {
+            console.warn(`[Stop] 无法获取应用 ${currentAppId} 配置，可能无法正确停止后端任务`);
+            // 理论上不应发生，因为开始时有配置，但添加保护
+          }
         }
-        
-        const targetApiUrl = difyConfig.apiUrl;
-        const targetApiKey = difyConfig.apiKey;
+        // --- 配置获取结束 --- 
 
-        // 创建新的DifyClient实例并调用停止API
-        const difyClient = new DifyClient({
-          apiUrl: targetApiUrl,
-          debug: false
-        });
-
-        const result = await difyClient.stopChatStream(
-          currentTaskId,
-          targetApiKey,
-          user || 'unknown'
-        );
+        if (targetApiKey && targetApiUrl) {
+          const difyClient = new DifyClient({ apiUrl: targetApiUrl, debug: false });
+          await difyClient.stopChatStream(
+            currentTaskId,
+            targetApiKey,
+            user || 'unknown'
+          );
+          console.log(`[Stop] 成功发送停止请求到后端，任务ID: ${currentTaskId}`);
+        } else {
+           console.error(`[Stop] 无法获取停止任务 ${currentTaskId} 所需的 API 配置！`);
+        }
       } catch (error) {
-        console.error('调用停止API时发生错误:', error);
+        console.error(`调用停止API (任务ID: ${currentTaskId}) 时发生错误:`, error);
       }
-      // 清除任务ID
-      setCurrentTaskId(null);
+      setCurrentTaskId(null); // 清除任务ID
     }
     // --- END Call Dify Stop API ---
 
-    setTimeout(() => {
-      stopConversationRef.current = false;
-    }, 1000);
+    setTimeout(() => { stopConversationRef.current = false; }, 1000);
   };
   // --- END handleStopConversation ---
 

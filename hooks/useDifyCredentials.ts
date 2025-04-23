@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import difyKeysJson from '../dify_keys.json';
+import { useEffect, useState, useCallback } from 'react';
+import difyConfigService from '../services/difyConfigService';
+import { DifyApiConfig, DifyModelConfig } from '@/types/dify';
 
 type DifyConfig = {
   apiKey: string;
@@ -27,118 +28,79 @@ type DifyKeysConfig = {
 };
 
 /**
- * 用于获取Dify API凭证的Hook
- * 确保从dify_keys.json作为第一选择配置源
+ * 用于获取Dify API凭证的Hook (应用专属)
+ * 仅处理 appId > 0 的情况，确保从dify_keys.json作为第一选择配置源
+ * 全局配置 (appId=0) 应由调用者直接处理
  */
 export const useDifyCredentials = () => {
-  const [configLoaded, setConfigLoaded] = useState<boolean>(false);
-  const [difyKeysConfig, setDifyKeysConfig] = useState<DifyKeysConfig | null>(null);
-
-  // 初始化时加载配置
-  useEffect(() => {
-    try {
-      // 直接使用导入的JSON
-      setDifyKeysConfig(difyKeysJson as unknown as DifyKeysConfig);
-      setConfigLoaded(true);
-    } catch (error) {
-      console.error('加载Dify配置失败:', error);
-      // 处理加载失败的情况，提供默认配置或错误状态
-    }
-  }, []);
-
   /**
-   * 获取Dify凭证
-   * @param appId 应用ID，0表示全局配置
-   * @param cardId 卡片ID，对非全局应用有效
-   * @returns Dify配置或null（如果找不到）
+   * 获取特定应用/卡片的Dify凭证
+   * @param appId 应用ID (必须大于0)
+   * @param cardId 卡片ID (可选)
+   * @returns Dify配置 DifyApiConfig ({apiKey, apiUrl}) 或 null (如果找不到有效配置或 appId <= 0)
    */
-  const getDifyCredentials = (
-    appId: number | null | undefined, 
-    cardId: string | null | undefined
-  ): DifyConfig | null => {
-    if (!configLoaded || !difyKeysConfig) {
-      console.warn('Dify配置尚未加载完成');
-      return null;
-    }
-
-    try {
-      // 如果是全局应用（appId为0或null/undefined）
+  const getDifyCredentials = useCallback(
+    (appId: number | null | undefined, cardId: string | null | undefined): DifyApiConfig | null => {
+      // 明确不再处理全局配置
       if (appId === 0 || appId === null || appId === undefined) {
-        if (difyKeysConfig.global && difyKeysConfig.global.difyConfig) {
-          return difyKeysConfig.global.difyConfig;
-        }
-        console.warn('全局配置中没有找到difyConfig');
+        console.warn('[useDifyCredentials] 此 hook 不处理全局配置 (appId=0)，请直接使用 DifyConfigService 获取全局模型配置。');
         return null;
       }
 
-      // 找到对应的应用配置
-      const appConfigs = Object.values(difyKeysConfig);
-      const appConfig = appConfigs.find(config => config.appId === appId);
-      
-      if (!appConfig) {
-        console.warn(`未找到appId为${appId}的应用配置`);
-        // 回退到全局配置
-        if (difyKeysConfig.global && difyKeysConfig.global.difyConfig) {
-          console.warn(`回退使用全局配置`);
-          return difyKeysConfig.global.difyConfig;
+      try {
+        // 1. 尝试获取特定卡片的配置
+        if (cardId) {
+          const card = difyConfigService.getCardConfig(cardId);
+          // 确保卡片属于正确的 app
+          if (card) {
+             const folder = difyConfigService.getFolderForCard(cardId);
+             if (folder && folder.appId === appId) {
+                 console.log(`[useDifyCredentials] 找到卡片配置: appId=${appId}, cardId=${cardId}`);
+                 return card.difyConfig; 
+             }
+             console.warn(`[useDifyCredentials] 卡片 ${cardId} 存在，但不属于应用 ${appId}`);
+          }
         }
-        return null;
-      }
 
-      // 如果没有指定cardId但应用有直接的difyConfig，则使用应用级配置
-      if ((!cardId || cardId === '') && appConfig.difyConfig) {
-        return appConfig.difyConfig;
-      }
+        // 2. 尝试获取应用级别的配置 (如果 dify_keys.json 中定义了的话)
+        const folder = difyConfigService.getFolderConfig(appId);
+        if (folder && folder.difyConfig) {
+          console.log(`[useDifyCredentials] 找到应用级配置: appId=${appId}`);
+          return folder.difyConfig;
+        }
 
-      // 如果没有cardId但也没有应用级配置，则尝试使用第一个卡片的配置
-      if (!cardId || cardId === '') {
-        if (appConfig.cards && appConfig.cards.length > 0 && appConfig.cards[0].difyConfig) {
-          console.warn(`应用${appId}没有指定cardId，使用第一个卡片的配置`);
-          return appConfig.cards[0].difyConfig;
+        // 3. 尝试获取应用下第一个卡片的配置作为回退
+        if (folder && folder.cards && folder.cards.length > 0 && folder.cards[0].difyConfig) {
+          console.warn(`[useDifyCredentials] 回退：使用应用 ${appId} 第一个卡片的配置`);
+          return folder.cards[0].difyConfig;
         }
         
-        // 最后回退到全局配置
-        if (difyKeysConfig.global && difyKeysConfig.global.difyConfig) {
-          console.warn(`回退使用全局配置`);
-          return difyKeysConfig.global.difyConfig;
+        // 4. 最后回退到默认全局模型配置 (apiKey + globalApiUrl)
+        console.warn(`[useDifyCredentials] 回退：无法找到应用 ${appId} (卡片ID: ${cardId}) 的特定配置，使用默认全局模型配置。`);
+        const defaultModel = difyConfigService.getDefaultGlobalModel();
+        const globalApiUrl = difyConfigService.getGlobalApiUrl();
+
+        if (defaultModel && defaultModel.apiKey && globalApiUrl) {
+          return {
+            apiKey: defaultModel.apiKey,
+            apiUrl: globalApiUrl
+          };
         }
-        
-        console.warn(`应用${appId}没有可用的配置`);
+
+        // 如果连默认全局配置都获取不到
+        console.error(`[useDifyCredentials] 严重错误：无法为 appId=${appId} 获取任何有效配置，也无法获取默认全局配置！`);
+        return null;
+
+      } catch (error) {
+        console.error(`[useDifyCredentials] 获取凭证时出错 (appId=${appId}, cardId=${cardId}):`, error);
         return null;
       }
+    },
+    [] // 依赖项为空，因为 difyConfigService 是单例且其内部状态不应频繁变化
+  );
 
-      // 在应用的cards中查找对应的卡片
-      const card = appConfig.cards.find(c => c.cardId === cardId);
-      
-      if (!card) {
-        console.warn(`在应用${appId}中未找到cardId为${cardId}的卡片`);
-        // 尝试使用应用级配置作为回退
-        if (appConfig.difyConfig) {
-          console.warn(`使用应用级配置作为回退`);
-          return appConfig.difyConfig;
-        }
-        // 最后回退到全局配置
-        if (difyKeysConfig.global && difyKeysConfig.global.difyConfig) {
-          console.warn(`回退使用全局配置`);
-          return difyKeysConfig.global.difyConfig;
-        }
-        return null;
-      }
-
-      return card.difyConfig;
-    } catch (error) {
-      console.error('获取Dify凭证时出错:', error);
-      // 发生错误时回退到全局配置
-      if (difyKeysConfig && difyKeysConfig.global && difyKeysConfig.global.difyConfig) {
-        console.warn('错误情况下回退使用全局配置');
-        return difyKeysConfig.global.difyConfig;
-      }
-      return null;
-    }
-  };
-
+  // 不再返回 configLoaded，因为服务总是在尝试初始化
   return {
-    configLoaded,
     getDifyCredentials,
   };
 }; 
