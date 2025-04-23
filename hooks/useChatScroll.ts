@@ -153,7 +153,6 @@ export const useChatScroll = ({
        }
 
   }, [
-    selectedConversation?.messages,
     messageIsStreaming,
     autoScrollEnabled,
     chatContainerRef,
