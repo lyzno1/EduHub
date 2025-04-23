@@ -47,5 +47,6 @@ export interface Conversation {
   deletable?: boolean;
   appId?: number | null;
   cardId?: string | null;
+  modelName?: string | null;
 }
 

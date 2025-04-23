@@ -479,18 +479,36 @@ const Home = ({
   };
   // --- End Re-insert startConversationFromActiveApp ---
 
-  const handleNewConversation = () => {
+  const handleNewConversation = (modelNameToUse?: string | null) => {
     if (selectedConversation && selectedConversation.messages.length > 0) {
       saveConversation(selectedConversation);
     }
-    const existingNewChat = conversations.find(
-      (chat) => chat.messages.length === 0 && chat.name === t('New Conversation')
+    
+    // 检查是否已存在一个完全空的"新对话" (避免重复创建)
+    const existingEmptyNewChat = conversations.find(
+      (chat) => chat.messages.length === 0 && chat.name === t('New Conversation') && chat.appId === null
     );
-    if (existingNewChat) {
-      dispatch({ field: 'selectedConversation', value: existingNewChat });
-      dispatch({ field: 'activeAppId', value: null });
+    if (existingEmptyNewChat) {
+       // 如果存在空的，直接选中它，并确保其 modelName 更新 (如果提供了)
+      const modelNameForExisting = modelNameToUse !== undefined ? modelNameToUse : selectedGlobalModelName;
+      if (existingEmptyNewChat.modelName !== modelNameForExisting) {
+          const updatedExistingChat = { ...existingEmptyNewChat, modelName: modelNameForExisting };
+          const updatedConversations = conversations.map(conv => conv.id === updatedExistingChat.id ? updatedExistingChat : conv);
+          dispatch({ field: 'conversations', value: updatedConversations });
+          dispatch({ field: 'selectedConversation', value: updatedExistingChat });
+          saveConversation(updatedExistingChat);
+          saveConversations(updatedConversations);
+      } else {
+          dispatch({ field: 'selectedConversation', value: existingEmptyNewChat });
+      }
+      dispatch({ field: 'activeAppId', value: null }); 
       return;
     }
+
+    // 如果不存在空的，则创建新的
+    // 优先使用传入的 modelNameToUse，否则使用当前的全局状态
+    const finalModelName = modelNameToUse !== undefined ? modelNameToUse : selectedGlobalModelName;
+
     const newConversation: Conversation = {
       id: uuidv4(),
       name: t('New Conversation'),
@@ -502,14 +520,16 @@ const Home = ({
       conversationID: '',
       deletable: true,
       appId: null,
-      model: 'default'
+      model: 'default', 
+      modelName: finalModelName, // 使用最终确定的模型名称
     };
     const updatedConversations = [newConversation, ...conversations];
     saveConversations(updatedConversations);
     dispatch({ field: 'conversations', value: updatedConversations });
     dispatch({ field: 'selectedConversation', value: newConversation });
     dispatch({ field: 'activeAppId', value: null });
-    console.log('创建新会话 (并取消激活应用)');
+    saveConversation(newConversation); // 保存新对话
+    console.log('创建新会话 (并取消激活应用)', newConversation);
   };
 
   const handleUpdateConversation = (
@@ -676,7 +696,25 @@ const Home = ({
        console.log('[Debug useEffect] No conversations found, creating default new conversation.');
        // 确保 handleNewConversation 在这里被调用或其逻辑在此处实现
        // 如果 handleNewConversation 依赖其他状态，可能需要先确保那些状态已设置
-       handleNewConversation();
+       // 这里直接创建，确保 modelName 设置正确
+       const newConversation: Conversation = {
+         id: uuidv4(),
+         name: t('New Conversation'),
+         originalName: '',
+         messages: [],
+         prompt: DEFAULT_SYSTEM_PROMPT,
+         temperature: DEFAULT_TEMPERATURE,
+         folderId: null,
+         conversationID: '',
+         deletable: true,
+         appId: null,
+         model: 'default',
+         modelName: selectedGlobalModelName || difyConfigService.getDefaultGlobalModel()?.name || null, // 确保有初始值
+       };
+       dispatch({ field: 'selectedConversation', value: newConversation });
+       dispatch({ field: 'conversations', value: [newConversation] });
+       saveConversation(newConversation);
+       saveConversations([newConversation]);
     }
 
     // 新增：加载全局模型配置 (确保 difyConfigService 已初始化)
@@ -684,22 +722,23 @@ const Home = ({
       const globalModels = difyConfigService.getGlobalModels();
       dispatch({ field: 'availableGlobalModels', value: globalModels });
       
-      const defaultGlobalModel = difyConfigService.getDefaultGlobalModel();
-      if (defaultGlobalModel) {
-        dispatch({ field: 'selectedGlobalModelName', value: defaultGlobalModel.name });
-        console.log('[Home Init] 设置默认全局模型:', defaultGlobalModel.name);
-      } else if (globalModels.length > 0) {
-        dispatch({ field: 'selectedGlobalModelName', value: globalModels[0].name });
-         console.log('[Home Init] 未找到默认全局模型，使用第一个模型:', globalModels[0].name);
-      } else {
-         console.warn('[Home Init] 未配置任何全局模型！');
-         dispatch({ field: 'selectedGlobalModelName', value: null });
+      // 仅在 selectedGlobalModelName 尚未被设置时（即第一次加载）设置默认值
+      if (!selectedGlobalModelName) {
+         const defaultGlobalModel = difyConfigService.getDefaultGlobalModel();
+         const initialModelName = defaultGlobalModel?.name || (globalModels.length > 0 ? globalModels[0].name : null);
+         if (initialModelName) {
+           dispatch({ field: 'selectedGlobalModelName', value: initialModelName });
+           console.log('[Home Init] 初始化设置默认全局模型:', initialModelName);
+         } else {
+            console.warn('[Home Init] 未配置任何全局模型！');
+            dispatch({ field: 'selectedGlobalModelName', value: null });
+         }
       }
     } else {
       console.error("[Home Init] DifyConfigService 未初始化或不可用！");
     }
 
-  }, [dispatch, serverSideApiKeyIsSet, serverSidePluginKeysSet]);
+  }, [dispatch, serverSideApiKeyIsSet, serverSidePluginKeysSet, selectedGlobalModelName]);
 
   useEffect(() => {
     if (user) {
@@ -752,7 +791,8 @@ const Home = ({
           conversationID: '',
           deletable: true,
           appId: null,
-          model: 'default'
+          model: 'default',
+          modelName: selectedGlobalModelName || difyConfigService.getDefaultGlobalModel()?.name || null,
         };
         
         const initialConversations = [newConversation, ...defaultConversations];
@@ -805,8 +845,8 @@ const Home = ({
     // 检查模型是否真的改变了
     if (currentModelName !== modelName) {
       console.log(`全局模型已从 "${currentModelName || '未设置'}" 切换到 "${modelName}"，将创建新对话。`);
-      // 模型改变后，强制创建新对话
-      handleNewConversation(); 
+      // 模型改变后，强制创建新对话，并传入新的模型名称
+      handleNewConversation(modelName); 
     }
   };
 
@@ -819,6 +859,42 @@ const Home = ({
       toast.error('没有可配置的全局模型。');
     }
   };
+
+  // 新增：监听选中对话变化，同步全局模型状态
+  useEffect(() => {
+    if (!selectedConversation) {
+      // 如果没有选中对话（例如刚加载或清空后），可能重置为默认？或者保持不变？
+      // 暂时保持不变，依赖初始化逻辑设置默认值
+      return;
+    }
+
+    let targetModelName: string | null = null;
+    const defaultModel = difyConfigService.getDefaultGlobalModel();
+    const defaultModelName = defaultModel?.name || null;
+
+    // 检查是否为全局对话
+    if (selectedConversation.appId === 0 || selectedConversation.appId === null) {
+      if (selectedConversation.modelName) {
+        // 如果对话记录了模型名称，使用它
+        targetModelName = selectedConversation.modelName;
+        console.log(`[Sync Model] 全局对话 ${selectedConversation.id} 选中，使用其记录的模型: ${targetModelName}`);
+      } else {
+        // 如果是旧的全局对话没有记录模型名称，使用默认模型
+        targetModelName = defaultModelName;
+        console.log(`[Sync Model] 旧全局对话 ${selectedConversation.id} 选中，无记录，使用默认模型: ${targetModelName}`);
+      }
+    } else {
+      // 如果选中的是应用对话，重置全局模型状态为默认值
+      targetModelName = defaultModelName;
+      console.log(`[Sync Model] 应用对话 ${selectedConversation.id} (appId: ${selectedConversation.appId}) 选中，重置全局模型为默认: ${targetModelName}`);
+    }
+    
+    // 仅当计算出的目标模型名称与当前状态不同时才更新，避免不必要的重渲染
+    if (targetModelName !== selectedGlobalModelName) {
+        dispatch({ field: 'selectedGlobalModelName', value: targetModelName });
+    }
+
+  }, [selectedConversation, dispatch, selectedGlobalModelName]); // 添加 selectedGlobalModelName 以便比较
 
   return (
     <HomeContext.Provider
