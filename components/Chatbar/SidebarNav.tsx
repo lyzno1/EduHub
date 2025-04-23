@@ -329,6 +329,15 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     });
   }, [appConfigs]);
 
+  // 新增：根据展开状态决定实际渲染的应用列表
+  const appsToRender = useMemo(() => {
+      if (isAppListExpanded) {
+          return dynamicApplications; // 展开时显示全部
+      }
+      // 收起时只显示前 N 个
+      return dynamicApplications.slice(0, INITIAL_APP_DISPLAY_LIMIT); 
+  }, [dynamicApplications, isAppListExpanded]);
+
   // 新增：根据展开状态决定实际渲染的对话列表
   const conversationsToRender = useMemo(() => {
     // 搜索时显示所有搜索结果
@@ -389,11 +398,9 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
           <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
             校园应用
           </div>
-          <div 
-             className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${isAppListExpanded ? 'max-h-screen' : 'max-h-80'}`}
-          >
+          <div className={`duration-300 ease-in-out`}> 
             <div className="space-y-2">
-              {dynamicApplications.map((app) => (
+              {appsToRender.map((app) => (
                 <button
                   key={app.id}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 group ${
