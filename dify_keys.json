@@ -2,10 +2,26 @@
   "global": {
     "appId": 0,
     "displayName": "普通聊天",
-    "difyConfig": {
-      "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
-      "apiUrl": "https://api.dify.ai/v1"
-    },
+    "apiUrl": "https://api.dify.ai/v1",
+    "models": [
+        {
+          "name": "DeepSeekR1",
+          "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
+          "isDefault": true
+        },
+        {
+          "name": "DeepSeekV3",
+          "apiKey": "app-bWQeFdfew58EixEqHueywRnA"
+        },
+        {
+          "name": "GLMZ1",
+          "apiKey": "app-bWQeFdfew58EixEqHueywRnA"
+        },
+        {
+          "name": "Qwen2.5",
+          "apiKey": "app-bWQeFdfew58EixEqHueywRnA"
+        }
+    ],
     "cards": []
   },
   "deepseek": {

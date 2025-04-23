@@ -35,6 +35,13 @@ export interface DifyRequestConfig {
   auto_generate_name?: boolean;
 }
 
+// 新增：全局聊天中单个模型的配置结构
+export interface DifyModelConfig {
+  name: string;        // 模型在UI上显示的名称
+  apiKey: string;       // 此模型对应的 Dify App API Key
+  isDefault?: boolean; // 是否为默认模型
+}
+
 // 配置中每个应用卡片的数据结构
 export interface DifyAppCardConfig {
   cardId: string;     // 卡片的唯一标识符 (例如 'ch-swe-test') - 名称已更新
@@ -59,7 +66,8 @@ export interface DifyConfigStructure {
   global: {
     appId: 0;
     displayName: string;
-    difyConfig: DifyApiConfig; // 全局默认配置
+    apiUrl: string;             // 修改：全局共享 API 地址
+    models: DifyModelConfig[]; // 修改：模型列表
     cards: [];
   };
   // 使用索引签名来表示其他的文件夹配置
@@ -69,7 +77,8 @@ export interface DifyConfigStructure {
   [folderKey: string]: DifyFolderConfig | {
     appId: 0;
     displayName: string;
-    difyConfig: DifyApiConfig;
+    apiUrl: string;
+    models: DifyModelConfig[];
     cards: [];
   };
 } 
