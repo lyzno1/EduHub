@@ -47,6 +47,7 @@ import { iconMapForAllCards, themeColorCycle } from '@/constants/uiConstants';
 import { useMobileDetection } from '@/hooks/useMobileDetection'; // Import the new hook
 import { useChatScroll } from '@/hooks/useChatScroll'; // Import the chat scroll hook
 import { WelcomeScreen } from './WelcomeScreen'; // Import the new WelcomeScreen component
+import { useInputHeightObserver } from '@/hooks/useInputHeightObserver'; // Import the input height observer hook
 
 // ThemeMode for overall theme might still be needed
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
@@ -101,13 +102,6 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   // ===== 新增 Ref 开始 =====
   const latestHomeContextStateRef = useRef(homeContext.state);
   // ===== 新增 Ref 结束 =====
-
-  // 添加状态来跟踪输入框高度
-  const [inputBoxHeight, setInputBoxHeight] = useState<number>(65);
-  // 添加状态追踪输入框是否真正扩展了
-  const [isInputExpanded, setIsInputExpanded] = useState<boolean>(false);
-  // 添加状态追踪底部输入框的高度(用于对话模式)
-  const [bottomInputHeight, setBottomInputHeight] = useState<number>(65);
 
   // 获取消息数量
   const messagesLength = selectedConversation?.messages?.length || 0;
@@ -175,125 +169,24 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
     messageIsStreaming,
   });
 
-  // 添加一个useEffect来监听输入框高度的变化(初始界面)
-  useEffect(() => {
-    // 如果有消息或在流式生成中，不需要监听
-    if (messagesLength || messageIsStreaming) {
-      return;
-    }
-    
-    // 通过MutationObserver监听data-input-height属性的变化
-    const inputContainer = document.querySelector('[data-input-height]');
-    if (!inputContainer) return;
-    
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'data-input-height') {
-          const height = parseInt(inputContainer.getAttribute('data-input-height') || '65', 10);
-          
-          // 只有当高度显著变化时(至少5px)才更新状态
-          if (Math.abs(height - inputBoxHeight) >= 5) {
-            setInputBoxHeight(height);
-            setIsInputExpanded(height > 70); // 确保只有真正扩展时才设置为true
-          }
-        }
-      });
-    });
-    
-    observer.observe(inputContainer, { attributes: true });
-    
-    return () => {
-      observer.disconnect();
-    };
-  }, [messagesLength, messageIsStreaming, inputBoxHeight]);
+  // === Input Height Observer Hook ===
+  const { inputBoxHeight, isInputExpanded, bottomInputHeight } = useInputHeightObserver({ 
+    messagesLength, 
+    // messageIsStreaming // Pass if needed by the hook
+  });
 
-  // 添加useEffect监听对话模式下底部输入框的高度变化
-  useEffect(() => {
-    // 只有在有消息时才监听底部输入框
-    if (!messagesLength) {
-      return;
-    }
-    
-    // 查找底部输入框容器
-    const bottomInputContainer = document.querySelector('.absolute.bottom-0.left-0.w-full.z-20 [data-input-height]');
-    if (!bottomInputContainer) return;
-    
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'data-input-height') {
-          const height = parseInt(bottomInputContainer.getAttribute('data-input-height') || '65', 10);
-          
-          // 只有当高度显著变化时才更新状态
-          if (Math.abs(height - bottomInputHeight) >= 5) {
-            setBottomInputHeight(height);
-          }
-        }
-      });
-    });
-    
-    observer.observe(bottomInputContainer, { attributes: true });
-    
-    return () => {
-      observer.disconnect();
-    };
-  }, [messagesLength, bottomInputHeight]);
-
-  // 优化事件监听，同时支持触摸和鼠标事件
+  // 添加一个useEffect来监听输入框高度的变化(初始界面) (Moved to useInputHeightObserver)
   // useEffect(() => {
-  //   if (!chatContainerRef.current) return;
-  //   
-  //   const handleScroll = () => {
-  //     if (!chatContainerRef.current) return;
-  //     
-  //     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-  //     const scrollPosition = scrollHeight - scrollTop - clientHeight;
-  //     
-  //     const isInitialState = !selectedConversation || selectedConversation.messages.length === 0;
-  //     const isUserInteracting = document.body.classList.contains('user-is-interacting');
-  //     
-  //     if (scrollPosition > 100 && !scrollButtonLockRef.current && !isUserInteracting) {
-  //       setAutoScrollEnabled(false);
-  //       if (!isInitialState) {
-  //         setShowScrollDownButton(true);
-  //       } else {
-  //         setShowScrollDownButton(false);
-  //       }
-  //     } else if (scrollPosition <= 100 && !isUserInteracting) {
-  //       setAutoScrollEnabled(true);
-  //       setShowScrollDownButton(false);
-  //     }
-  //   };
-  //   
-  //   // 统一处理用户交互事件
-  //   const handleInteractionStart = () => {
-  //     document.body.classList.add('user-is-interacting');
-  //   };
-  //   
-  //   const handleInteractionEnd = () => {
-  //     document.body.classList.remove('user-is-interacting');
-  //     handleScroll();
-  //   };
-  //   
-  //   const container = chatContainerRef.current;
-  //   
-  //   // 移动端触摸事件
-  //   container.addEventListener('touchstart', handleInteractionStart, { passive: true });
-  //   container.addEventListener('touchend', handleInteractionEnd, { passive: true });
-  //   
-  //   // 桌面端鼠标事件
-  //   container.addEventListener('mousedown', handleInteractionStart);
-  //   container.addEventListener('mouseup', handleInteractionEnd);
-  //   
-  //   // 滚动事件
-  //   container.addEventListener('scroll', handleScroll, { passive: true });
-  //   
-  //   return () => {
-  //     container.removeEventListener('touchstart', handleInteractionStart);
-  //     container.removeEventListener('touchend', handleInteractionEnd);
-  //     container.removeEventListener('mousedown', handleInteractionStart);
-  //     container.removeEventListener('mouseup', handleInteractionEnd);
-  //     container.removeEventListener('scroll', handleScroll);
-  //   };
+  //   // 如果有消息或在流式生成中，不需要监听
+  // }, [messagesLength, messageIsStreaming, inputBoxHeight]);
+
+  // 添加useEffect监听对话模式下底部输入框的高度变化 (Moved to useInputHeightObserver)
+  // useEffect(() => {
+  //   // 只有在有消息时才监听底部输入框
+  // }, [messagesLength, bottomInputHeight]);
+
+  // 优化事件监听，同时支持触摸和鼠标事件 (Moved to useChatScroll)
+  // useEffect(() => {
   // }, [chatContainerRef, messagesLength]);
 
   // 优化消息流更新
