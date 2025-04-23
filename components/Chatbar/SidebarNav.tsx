@@ -103,7 +103,8 @@ interface Props {
 }
 
 const SIDEBAR_WIDTH = 260;
-const INITIAL_APP_DISPLAY_LIMIT = 4; // 設定初始顯示數量
+const INITIAL_APP_DISPLAY_LIMIT = 5; // 設定初始顯示數量
+const INITIAL_CONVERSATION_DISPLAY_LIMIT = 5; // 新增：对话显示限制
 
 export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const { t } = useTranslation('sidebar');
@@ -113,7 +114,8 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [modalOpenConversationId, setModalOpenConversationId] = useState<string | null>(null);
-  const [isAppListExpanded, setIsAppListExpanded] = useState<boolean>(false); // 添加展開狀態
+  const [isAppListExpanded, setIsAppListExpanded] = useState<boolean>(false);
+  const [isConversationListExpanded, setIsConversationListExpanded] = useState<boolean>(false); // 新增：对话列表展开状态
   const prevSelectedConversationRef = useRef<string | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [translateX, setTranslateX] = useState(0);
@@ -327,8 +329,22 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     });
   }, [appConfigs]);
 
+  // 新增：根据展开状态决定实际渲染的对话列表
+  const conversationsToRender = useMemo(() => {
+    // 搜索时显示所有搜索结果
+    if (isSearching) {
+      return displayedConversations;
+    }
+    // 列表展开时显示所有对话
+    if (isConversationListExpanded) {
+      return conversations;
+    }
+    // 默认显示限定数量的对话
+    return conversations.slice(0, INITIAL_CONVERSATION_DISPLAY_LIMIT);
+  }, [conversations, displayedConversations, isSearching, isConversationListExpanded]);
+
   return (
-    <div 
+    <div
       id="mobile-sidebar-container"
       ref={sidebarRef}
       {...(isMobile && isOpen ? bind() : {})}
@@ -366,15 +382,74 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
             <span>发起新对话</span>
           </button>
         </div>
+      </div>
+
+      <div className="flex-grow min-h-0 overflow-y-auto">
+        <div className="px-4 pb-4">
+          <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+            校园应用
+          </div>
+          <div 
+             className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${isAppListExpanded ? 'max-h-screen' : 'max-h-80'}`}
+          >
+            <div className="space-y-2">
+              {dynamicApplications.map((app) => (
+                <button
+                  key={app.id}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 group ${
+                    activeAppId === app.id 
+                      ? 'bg-gray-200 dark:bg-gray-700 font-medium'
+                      : ''
+                  }`}
+                  onClick={() => handleAppClick(app.id)}
+                >
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${app.color} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}>
+                    {app.icon}
+                  </div>
+                  <span className={`text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white ${
+                    activeAppId === app.id ? 'text-gray-900 dark:text-white' : ''
+                  }`}>{app.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {dynamicApplications.length > INITIAL_APP_DISPLAY_LIMIT && (
+            <button 
+              onClick={() => setIsAppListExpanded(!isAppListExpanded)}
+              className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 transition-all duration-200 mt-1`}
+            >
+              {isAppListExpanded ? (
+                 <>
+                   <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+                      <IconChevronUp size={18} className="text-gray-500 dark:text-gray-400" />
+                   </div>
+                   <span className="truncate">
+                     收起
+                   </span>
+                 </>
+              ) : (
+                 <>
+                    <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+                       <IconChevronDown size={18} className="text-gray-500 dark:text-gray-400" />
+                    </div>
+                    <span className="truncate">
+                      更多({dynamicApplications.length - INITIAL_APP_DISPLAY_LIMIT})
+                    </span>
+                 </>
+              )}
+            </button>
+          )}
+        </div>
+
+        <div className="mx-4 border-t border-gray-200 dark:border-gray-700 my-2"></div>
 
         <div className="px-4 pb-2">
           <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
             近期对话
           </div>
         </div>
-      </div>
 
-      <div className="flex-grow min-h-0 overflow-y-auto">
         <div className="px-4 pb-4">
           {hasNoResults ? (
             <div className="text-center text-gray-500 dark:text-gray-400 py-2">
@@ -394,7 +469,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-1">
-                  {displayedConversations.map((conversation) => (
+                  {conversationsToRender.map((conversation) => (
                     <SortableConversation
                       key={conversation.id}
                       conversation={conversation}
@@ -422,63 +497,30 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
               </DragOverlay>
             </DndContext>
           )}
-        </div>
-      </div>
 
-      <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700">
-        <div className="px-4 pt-2 pb-4">
-          <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-            校园应用
-          </div>
-          <div 
-             className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${isAppListExpanded ? 'max-h-screen' : 'max-h-56' // 增加高度以容纳按钮
-             }`}
-          >
-            <div className="space-y-2">
-              {dynamicApplications.map((app) => (
-                <button
-                  key={app.id}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 group ${
-                    activeAppId === app.id 
-                      ? 'bg-gray-200 dark:bg-gray-700 font-medium'
-                      : ''
-                  }`}
-                  onClick={() => handleAppClick(app.id)}
-                >
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${app.color} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}>
-                    {app.icon}
-                  </div>
-                  <span className={`text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white ${
-                    activeAppId === app.id ? 'text-gray-900 dark:text-white' : ''
-                  }`}>{app.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {dynamicApplications.length > INITIAL_APP_DISPLAY_LIMIT && (
-            <button 
-              onClick={() => setIsAppListExpanded(!isAppListExpanded)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 group mt-2`}
+          {conversations.length > INITIAL_CONVERSATION_DISPLAY_LIMIT && !isSearching && (
+            <button
+              onClick={() => setIsConversationListExpanded(!isConversationListExpanded)}
+              className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 transition-all duration-200 mt-1`}
             >
-              {isAppListExpanded ? (
-                 <>
-                   <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
-                      <IconChevronUp size={18} className="text-gray-500 dark:text-gray-400" />
-                   </div>
-                   <span className="text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white">
-                     收起
-                   </span>
-                 </>
+              {isConversationListExpanded ? (
+                <>
+                  <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+                    <IconChevronUp size={18} className="text-gray-500 dark:text-gray-400" />
+                  </div>
+                  <span className="truncate">
+                    收起
+                  </span>
+                </>
               ) : (
-                 <>
-                    <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
-                       <IconChevronDown size={18} className="text-gray-500 dark:text-gray-400" />
-                    </div>
-                    <span className="text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white">
-                      更多
-                    </span>
-                 </>
+                <>
+                  <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+                    <IconChevronDown size={18} className="text-gray-500 dark:text-gray-400" />
+                  </div>
+                  <span className="truncate">
+                    更多({conversations.length - INITIAL_CONVERSATION_DISPLAY_LIMIT})
+                  </span>
+                </>
               )}
             </button>
           )}
