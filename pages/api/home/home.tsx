@@ -35,6 +35,7 @@ import { Navbar } from '@/components/Mobile/Navbar';
 import LoginNotice from '@/components/Settings/loginNotice';
 import { SidebarSlim } from '@/components/Sidebar/SidebarSlim';
 import { SidebarNav } from '@/components/Chatbar/SidebarNav';
+import { GlobalModelSettingsModal } from '@/components/Settings/GlobalModelSettingsModal';
 
 import HomeContext from './home.context';
 import { HomeInitialState, initialState } from './home.state';
@@ -146,6 +147,8 @@ const Home = ({
       selectedConversation,
       prompts,
       activeAppId,
+      availableGlobalModels,
+      selectedGlobalModelName,
     },
     dispatch,
   } = contextValue;
@@ -788,6 +791,27 @@ const Home = ({
     }
   }, []);
 
+  // 新增：控制模态框状态
+  const [isModelModalOpen, setIsModelModalOpen] = useState<boolean>(false);
+
+  // 新增：处理模型选择的回调函数
+  const handleSelectGlobalModel = (modelName: string) => {
+    dispatch({ field: 'selectedGlobalModelName', value: modelName });
+    // 可以在这里添加保存到 localStorage 的逻辑 (可选)
+    // localStorage.setItem('selectedGlobalModel', modelName);
+    setIsModelModalOpen(false); // 选择后关闭模态框
+  };
+
+  // 新增：打开模态框的回调函数
+  const handleOpenModelSettings = () => {
+    // 确保有可用模型才打开
+    if (availableGlobalModels && availableGlobalModels.length > 0) {
+      setIsModelModalOpen(true);
+    } else {
+      toast.error('没有可配置的全局模型。');
+    }
+  };
+
   return (
     <HomeContext.Provider
       value={{
@@ -835,7 +859,11 @@ const Home = ({
 
             <div className="flex h-full w-full pt-[48px] sm:pt-0">
               <div className="relative z-30 hidden sm:block">
-                <SidebarSlim onToggle={toggleSidebar} isSidebarOpen={showSidebar} />
+                <SidebarSlim 
+                  onToggle={toggleSidebar} 
+                  isSidebarOpen={showSidebar} 
+                  onOpenModelSettings={handleOpenModelSettings}
+                />
               </div>
               
               <div 
@@ -859,6 +887,17 @@ const Home = ({
                 <Chat stopConversationRef={stopConversationRef} showSidebar={showSidebar} />
               </div>
             </div>
+
+            {/* 新增：渲染模态框 */}
+            {isModelModalOpen && (
+              <GlobalModelSettingsModal
+                isOpen={isModelModalOpen}
+                onClose={() => setIsModelModalOpen(false)}
+                availableModels={availableGlobalModels}
+                currentModelName={selectedGlobalModelName}
+                onSelectModel={handleSelectGlobalModel}
+              />
+            )}
           </main>
         ) : !user ? (
           <LoginNotice content="您还没有登录，请登录！" showButton={true} />

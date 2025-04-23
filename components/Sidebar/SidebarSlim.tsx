@@ -7,9 +7,10 @@ import HomeContext from '@/pages/api/home/home.context';
 interface Props {
   onToggle: () => void;
   isSidebarOpen?: boolean;
+  onOpenModelSettings?: () => void;
 }
 
-export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
+export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false, onOpenModelSettings }) => {
   const { t } = useTranslation('sidebar');
   
   const {
@@ -185,7 +186,9 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            // 设置按钮功能
+            if (onOpenModelSettings) {
+              onOpenModelSettings();
+            }
           }}
           onMouseDown={(e) => e.preventDefault()}
           onMouseEnter={(e) => e.preventDefault()}
