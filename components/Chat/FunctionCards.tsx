@@ -36,6 +36,9 @@ export const FunctionCards: React.FC<FunctionCardsProps> = ({ scrollToBottom, se
     state: { lightMode },
   } = useContext(HomeContext);
   
+  // Add state to track the selected function button ID
+  const [selectedFunctionId, setSelectedFunctionId] = useState<string | null>(null);
+  
   // 添加移动端检测
   const [isMobile, setIsMobile] = useState(false);
   
@@ -94,38 +97,53 @@ export const FunctionCards: React.FC<FunctionCardsProps> = ({ scrollToBottom, se
   ];
 
   const handleFunctionClick = (categoryId: string, functionId: string) => {
+    // Check if the clicked button is already selected
+    if (functionId === selectedFunctionId) {
+      // Deselect the button and clear the input
+      setSelectedFunctionId(null);
+      if (setContent) {
+        setContent('');
+      }
+      // Optionally blur the textarea if needed
+      // const textarea = document.querySelector('textarea');
+      // if (textarea) textarea.blur();
+      return; // Exit the function
+    }
+
+    // Otherwise, select the new button
     const selectedCategory = functionCategories.find(c => c.id === categoryId);
     const selectedFunction = selectedCategory?.children.find(f => f.id === functionId);
-    
-    if (selectedFunction && selectedCategory) {
-      // 1. Directly look up the prompt using functionId as the key
-      //    Use optional chaining (?.) in case functionCardButtonPrompts doesn't exist or functionId is missing
+
+    if (selectedFunction) { // Category check is implicit if function is found
       const promptText = (prompts as any).functionCardButtonPrompts?.[functionId];
 
-      // 2. Check if the prompt was found
-      if (typeof promptText !== 'string' || promptText.trim() === '') {
-        console.error(`Error: Prompt not found or is empty in prompts.json for function ID: ${functionId}`);
-        toast.error(`未能为 "${selectedFunction.name}" 功能找到有效的提示语配置。`);
-        return; // Stop further execution
-      }
+      if (typeof promptText === 'string' && promptText.trim() !== '') {
+        // Set the new prompt and update the selected ID
+        if (setContent) {
+          setContent(promptText);
+          setSelectedFunctionId(functionId); // Select the new button
 
-      // 3. Set the found prompt text to the input field
-      if (setContent) {
-        setContent(promptText);
-
-        // Focus textarea and scroll (logic remains the same)
-        const textarea = document.querySelector('textarea');
-        if (textarea) {
-          textarea.focus();
-        }
-        if (scrollToBottom) {
-          setTimeout(() => {
-            scrollToBottom();
-          }, 100);
+          // Focus and scroll logic remains the same
+          const textarea = document.querySelector('textarea');
+          if (textarea) {
+            textarea.focus();
+          }
+          if (scrollToBottom) {
+            setTimeout(() => {
+              scrollToBottom();
+            }, 100);
+          }
+        } else {
+          console.warn('setContent function was not provided to FunctionCards');
         }
       } else {
-        console.warn('setContent function was not provided to FunctionCards');
+        console.error(`Error: Prompt not found or is empty in prompts.json for function ID: ${functionId}`);
+        toast.error(`未能为 "${selectedFunction.name}" 功能找到有效的提示语配置。`);
+        setSelectedFunctionId(null); // Ensure nothing is selected if prompt fails
       }
+    } else {
+       console.error(`Error: Could not find category or function for ID: ${functionId}`);
+       setSelectedFunctionId(null); // Ensure nothing is selected if function lookup fails
     }
   };
 
@@ -144,24 +162,30 @@ export const FunctionCards: React.FC<FunctionCardsProps> = ({ scrollToBottom, se
     return (
       <div className="w-full">
         <div className="flex flex-wrap justify-center gap-2 mt-1">
-          {allFunctions.map((func) => (
-            <button
-              key={func.functionId}
-              className={`text-xs px-3 py-1.5 rounded-full transition-all duration-200 border ${
-                isDarkMode 
-                  ? 'bg-gray-800 text-gray-200 border-gray-700 active:bg-gray-700' 
-                  : 'bg-white text-gray-700 border-gray-200 active:bg-gray-50'
-              }`}
-              style={{
-                boxShadow: isDarkMode 
-                  ? '0 1px 2px rgba(0, 0, 0, 0.2)' 
-                  : '0 1px 3px rgba(0, 0, 0, 0.1)',
-              }}
-              onClick={() => handleFunctionClick(func.categoryId, func.functionId)}
-            >
-              {func.functionName}
-            </button>
-          ))}
+          {allFunctions.map((func) => {
+            const isSelected = func.functionId === selectedFunctionId;
+            return (
+              <button
+                key={func.functionId}
+                className={`text-xs px-3 py-1.5 rounded-full transition-all duration-200 border ${isSelected
+                  ? (isDarkMode
+                      ? 'bg-blue-900/70 text-blue-200 border-blue-700 ring-1 ring-blue-600'
+                      : 'bg-blue-100 text-blue-700 border-blue-300 ring-1 ring-blue-200')
+                  : (isDarkMode
+                      ? 'bg-gray-800 text-gray-200 border-gray-700 active:bg-gray-700'
+                      : 'bg-white text-gray-700 border-gray-200 active:bg-gray-50')
+                }`}
+                style={{
+                  boxShadow: isSelected
+                    ? (isDarkMode ? '0 1px 2px rgba(0, 100, 255, 0.3)' : '0 1px 3px rgba(59, 130, 246, 0.2)')
+                    : (isDarkMode ? '0 1px 2px rgba(0, 0, 0, 0.2)' : '0 1px 3px rgba(0, 0, 0, 0.1)'),
+                }}
+                onClick={() => handleFunctionClick(func.categoryId, func.functionId)}
+              >
+                {func.functionName}
+              </button>
+            );
+          })}
         </div>
       </div>
     );
@@ -225,23 +249,26 @@ export const FunctionCards: React.FC<FunctionCardsProps> = ({ scrollToBottom, se
             {category.description}
           </p>
           <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mt-2 sm:mt-4">
-            {category.children.map((func) => (
-              <button
-                key={func.id}
-                className={`function-card-button text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-all duration-200 hover:shadow-md transform hover:scale-105 ${
-                  isDarkMode 
-                    ? 'bg-gray-700 text-gray-200 hover:bg-gray-600 hover:shadow-gray-900/30' 
-                    : 'bg-gray-50 text-gray-700 hover:bg-blue-50 hover:text-blue-600 hover:shadow-blue-500/20'
-                }`}
-                style={{
-                  transition: 'all 0.2s ease',
-                  fontFamily: "'PingFang SC', Arial, sans-serif",
-                }}
-                onClick={() => handleFunctionClick(category.id, func.id)}
-              >
-                {func.name}
-              </button>
-            ))}
+            {category.children.map((func) => {
+              const isSelected = func.id === selectedFunctionId;
+              return (
+                <button
+                  key={func.id}
+                  className={`function-card-button text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-all duration-200 transform hover:scale-105 hover:shadow-md ${isSelected
+                    ? (isDarkMode // Selected styles
+                        ? 'bg-blue-900/70 text-blue-200 border border-blue-700 hover:bg-blue-800/80 hover:shadow-blue-900/40'
+                        : 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200 hover:shadow-blue-500/30')
+                    : (isDarkMode // Unselected styles
+                        ? 'bg-gray-700 text-gray-200 border border-transparent hover:bg-gray-600 hover:shadow-gray-900/30'
+                        : 'bg-gray-50 text-gray-700 border border-transparent hover:bg-blue-50 hover:text-blue-600 hover:shadow-blue-500/20')
+                  }`}
+                  style={{ transition: 'all 0.2s ease', fontFamily: "'PingFang SC', Arial, sans-serif" }}
+                  onClick={() => handleFunctionClick(category.id, func.id)}
+                >
+                  {func.name}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
