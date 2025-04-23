@@ -1,7 +1,8 @@
 import { IconBook, IconSchool, IconUser } from '@tabler/icons-react';
 import React, { useContext, useEffect, useState } from 'react';
 import HomeContext from '@/pages/api/home/home.context';
-import prompts from '@/prompt.json';
+import prompts from '../../prompt.json';
+import toast from 'react-hot-toast';
 
 // 定义类型
 interface FunctionItem {
@@ -97,33 +98,33 @@ export const FunctionCards: React.FC<FunctionCardsProps> = ({ scrollToBottom, se
     const selectedFunction = selectedCategory?.children.find(f => f.id === functionId);
     
     if (selectedFunction && selectedCategory) {
-      // 从 prompts.json 获取模板
-      const template = prompts.generalPrompts.functionCardClick;
-      
-      // 替换占位符
-      const promptText = template
-        .replace('{categoryName}', selectedCategory.name)
-        .replace('{functionName}', selectedFunction.name);
-      
-      // 使用React状态更新方式设置内容 (替换)
+      // 1. Directly look up the prompt using functionId as the key
+      //    Use optional chaining (?.) in case functionCardButtonPrompts doesn't exist or functionId is missing
+      const promptText = (prompts as any).functionCardButtonPrompts?.[functionId];
+
+      // 2. Check if the prompt was found
+      if (typeof promptText !== 'string' || promptText.trim() === '') {
+        console.error(`Error: Prompt not found or is empty in prompts.json for function ID: ${functionId}`);
+        toast.error(`未能为 "${selectedFunction.name}" 功能找到有效的提示语配置。`);
+        return; // Stop further execution
+      }
+
+      // 3. Set the found prompt text to the input field
       if (setContent) {
-        setContent(promptText); // 修改为直接设置 (替换)
-        
-        // 如果输入框获取焦点（可选，但体验更好）
+        setContent(promptText);
+
+        // Focus textarea and scroll (logic remains the same)
         const textarea = document.querySelector('textarea');
         if (textarea) {
           textarea.focus();
         }
-        
-        // 滚动到底部（如果提供了这个功能）
         if (scrollToBottom) {
           setTimeout(() => {
             scrollToBottom();
-          }, 100); // 保持延迟以确保内容更新后滚动
+          }, 100);
         }
       } else {
         console.warn('setContent function was not provided to FunctionCards');
-        // 如果没有 setContent，可以选择提供一个备用方案或提示错误
       }
     }
   };
