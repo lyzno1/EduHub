@@ -441,7 +441,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
                        <IconChevronDown size={18} className="text-gray-500 dark:text-gray-400" />
                     </div>
                     <span className="truncate">
-                      更多({dynamicApplications.length - INITIAL_APP_DISPLAY_LIMIT})
+                      更多
                     </span>
                  </>
               )}
@@ -525,7 +525,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
                     <IconChevronDown size={18} className="text-gray-500 dark:text-gray-400" />
                   </div>
                   <span className="truncate">
-                    更多({conversations.length - INITIAL_CONVERSATION_DISPLAY_LIMIT})
+                    更多
                   </span>
                 </>
               )}
