@@ -44,6 +44,7 @@ import { AppPageTemplate } from '@/components/AppPages/common/AppPageTemplate';
 import difyConfigService from '@/services/difyConfigService';
 import { DifyFolderConfig } from '@/types/dify';
 import { iconMapForAllCards, themeColorCycle } from '@/constants/uiConstants';
+import { useMobileDetection } from '@/hooks/useMobileDetection'; // Import the new hook
 
 // ThemeMode for overall theme might still be needed
 type ThemeMode = 'light' | 'dark' | 'red' | 'blue' | 'green' | 'purple' | 'brown';
@@ -114,18 +115,19 @@ export const Chat = memo(({ stopConversationRef, showSidebar = false }: Props) =
   // 获取消息数量
   const messagesLength = selectedConversation?.messages?.length || 0;
 
-  // 添加移动端检测
-  const [isMobile, setIsMobile] = useState(false);
+  // 添加移动端检测 (Now handled by hook)
+  // const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useMobileDetection(); // Use the hook
   
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  // useEffect(() => {
+  //   const checkMobile = () => {
+  //     setIsMobile(window.innerWidth < 768);
+  //   };
+  //   
+  //   checkMobile();
+  //   window.addEventListener('resize', checkMobile);
+  //   return () => window.removeEventListener('resize', checkMobile);
+  // }, []);
 
   // 获取欢迎界面相关样式
   useEffect(() => {
