@@ -537,7 +537,8 @@ export const ModernChatInput = ({
             backgroundColor: isDarkMode() ? '#343541' : getBgColor()
           }}
         >
-          <button
+          {/* 暂时隐藏更多选项 */}
+          {/* <button
             className={`absolute top-[45%] -translate-y-1/2 left-2.5 flex ${isDeviceMobile ? 'h-7 w-7' : 'h-8 w-8 sm:h-9 sm:w-9'} items-center justify-center rounded-full z-10`}
             style={{
               backgroundColor: isDarkMode() ? '#4b5563' : '#f3f4f6',
@@ -548,7 +549,7 @@ export const ModernChatInput = ({
             aria-label="更多选项"
           >
             <IconPlus size={isDeviceMobile ? 14 : 16} className={isDeviceMobile ? '' : 'sm:text-[18px]'} />
-          </button>
+          </button> */}
 
           <button
             className={`absolute top-[45%] -translate-y-1/2 right-2.5 flex ${isDeviceMobile ? 'h-7 w-7' : 'h-8 w-8 sm:h-9 sm:w-9'} items-center justify-center rounded-full z-10`}

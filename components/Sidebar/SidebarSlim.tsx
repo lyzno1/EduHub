@@ -163,7 +163,8 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
           )}
         </div>
 
-        <div 
+        {/* 暂时隐藏GitHub仓库 */}
+        {/* <div 
           className="flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10"
           onClick={(e) => {
             e.preventDefault();
@@ -177,7 +178,7 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false }) => {
           data-placement="right"
         >
           <IconBrandGithub className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
-        </div>
+        </div> */}
 
         <div 
           className="flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10"
