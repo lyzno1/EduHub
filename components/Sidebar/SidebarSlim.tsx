@@ -3,7 +3,6 @@ import { useTranslation } from 'next-i18next';
 import { IconAdjustments, IconBrandGithub, IconHelp, IconHome, IconMenu2, IconMoon, IconPlus, IconSun, IconLogout, IconX, IconAlertTriangle } from '@tabler/icons-react';
 import { useContext } from 'react';
 import HomeContext from '@/pages/api/home/home.context';
-import aboutConfig from '@/config/aboutInfo';
 import Cookie from 'js-cookie';
 
 interface Props {
@@ -23,6 +22,8 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false, onOpen
   
   // 模态框显示状态
   const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false);
+  // 新增：关于信息的 Tooltip 内容状态
+  const [aboutTooltip, setAboutTooltip] = useState<string>('加载关于信息...');
 
   // 当组件加载时，确保应用正确的主题
   useEffect(() => {
@@ -43,6 +44,31 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false, onOpen
       document.documentElement.classList.add('light');
     }
   }, []);
+
+  // 新增：useEffect 用于获取关于信息
+  useEffect(() => {
+    const fetchAboutInfo = async () => {
+      try {
+        const response = await fetch('/config/about.json'); // 直接从 public 目录获取
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data && data.tooltipContent) {
+          // 将换行符 \n 替换为实际换行
+          const formattedTooltip = data.tooltipContent.replace(/\n/g, '\n');
+          setAboutTooltip(formattedTooltip);
+        } else {
+          setAboutTooltip('关于信息加载失败');
+        }
+      } catch (error) {
+        console.error("获取关于信息失败:", error);
+        setAboutTooltip('关于信息加载失败');
+      }
+    };
+
+    fetchAboutInfo();
+  }, []); // 空依赖数组，仅在组件挂载时运行一次
 
   const handleThemeChange = (e: React.MouseEvent) => {
     // 阻止事件冒泡
@@ -220,18 +246,17 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false, onOpen
           <IconAdjustments className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
         
-        {/* 关于按钮 */}
+        {/* 关于按钮 - 使用状态更新 tooltip */}
         <div 
           className="flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            // 可以在此处添加点击处理程序，例如显示更详细的"关于"对话框
           }}
           onMouseDown={(e) => e.preventDefault()}
           onMouseEnter={(e) => e.preventDefault()}
           onMouseLeave={(e) => e.preventDefault()}
-          data-tooltip={aboutConfig.tooltipContent}
+          data-tooltip={aboutTooltip} // 使用状态变量
           data-placement="right"
         >
           <IconHelp className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />

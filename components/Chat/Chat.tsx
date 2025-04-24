@@ -323,7 +323,7 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
         
         const targetApiUrl = difyConfig.apiUrl;
         const targetApiKey = difyConfig.apiKey;
-        
+
         console.log(`[Card Send] 使用Dify配置 - URL: ${targetApiUrl}, Key已设置: ${targetApiKey ? 'Yes' : 'No'}`);
 
         const difyClient = new DifyClient({
@@ -641,7 +641,7 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
         query: message.content,
         key: targetApiKey, // 使用最终确定的 Key
         user: user || 'unknown',
-        conversationId,
+        conversationId, 
         inputs: {},
         autoGenerateName: selectedConversation.messages.length <= 1 // 只有第一条用户消息时尝试生成名字
       });
@@ -755,22 +755,22 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
                 // 可以选择不生成标题，或者记录错误
             } else {
                 const titleUser = user || 'unknown';
-                titlePromise.current = (async () => {
-                    try {
+            titlePromise.current = (async () => {
+              try {
                         const titleDifyClient = new DifyClient({ apiUrl: titleApiUrl, debug: true });
-                        const generatedName = await titleDifyClient.generateConversationName(
+                const generatedName = await titleDifyClient.generateConversationName(
                             conversationId, 
-                            titleApiKey,
-                            titleUser
-                        );
+                  titleApiKey,
+                      titleUser
+                );
                         console.log('[Parallel Title] 成功生成标题:', generatedName);
-                        return generatedName || null;
-                    } catch (error) {
+                return generatedName || null;
+              } catch (error) {
                         console.error('[Parallel Title] 标题生成失败:', error);
-                        return null;
-                    }
-                })();
-            }
+                return null;
+              }
+            })();
+          }
         }
         // ... (剩余流处理) ...
         
@@ -1314,10 +1314,10 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
         if (targetApiKey && targetApiUrl) {
           const difyClient = new DifyClient({ apiUrl: targetApiUrl, debug: false });
           await difyClient.stopChatStream(
-            currentTaskId,
-            targetApiKey,
-            user || 'unknown'
-          );
+          currentTaskId,
+          targetApiKey,
+          user || 'unknown'
+        );
           console.log(`[Stop] 成功发送停止请求到后端，任务ID: ${currentTaskId}`);
         } else {
            console.error(`[Stop] 无法获取停止任务 ${currentTaskId} 所需的 API 配置！`);

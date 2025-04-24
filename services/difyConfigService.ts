@@ -25,27 +25,27 @@ class DifyConfigService {
 
     try {
       // 创建 cardId -> card 和 appId -> folder 的映射
-      for (const folderKey in this.config) {
+    for (const folderKey in this.config) {
         if (folderKey === 'global') continue; // 跳过全局配置
-        
-        const folder = this.config[folderKey] as DifyFolderConfig;
-        
+      
+      const folder = this.config[folderKey] as DifyFolderConfig;
+      
         // 添加 folderKey 到配置对象中，如果需要的话
-        folder.folderKey = folderKey;
+      folder.folderKey = folderKey;
 
-        // 创建 appId -> folder 的映射
-        this.folderConfigMap.set(folder.appId, folder);
-        
+      // 创建 appId -> folder 的映射
+      this.folderConfigMap.set(folder.appId, folder);
+      
         // 确保 cards 是数组
-        if (!folder.cards || !Array.isArray(folder.cards)) {
-          folder.cards = [];
-        }
-
-        // 为每个卡片创建映射
-        for (const card of folder.cards) {
-          this.cardConfigMap.set(card.cardId, card);
-        }
+      if (!folder.cards || !Array.isArray(folder.cards)) {
+        folder.cards = [];
       }
+
+      // 为每个卡片创建映射
+      for (const card of folder.cards) {
+        this.cardConfigMap.set(card.cardId, card);
+      }
+    }
 
       // 验证全局模型配置是否存在
       if (!this.config.global || !Array.isArray(this.config.global.models) || this.config.global.models.length === 0) {
@@ -59,9 +59,9 @@ class DifyConfigService {
         this.config.global.models[0].isDefault = true; // 强制设置第一个为默认
       }
 
-      this.initialized = true;
-      console.log('[DifyConfigService] 初始化完成，已加载:', {
-        folders: this.folderConfigMap.size,
+    this.initialized = true;
+    console.log('[DifyConfigService] 初始化完成，已加载:', {
+      folders: this.folderConfigMap.size,
         cards: this.cardConfigMap.size,
         globalModels: this.config.global?.models?.length || 0
       });
