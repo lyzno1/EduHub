@@ -1,9 +1,10 @@
-import { FC, useEffect } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { useTranslation } from 'next-i18next';
-import { IconAdjustments, IconBrandGithub, IconHelp, IconHome, IconMenu2, IconMoon, IconPlus, IconSun } from '@tabler/icons-react';
+import { IconAdjustments, IconBrandGithub, IconHelp, IconHome, IconMenu2, IconMoon, IconPlus, IconSun, IconLogout, IconX, IconAlertTriangle } from '@tabler/icons-react';
 import { useContext } from 'react';
 import HomeContext from '@/pages/api/home/home.context';
 import aboutConfig from '@/config/aboutInfo';
+import Cookie from 'js-cookie';
 
 interface Props {
   onToggle: () => void;
@@ -19,6 +20,9 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false, onOpen
     dispatch: homeDispatch,
     handleNewConversation,
   } = useContext(HomeContext);
+  
+  // 模态框显示状态
+  const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false);
 
   // 当组件加载时，确保应用正确的主题
   useEffect(() => {
@@ -72,6 +76,22 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false, onOpen
       newValue: newLightMode,
       storageArea: localStorage
     }));
+  };
+
+  // 打开退出登录模态框
+  const openLogoutModal = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowLogoutModal(true);
+  };
+
+  // 执行退出登录
+  const executeLogout = () => {
+    // 仅删除user Cookie以终止登录状态，不清除localStorage中的聊天记录和其他数据
+    Cookie.remove('user');
+    
+    // 重定向到登录页面
+    window.location.href = '/login';
   };
 
   return (
@@ -200,7 +220,7 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false, onOpen
           <IconAdjustments className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
         
-        {/* 新增：关于按钮 */}
+        {/* 关于按钮 */}
         <div 
           className="flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10"
           onClick={(e) => {
@@ -216,7 +236,64 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false, onOpen
         >
           <IconHelp className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
+        
+        {/* 退出登录按钮 */}
+        <div 
+          className="flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10"
+          onClick={openLogoutModal}
+          onMouseDown={(e) => e.preventDefault()}
+          onMouseEnter={(e) => e.preventDefault()}
+          onMouseLeave={(e) => e.preventDefault()}
+          data-tooltip="退出登录"
+          data-placement="right"
+        >
+          <IconLogout className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
+        </div>
       </div>
+
+      {/* 退出登录确认模态框 */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setShowLogoutModal(false)}>
+          <div 
+            className="relative w-full max-w-md rounded-lg bg-white dark:bg-gray-800 shadow-xl p-6" 
+            onClick={(e) => e.stopPropagation()} // 防止点击内容区域关闭模态框
+          >
+            {/* 关闭按钮 */}
+            <button 
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              onClick={() => setShowLogoutModal(false)}
+              aria-label="关闭"
+            >
+              <IconX size={20} />
+            </button>
+
+            <div className="flex items-center text-red-600 dark:text-red-400 mb-4">
+              <IconAlertTriangle size={24} className="mr-2" />
+              <h3 className="text-lg font-medium">确认退出登录</h3>
+            </div>
+            
+            <p className="text-gray-700 dark:text-gray-300 mb-6">
+              您确定要退出当前账号吗？您的聊天记录将保留在本地。
+            </p>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md"
+              >
+                取消
+              </button>
+              <button
+                onClick={executeLogout}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md flex items-center"
+              >
+                <IconLogout size={16} className="mr-1.5" />
+                确认退出
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
