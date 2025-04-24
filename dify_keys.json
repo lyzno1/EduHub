@@ -4,23 +4,26 @@
     "displayName": "普通聊天",
     "apiUrl": "https://api.dify.ai/v1",
     "models": [
-        {
-          "name": "DeepSeekR1",
-          "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
-          "isDefault": true
-        },
-        {
-          "name": "DeepSeekV3",
-          "apiKey": "app-8q49z7W7g5QkAv9Aq3P4quuH"
-        },
-        {
-          "name": "GLMZ1",
-          "apiKey": "app-bWQeFdfew58EixEqHueywRnA"
-        },
-        {
-          "name": "Qwen2.5",
-          "apiKey": "app-bWQeFdfew58EixEqHueywRnA"
-        }
+      {
+        "name": "DeepSeek-R1",
+        "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
+        "isDefault": true
+      },
+      {
+        "name": "DeepSeek-V3",
+        "apiKey": "app-8q49z7W7g5QkAv9Aq3P4quuH",
+        "isDefault": false
+      },
+      {
+        "name": "GLM-Z1",
+        "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
+        "isDefault": false
+      },
+      {
+        "name": "Qwen2.5",
+        "apiKey": "app-bWQeFdfew58EixEqHueywRnA",
+        "isDefault": false
+      }
     ],
     "cards": []
   },
@@ -209,5 +212,10 @@
         }
       }
     ]
+  },
+  "736d432a-4b53-4219-afe1-c69f9c70530a": {
+    "appId": 5,
+    "displayName": "dd",
+    "cards": []
   }
 }

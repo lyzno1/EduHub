@@ -35,7 +35,7 @@ import { Navbar } from '@/components/Mobile/Navbar';
 import LoginNotice from '@/components/Settings/loginNotice';
 import { SidebarSlim } from '@/components/Sidebar/SidebarSlim';
 import { SidebarNav } from '@/components/Chatbar/SidebarNav';
-import { GlobalModelSettingsModal } from '@/components/Settings/GlobalModelSettingsModal';
+import { ChatSettingsModal } from '@/components/Settings/ChatSettingsModal';
 
 import HomeContext from './home.context';
 import { HomeInitialState, initialState } from './home.state';
@@ -974,7 +974,7 @@ const Home = ({
 
             {/* 新增：渲染模态框 */}
             {isModelModalOpen && (
-              <GlobalModelSettingsModal
+              <ChatSettingsModal
                 isOpen={isModelModalOpen}
                 onClose={() => setIsModelModalOpen(false)}
                 availableModels={availableGlobalModels}
