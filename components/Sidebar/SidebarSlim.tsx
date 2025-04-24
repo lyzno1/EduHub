@@ -1,6 +1,6 @@
 import { FC, useEffect, useState } from 'react';
 import { useTranslation } from 'next-i18next';
-import { IconAdjustments, IconBrandGithub, IconHelp, IconHome, IconMenu2, IconMoon, IconPlus, IconSun, IconLogout, IconX, IconAlertTriangle } from '@tabler/icons-react';
+import { IconAdjustments, IconBrandGithub, IconHelp, IconHome, IconMenu2, IconMoon, IconPlus, IconSun, IconLogout, IconX, IconAlertTriangle, IconSettings } from '@tabler/icons-react';
 import { useContext } from 'react';
 import HomeContext from '@/pages/api/home/home.context';
 import Cookie from 'js-cookie';
@@ -243,7 +243,7 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false, onOpen
           data-tooltip="设置"
           data-placement="right"
         >
-          <IconAdjustments className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
+          <IconSettings className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
         
         {/* 关于按钮 - 使用状态更新 tooltip */}
