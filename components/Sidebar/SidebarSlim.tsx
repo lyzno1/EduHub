@@ -3,6 +3,7 @@ import { useTranslation } from 'next-i18next';
 import { IconAdjustments, IconBrandGithub, IconHelp, IconHome, IconMenu2, IconMoon, IconPlus, IconSun } from '@tabler/icons-react';
 import { useContext } from 'react';
 import HomeContext from '@/pages/api/home/home.context';
+import aboutConfig from '@/config/aboutInfo';
 
 interface Props {
   onToggle: () => void;
@@ -198,7 +199,24 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false, onOpen
         >
           <IconAdjustments className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
+        
+        {/* 新增：关于按钮 */}
+        <div 
+          className="flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // 可以在此处添加点击处理程序，例如显示更详细的"关于"对话框
+          }}
+          onMouseDown={(e) => e.preventDefault()}
+          onMouseEnter={(e) => e.preventDefault()}
+          onMouseLeave={(e) => e.preventDefault()}
+          data-tooltip={aboutConfig.tooltipContent}
+          data-placement="right"
+        >
+          <IconHelp className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
+        </div>
       </div>
     </div>
   );
-}; 
+};

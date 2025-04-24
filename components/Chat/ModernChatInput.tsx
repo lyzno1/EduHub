@@ -55,7 +55,8 @@ export const ModernChatInput = ({
     state: {
       selectedConversation,
       lightMode,
-      selectedGlobalModelName
+      selectedGlobalModelName,
+      activeAppId
     },
   } = useContext(HomeContext);
 
@@ -538,7 +539,7 @@ export const ModernChatInput = ({
           }}
         >
           {/* 左下角模型名称显示区域 - 使用 data-tooltip */}
-          {(!selectedConversation || selectedConversation.appId === 0 || selectedConversation.appId == null) && selectedGlobalModelName ? (
+          { (activeAppId === null || activeAppId === 0) && selectedGlobalModelName ? (
              <div
                className="flex items-center px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-gray-600 text-xs text-gray-600 dark:text-gray-300 mr-auto" // 移除 pointer-events-none
              >
