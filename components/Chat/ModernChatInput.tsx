@@ -539,7 +539,11 @@ export const ModernChatInput = ({
           }}
         >
           {/* 左下角模型名称显示区域 - 使用 data-tooltip */}
-          { (activeAppId === null || activeAppId === 0) && selectedGlobalModelName ? (
+          { 
+            (activeAppId === null || activeAppId === 0) && // 条件1：没有正在激活的应用
+            (!selectedConversation || selectedConversation.appId === null || selectedConversation.appId === 0) && // 条件2：当前选中的对话是全局的（或不存在）
+            selectedGlobalModelName // 条件3：有全局模型名称
+            ? (
              <div
                className="flex items-center px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-gray-600 text-xs text-gray-600 dark:text-gray-300 mr-auto" // 移除 pointer-events-none
              >
