@@ -176,7 +176,7 @@ interface StreamingMarkdownRendererProps {
 
 interface ContentParts {
   before: string;
-  think: string | null;
+  specialContent: string | null;
   after: string;
 }
 
@@ -186,60 +186,76 @@ const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({
   lightMode,
   components 
 }) => {
-  const [parts, setParts] = useState<ContentParts>({ before: '', think: null, after: '' });
+  const [parts, setParts] = useState<ContentParts>({ before: '', specialContent: null, after: '' });
 
   // Effect to parse content and update parts state
   useEffect(() => {
-    const thinkStartTag = '<think>';
-    const thinkEndTag = '</think>';
+    const specialTags = [
+      { name: 'think', startTag: '<think>', endTag: '</think>' },
+      { name: 'details', startTag: '<details', endTag: '</details>' },
+    ];
+
+    let firstTagInfo: { index: number; tag: typeof specialTags[0]; actualContentStartIndex: number } | null = null;
+
+    for (const tag of specialTags) {
+      const startIndex = content.toLowerCase().indexOf(tag.startTag.toLowerCase());
+      if (startIndex !== -1) {
+        if (firstTagInfo === null || startIndex < firstTagInfo.index) {
+          let actualStartIndex = startIndex;
+          if (tag.name === 'details') {
+             const closingBracketIndex = content.indexOf('>', startIndex);
+             if (closingBracketIndex !== -1) {
+               actualStartIndex = closingBracketIndex + 1;
+             } else {
+               actualStartIndex = startIndex + tag.startTag.length; 
+             }
+          } else {
+              actualStartIndex = startIndex + tag.startTag.length;
+          }
+          
+          firstTagInfo = { index: startIndex, tag: tag, actualContentStartIndex: actualStartIndex };
+        }
+      }
+    }
+
     let beforeContent = '';
-    let thinkContent: string | null = null;
+    let specialPartContent: string | null = null;
     let afterContent = '';
 
-    const startIndex = content.indexOf(thinkStartTag);
-    
-    if (startIndex === -1) {
-      // No <think> tag found
+    if (firstTagInfo === null) {
       beforeContent = content;
     } else {
-      beforeContent = content.substring(0, startIndex);
-      const endIndex = content.indexOf(thinkEndTag, startIndex + thinkStartTag.length);
-      
+      beforeContent = content.substring(0, firstTagInfo.index);
+      const searchStartIndex = firstTagInfo.actualContentStartIndex;
+      const endIndex = content.toLowerCase().indexOf(firstTagInfo.tag.endTag.toLowerCase(), searchStartIndex);
+
       if (endIndex === -1) {
-        // <think> tag found, but no closing tag yet
-        thinkContent = content.substring(startIndex + thinkStartTag.length);
+        specialPartContent = content.substring(searchStartIndex);
       } else {
-        // Both tags found
-        thinkContent = content.substring(startIndex + thinkStartTag.length, endIndex);
-        afterContent = content.substring(endIndex + thinkEndTag.length);
+        specialPartContent = content.substring(searchStartIndex, endIndex);
+        afterContent = content.substring(endIndex + firstTagInfo.tag.endTag.length);
       }
 
-      // --- Pre-process thinkContent to escape LaTeX delimiters --- 
-      if (thinkContent !== null) {
-        // Replace $$...$$ with `$$...$$` (renders as inline code)
-        thinkContent = thinkContent.replaceAll(/\$\$([\s\S]*?)\$\$/g, '`$$$1$$`');
-        // Optional: Handle single $...$ if they shouldn't render in reasoning box either
-        // thinkContent = thinkContent.replaceAll(/\$([^\$]+?)\$/g, '`$$$1$`'); 
+      if (specialPartContent !== null) {
+        specialPartContent = specialPartContent.replaceAll(/\$\$([\s\S]*?)\$\$/g, '`$$$1$$`');
       }
-      // --- END Pre-process --- 
     }
-    
-    setParts({ before: beforeContent, think: thinkContent, after: afterContent });
+
+    setParts({ before: beforeContent, specialContent: specialPartContent, after: afterContent });
 
   }, [content]); // Depend only on content
 
   // Determine where to place the streaming indicator
   const streamingIndicator = isStreaming ? '' : ''; // Always empty string now
   let beforeSuffix = '';
-  let thinkSuffix = '';
+  let specialContentSuffix = '';
   let afterSuffix = '';
 
-  // This block becomes redundant but harmless
   if (isStreaming) {
     if (parts.after) {
       afterSuffix = streamingIndicator;
-    } else if (parts.think !== null) {
-      thinkSuffix = streamingIndicator;
+    } else if (parts.specialContent !== null) {
+      specialContentSuffix = streamingIndicator;
     } else {
       beforeSuffix = streamingIndicator;
     }
@@ -247,7 +263,7 @@ const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({
 
   return (
     <>
-      {/* Render part before think block */} 
+      {/* Render part before special block */} 
       {parts.before && (
         <MemoizedReactMarkdown
           className="prose dark:prose-invert max-w-none w-full text-gray-900 dark:text-gray-100"
@@ -259,8 +275,8 @@ const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({
         </MemoizedReactMarkdown>
       )}
 
-      {/* Render think block if it exists */} 
-      {parts.think !== null && (
+      {/* Render special block if it exists */} 
+      {parts.specialContent !== null && (
         <ReasoningBox lightMode={lightMode} isStreaming={isStreaming}>
           <MemoizedReactMarkdown
             className="prose dark:prose-invert max-w-none w-full text-gray-900 dark:text-gray-100"
@@ -268,12 +284,12 @@ const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({
             rehypePlugins={[rehypeKatex, rehypeRaw as any]}
             components={components}
           >
-            {parts.think + thinkSuffix}
+            {parts.specialContent + specialContentSuffix}
           </MemoizedReactMarkdown>
         </ReasoningBox>
       )}
 
-      {/* Render part after think block */} 
+      {/* Render part after special block */} 
       {parts.after && (
         <MemoizedReactMarkdown
           className="prose dark:prose-invert max-w-none w-full text-gray-900 dark:text-gray-100"
@@ -419,8 +435,6 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
   // Define the components mapping passed to Markdown renderers
   // No longer needs special div handling for KaTeX
   const markdownComponents: CustomComponents = {
-    details: ({ node, children, ...props }) => null, // Let StreamingMarkdownRenderer handle details
-
     code: ({ node, inline, className, children, ...props }) => {
       const match = /language-(\w+)/.exec(className || '');
       return !inline ? (
@@ -436,7 +450,6 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
         </code>
       );
     },
-    // REMOVED div renderer
   };
 
   return (
