@@ -553,7 +553,7 @@ export const ModernChatInput = ({
                {/* 将 data-tooltip 添加到包裹图标的 span */}
                <span 
                  className="ml-1 flex-shrink-0 cursor-help" 
-                 data-tooltip="点击左下角设置按钮切换全局模型" // 使用 data-tooltip
+                 data-tooltip="点击左下角设置按钮切换聊天模型" // 使用 data-tooltip
                  data-placement="right" // 设置 tooltip 位置 (可调整)
                >
                  <IconHelpCircle 
