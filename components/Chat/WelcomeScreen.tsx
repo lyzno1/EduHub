@@ -1,5 +1,6 @@
 import React from 'react';
 import { FunctionCards } from './FunctionCards';
+import { useMetadata } from '@/context/MetadataContext';
 
 interface WelcomeScreenProps {
   inputBoxHeight: number;
@@ -14,6 +15,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   handleScrollDown,
   setContent,
 }) => {
+  const metadata = useMetadata();
+
+  const title = metadata ? metadata.title : 'Loading...';
+  const subtitle = metadata ? metadata.subtitle : '';
+
   return (
     <div className="flex flex-col items-center justify-center h-full md:min-h-screen sm:overflow-hidden">
       {/* Title Area */}
@@ -30,9 +36,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         {/* Logo and Title */}
         <div className="relative">
           <div className="absolute -inset-1 bg-gradient-to-r from-[#CEFBFA] to-[#FCCD5E] rounded-lg blur-xl opacity-75 dark:opacity-60"></div>
-          <h1 className="relative text-4xl font-bold tracking-tight mb-4 md:mb-4 bg-gradient-to-r from-[#272727] to-[#696969] dark:from-[#CEFBFA] dark:to-[#FCCD5E] bg-clip-text text-transparent drop-shadow-sm welcome-text" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '-0.5px' }}>BistuCopilot</h1>
+          <h1 className="relative text-4xl font-bold tracking-tight mb-4 md:mb-4 bg-gradient-to-r from-[#272727] to-[#696969] dark:from-[#CEFBFA] dark:to-[#FCCD5E] bg-clip-text text-transparent drop-shadow-sm welcome-text" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '-0.5px' }}>{title}</h1>
         </div>
-        <p className="text-lg font-medium md:mb-20 mb-0 md:block hidden text-[#333333] dark:text-[hsl(205deg,16%,77%)] welcome-text" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '0.2px' }}>基于大语言模型的智能知识助手</p>
+        <p className="text-lg font-medium md:mb-20 mb-0 md:block hidden text-[#333333] dark:text-[hsl(205deg,16%,77%)] welcome-text" style={{ fontFamily: "'PingFang SC', Arial, sans-serif", letterSpacing: '0.2px' }}>{subtitle}</p>
       </div>
 
       {/* Mobile specific content */}

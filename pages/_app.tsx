@@ -5,6 +5,7 @@ import { appWithTranslation } from 'next-i18next';
 import type { AppProps } from 'next/app';
 import { Inter } from 'next/font/google';
 import { useEffect, useState } from 'react';
+import { MetadataProvider } from '@/context/MetadataContext';
 
 import 'katex/dist/katex.min.css';
 import '@/styles/globals.css';
@@ -84,7 +85,9 @@ function App({ Component, pageProps }: AppProps<{}>) {
       <div className={baseClassName}>
         <Toaster />
         <QueryClientProvider client={queryClient}>
-          <Component {...pageProps} />
+          <MetadataProvider>
+            <Component {...pageProps} />
+          </MetadataProvider>
         </QueryClientProvider>
       </div>
     );
@@ -94,7 +97,9 @@ function App({ Component, pageProps }: AppProps<{}>) {
     <div className={`${baseClassName} ${theme}`}>
       <Toaster />
       <QueryClientProvider client={queryClient}>
-        <Component {...pageProps} />
+        <MetadataProvider>
+          <Component {...pageProps} />
+        </MetadataProvider>
       </QueryClientProvider>
     </div>
   );

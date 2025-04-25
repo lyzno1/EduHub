@@ -1,9 +1,9 @@
-import { FC, useEffect, useState } from 'react';
+import { FC, useState, useContext } from 'react';
 import { useTranslation } from 'next-i18next';
 import { IconAdjustments, IconBrandGithub, IconHelp, IconHome, IconMenu2, IconMoon, IconPlus, IconSun, IconLogout, IconX, IconAlertTriangle, IconSettings } from '@tabler/icons-react';
-import { useContext } from 'react';
 import HomeContext from '@/pages/api/home/home.context';
 import Cookie from 'js-cookie';
+import { useMetadata } from '@/context/MetadataContext';
 
 interface Props {
   onToggle: () => void;
@@ -13,6 +13,7 @@ interface Props {
 
 export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false, onOpenModelSettings }) => {
   const { t } = useTranslation('sidebar');
+  const metadata = useMetadata();
   
   const {
     state: { lightMode },
@@ -22,53 +23,6 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false, onOpen
   
   // 模态框显示状态
   const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false);
-  // 新增：关于信息的 Tooltip 内容状态
-  const [aboutTooltip, setAboutTooltip] = useState<string>('加载关于信息...');
-
-  // 当组件加载时，确保应用正确的主题
-  useEffect(() => {
-    // 从localStorage获取保存的主题，如果没有则默认为light
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    
-    // 如果localStorage中的主题与当前状态不同，更新状态
-    if (savedTheme !== lightMode) {
-      homeDispatch({ field: 'lightMode', value: savedTheme });
-    }
-    
-    // 应用正确的主题类到HTML元素
-    if (savedTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      // 强制确保移除深色模式
-      document.documentElement.classList.add('light');
-    }
-  }, []);
-
-  // 新增：useEffect 用于获取关于信息
-  useEffect(() => {
-    const fetchAboutInfo = async () => {
-      try {
-        const response = await fetch('/config/about.json'); // 直接从 public 目录获取
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        if (data && data.tooltipContent) {
-          // 将换行符 \n 替换为实际换行
-          const formattedTooltip = data.tooltipContent.replace(/\n/g, '\n');
-          setAboutTooltip(formattedTooltip);
-        } else {
-          setAboutTooltip('关于信息加载失败');
-        }
-      } catch (error) {
-        console.error("获取关于信息失败:", error);
-        setAboutTooltip('关于信息加载失败');
-      }
-    };
-
-    fetchAboutInfo();
-  }, []); // 空依赖数组，仅在组件挂载时运行一次
 
   const handleThemeChange = (e: React.MouseEvent) => {
     // 阻止事件冒泡
@@ -119,6 +73,11 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false, onOpen
     // 重定向到登录页面
     window.location.href = '/login';
   };
+
+  // 3. 直接使用 metadata 中的 tooltipContent (注意处理加载中 metadata 为 null 的情况)
+  const aboutTooltipContent = metadata
+    ? metadata.tooltipContent.replace(/\n/g, '\n') // 处理换行符，\n 需要转义为 \\n 在字符串中
+    : '加载关于信息...'; // 加载时的默认值
 
   return (
     <div className="fixed left-0 top-0 z-20 flex h-full w-[60px] flex-col items-center border-r border-gray-200 bg-[#f5f5f5] dark:border-gray-800 dark:bg-[#202123]">
@@ -246,17 +205,18 @@ export const SidebarSlim: FC<Props> = ({ onToggle, isSidebarOpen = false, onOpen
           <IconSettings className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />
         </div>
         
-        {/* 关于按钮 - 使用状态更新 tooltip */}
+        {/* 关于按钮 - 使用来自 Context 的 tooltip */}
         <div 
           className="flex cursor-pointer justify-center items-center rounded-md p-2 hover:bg-gray-100 dark:hover:bg-gray-700 w-10 h-10"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            // 如果需要点击行为，可以在这里添加
           }}
           onMouseDown={(e) => e.preventDefault()}
           onMouseEnter={(e) => e.preventDefault()}
           onMouseLeave={(e) => e.preventDefault()}
-          data-tooltip={aboutTooltip} // 使用状态变量
+          data-tooltip={aboutTooltipContent} // 4. 应用获取到的 tooltip 内容
           data-placement="right"
         >
           <IconHelp className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" />

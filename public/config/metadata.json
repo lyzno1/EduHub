@@ -1,0 +1,11 @@
+{
+  "title": "BistuCopilot",
+  "subtitle": "基于大语言模型的智能知识助手",
+  "tooltipContent": "BistuCopilot v2.0 - 智能知识助手 北京信息科技大学 - iflab",
+  "version": "v1.0.0",
+  "copyright": "© 2023-2025 北京信息科技大学",
+  "additionalInfo": {
+    "developer": "iflab",
+    "website": "https://iflab.org"
+  }
+} 
