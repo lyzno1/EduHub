@@ -1374,7 +1374,7 @@ app.delete('/deleteblacklist/:id', (req, res) => {
 // // 构建并重启应用
 app.post('/api/rebuild-and-restart', (req, res) => {
     console.log('Rebuilding and restarting the app...');
-    exec('cd ../../../eduhub && npm run build && pm2 restart eduhub', (error, stdout, stderr) => {
+    exec('cd ../../.. && npm run build && pm2 restart eduhub', (error, stdout, stderr) => {
         if (error) {
             console.error(`exec error: ${error}`);
             return res.status(500).send(`Error: ${error.message}`);
