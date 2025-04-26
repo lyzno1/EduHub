@@ -693,10 +693,8 @@ const Home = ({
       dispatch({ field: 'selectedConversation', value: savedConversations[0] });
       saveConversation(savedConversations[0]);
     } else {
+       // 首次加载无历史记录：创建并绑定新对话
        console.log('[Debug useEffect] No conversations found, creating default new conversation.');
-       // 确保 handleNewConversation 在这里被调用或其逻辑在此处实现
-       // 如果 handleNewConversation 依赖其他状态，可能需要先确保那些状态已设置
-       // 这里直接创建，确保 modelName 设置正确
        const newConversation: Conversation = {
          id: uuidv4(),
          name: t('New Conversation'),
@@ -709,7 +707,8 @@ const Home = ({
          deletable: true,
          appId: null,
          model: 'default',
-         modelName: selectedGlobalModelName || difyConfigService.getDefaultGlobalModel()?.name || null, // 确保有初始值
+         // 使用 state 中的 selectedGlobalModelName 或回退到默认值
+         modelName: selectedGlobalModelName || difyConfigService.getDefaultGlobalModel()?.name || null,
        };
        dispatch({ field: 'selectedConversation', value: newConversation });
        dispatch({ field: 'conversations', value: [newConversation] });
