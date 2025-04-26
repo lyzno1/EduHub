@@ -5,28 +5,27 @@ const { TextArea } = Input;
 
 const SettingPage = () => {
     const [loading, setLoading] = useState(true);
-    // 更新状态以匹配 metadata.json
+    // State remains the same, includes aboutContent internally
     const [metadata, setMetadata] = useState({
         title: '',
         subtitle: '',
-        tooltipContent: '',
+        aboutContent: '', // Keep this field in the state
         version: '',
         copyright: '',
         additionalInfo: { developer: '', website: '' }
     });
-    const [metadataForm] = Form.useForm(); // 重命名表单实例
+    const [metadataForm] = Form.useForm(); 
 
-    // 获取元数据
+    // Fetch metadata (includes aboutContent)
     useEffect(() => {
         setLoading(true);
-        fetch(`${API_URL}/getMetadata`) // 更新 API 端点
+        fetch(`${API_URL}/getMetadata`) 
             .then(response => response.json())
             .then(data => {
-                // 确保 additionalInfo 存在且为对象，并提供默认值
                 const saneData = {
                     title: data?.title || '',
                     subtitle: data?.subtitle || '',
-                    tooltipContent: data?.tooltipContent || '',
+                    aboutContent: data?.aboutContent || '', // Fetch aboutContent
                     version: data?.version || '',
                     copyright: data?.copyright || '',
                     additionalInfo: {
@@ -35,9 +34,12 @@ const SettingPage = () => {
                     }
                 };
                 setMetadata(saneData);
-                // 使用 setFieldsValue 设置表单的初始值，包含新增字段
                 metadataForm.setFieldsValue({
-                    ...saneData,
+                    // Set form values excluding aboutContent
+                    title: saneData.title,
+                    subtitle: saneData.subtitle,
+                    version: saneData.version,
+                    copyright: saneData.copyright,
                     developer: saneData.additionalInfo.developer,
                     website: saneData.additionalInfo.website,
                 });
@@ -47,16 +49,16 @@ const SettingPage = () => {
                  message.error('加载元数据失败');
              })
             .finally(() => setLoading(false));
-    }, [metadataForm]); // 依赖项更新为 metadataForm
+    }, [metadataForm]);
 
-    // 保存元数据
-    const handleSaveMetadata = (values) => { // 重命名函数
+    // Save metadata (sends the whole metadata object, including aboutContent)
+    const handleSaveMetadata = (values) => { 
         setLoading(true);
-        // 构造符合 metadata.json 格式的对象
+        // Construct the full metadata object, including the potentially unchanged aboutContent from state
         const metadataToSave = {
             title: values.title,
             subtitle: values.subtitle,
-            tooltipContent: values.tooltipContent,
+            aboutContent: metadata.aboutContent, // Use aboutContent from state
             version: values.version,
             copyright: values.copyright,
             additionalInfo: {
@@ -65,7 +67,7 @@ const SettingPage = () => {
             }
         };
 
-        fetch(`${API_URL}/updateMetadata`, { // 更新 API 端点
+        fetch(`${API_URL}/updateMetadata`, { 
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -76,12 +78,11 @@ const SettingPage = () => {
         .then(data => {
             if(data.success) {
                 message.success(data.message || '元数据保存成功');
-                // 更新状态和表单
                 if (data.data) {
                      const updatedData = {
                         title: data.data?.title || '',
                         subtitle: data.data?.subtitle || '',
-                        tooltipContent: data.data?.tooltipContent || '',
+                        aboutContent: data.data?.aboutContent || '', // Update state with new aboutContent
                         version: data.data?.version || '',
                         copyright: data.data?.copyright || '',
                         additionalInfo: {
@@ -89,9 +90,13 @@ const SettingPage = () => {
                             website: data.data?.additionalInfo?.website || ''
                         }
                     };
-                     setMetadata(updatedData);
+                     setMetadata(updatedData); // Update the full state
                      metadataForm.setFieldsValue({
-                        ...updatedData,
+                        // Update form fields (excluding aboutContent)
+                        title: updatedData.title,
+                        subtitle: updatedData.subtitle,
+                        version: updatedData.version,
+                        copyright: updatedData.copyright,
                         developer: updatedData.additionalInfo.developer,
                         website: updatedData.additionalInfo.website,
                      });
@@ -109,39 +114,45 @@ const SettingPage = () => {
 
     return (
         <Spin spinning={loading}>
-            <Card title="应用元数据配置"> {/* 更新卡片标题 */}
+            <Card title="应用元数据配置">
                 <Form
-                    form={metadataForm} // 使用更新后的表单实例
+                    form={metadataForm}
                     layout="vertical"
-                    onFinish={handleSaveMetadata} // 使用更新后的保存函数
+                    onFinish={handleSaveMetadata}
+                    // Initial values don't need aboutContent for the form
                     initialValues={{
-                        ...metadata,
+                        title: metadata.title,
+                        subtitle: metadata.subtitle,
+                        version: metadata.version,
+                        copyright: metadata.copyright,
                         developer: metadata.additionalInfo?.developer,
                         website: metadata.additionalInfo?.website,
-                    }} // 确保表单初始值正确
+                    }}
                 >
-                    {/* 第一组：基本显示信息 */}
+                    {/* ... Form Items for title, subtitle ... */}
                     <Form.Item name="title" label="应用主标题" rules={[{ required: true }]}>
-                        <Input placeholder="例如：EduHub 智能助手"/>
+                        <Input placeholder="例如：BistuCopilot 智能助手"/>
                     </Form.Item>
                     <Form.Item name="subtitle" label="应用副标题">
                         <Input placeholder="例如：基于大模型的知识问答与创作平台"/>
                     </Form.Item>
 
-                    <Divider /> {/* 分隔线 */}
+                    <Divider /> 
 
-                    {/* 第二组：关于与详细信息 */}
-                    <Form.Item name="tooltipContent" label="侧边栏悬停提示内容 (Tooltip)" rules={[{ required: true }]}>
+                    {/* Removed Tooltip/About Content Form Item */}
+                    {/* <Form.Item name="tooltipContent" label="侧边栏悬停提示内容 (Tooltip)" rules={[{ required: true }]}>
                         <TextArea rows={3} placeholder="用于侧边栏'关于'图标的提示，支持换行。例如：应用名称 v1.0\n开发者信息"/>
-                    </Form.Item>
+                    </Form.Item> */}
+                    
+                    {/* ... Form Items for version, copyright, developer, website ... */}
                     <Form.Item name="version" label="版本号" rules={[{ required: true }]}>
-                        <Input placeholder="例如：v1.0.1"/>
+                        <Input placeholder="例如：v2.0.0"/>
                     </Form.Item>
                     <Form.Item name="copyright" label="版权信息" rules={[{ required: true }]}>
-                        <Input placeholder="例如：© 2024 北京信息科技大学"/>
+                        <Input placeholder="例如：© 2023-2025 北京信息科技大学"/>
                     </Form.Item>
                      <Form.Item name="developer" label="开发者/组织">
-                        <Input placeholder="例如：ifLab 智能未来实验室"/>
+                        <Input placeholder="例如：iflab"/>
                     </Form.Item>
                     <Form.Item name="website" label="相关网站 URL">
                         <Input placeholder="例如：https://iflab.org"/>

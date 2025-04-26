@@ -1877,25 +1877,24 @@ app.get('/getMetadata', (req, res) => { // 重命名路由
 });
 
 // 更新 metadata.json 内容接口
-app.post('/updateMetadata', (req, res) => { // 重命名路由
-    const newMetadata = req.body; // 获取前端发送的完整 metadata 数据结构
+app.post('/updateMetadata', (req, res) => { 
+    const newMetadata = req.body; 
 
-    // 更新验证逻辑以匹配 metadata.json 结构
+    // Validation updated to check for 'aboutContent' instead of 'tooltipContent'
     if (!newMetadata || 
         typeof newMetadata.title !== 'string' || 
         typeof newMetadata.subtitle !== 'string' || 
-        typeof newMetadata.tooltipContent !== 'string' || 
+        typeof newMetadata.aboutContent !== 'string' || // Check for aboutContent
         typeof newMetadata.version !== 'string' || 
         typeof newMetadata.copyright !== 'string' || 
         typeof newMetadata.additionalInfo !== 'object' ||
-        newMetadata.additionalInfo === null || // 确保 additionalInfo 不是 null
+        newMetadata.additionalInfo === null || 
         typeof newMetadata.additionalInfo.developer !== 'string' ||
         typeof newMetadata.additionalInfo.website !== 'string') {
         return res.status(400).send('提供的元数据数据格式无效或缺少字段');
     }
 
-    // 将新数据写入文件 (覆盖写入)
-    fs.writeFile(metadataJsonPath, JSON.stringify(newMetadata, null, 2), 'utf8', (err) => { // 使用新路径变量
+    fs.writeFile(metadataJsonPath, JSON.stringify(newMetadata, null, 2), 'utf8', (err) => { 
         if (err) {
             console.error(`写入 metadata.json 失败: ${err}`);
             res.status(500).send('更新元数据文件失败');
