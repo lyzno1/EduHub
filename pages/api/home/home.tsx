@@ -26,7 +26,7 @@ import { getSettings } from '@/utils/app/settings';
 
 import { Conversation, Message } from '@/types/chat';
 import { FolderInterface, FolderType } from '@/types/folder';
-import { DifyModelConfig } from '@/types/dify';
+import { DifyModelConfig, DifyFolderConfig, DifyAppCardConfig } from '@/types/dify';
 
 import { Chat } from '@/components/Chat/Chat';
 import { Navbar } from '@/components/Mobile/Navbar';
@@ -48,7 +48,6 @@ import { DifyClient } from '@/services/dify/client';
 import { getDifyConfig } from '@/config/dify';
 import { toast } from 'react-hot-toast';
 import difyConfigService from '@/services/difyConfigService';
-import { DifyFolderConfig } from '@/types/dify';
 
 // Define and export AppConfig interface here
 export interface AppConfig {
@@ -58,6 +57,7 @@ export interface AppConfig {
   apiUrl?: string;
   icon: JSX.Element;
   folderKey?: string;
+  cards?: DifyAppCardConfig[];
 }
 
 // Define Dify related types
@@ -126,11 +126,11 @@ const Home = ({
                   firstCard?.difyConfig?.apiUrl, // Will be undefined if firstCard or difyConfig is missing
           icon: icon,
           folderKey: folder.folderKey,
+          cards: folder.cards || [],
         };
       });
       
       setAppConfigsInState(generatedAppConfigs);
-      console.log("[Home Init] Generated App Configs with Folder Keys:", generatedAppConfigs);
 
     } catch (error) {
         console.error("[Home Init] Error processing folder configs:", error);

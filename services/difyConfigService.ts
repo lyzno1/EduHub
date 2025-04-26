@@ -60,11 +60,11 @@ class DifyConfigService {
       }
 
     this.initialized = true;
-    console.log('[DifyConfigService] 初始化完成，已加载:', {
-      folders: this.folderConfigMap.size,
-        cards: this.cardConfigMap.size,
-        globalModels: this.config.global?.models?.length || 0
-      });
+    // console.log('[DifyConfigService] 初始化完成，已加载:', {
+    //   folders: this.folderConfigMap.size,
+    //     cards: this.cardConfigMap.size,
+    //     globalModels: this.config.global?.models?.length || 0
+    //   });
 
     } catch (error) {
       console.error('[DifyConfigService] 初始化过程中发生严重错误:', error);
