@@ -1,3 +1,8 @@
 {
-  "allowedApps": {}
+  "allowedApps": {
+    "courseHelper": [
+      "ch-swe-test",
+      "ch-oss-dev"
+    ]
+  }
 }

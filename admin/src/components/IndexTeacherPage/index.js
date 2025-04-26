@@ -72,7 +72,7 @@ const IndexTeacherPage = () => {
                     currentCards.push(cardId);
                 }
                 newState[folderKey] = currentCards; // Ensure folderKey exists
-            } else {
+                    } else {
                 // Remove card
                 const index = currentCards.indexOf(cardId);
                 if (index > -1) {
@@ -81,7 +81,7 @@ const IndexTeacherPage = () => {
                 // If no cards left for this app, remove the app key
                 if (currentCards.length === 0) {
                     delete newState[folderKey];
-                } else {
+                        } else {
                     newState[folderKey] = currentCards;
                 }
             }
@@ -192,7 +192,7 @@ const IndexTeacherPage = () => {
                     disabled={loading || Object.keys(availableAppsData).length === 0}
                  >
                     保存配置
-                 </Button>
+        </Button>
             </Card>
         </Spin>
     );

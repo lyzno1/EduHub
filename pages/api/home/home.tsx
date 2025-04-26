@@ -145,6 +145,7 @@ const Home = ({
       activeAppId,
       availableGlobalModels,
       selectedGlobalModelName,
+      allowedAppsConfig,
     },
     dispatch,
   } = contextValue;
@@ -700,7 +701,7 @@ const Home = ({
          const initialModelName = defaultGlobalModel?.name || (globalModels.length > 0 ? globalModels[0].name : null);
          if (initialModelName) {
            dispatch({ field: 'selectedGlobalModelName', value: initialModelName });
-           console.log('[Home Init] 初始化设置默认全局模型:', initialModelName);
+          //  console.log('[Home Init] 初始化设置默认全局模型:', initialModelName);
          } else {
             console.warn('[Home Init] 未配置任何全局模型！');
             dispatch({ field: 'selectedGlobalModelName', value: null });
@@ -712,66 +713,55 @@ const Home = ({
 
   }, [dispatch, serverSideApiKeyIsSet, serverSidePluginKeysSet, selectedGlobalModelName]);
 
+  // --- 新增/修改：useEffect for Role-based Config Loading --- 
   useEffect(() => {
-    if (user) {
-      dispatch({ field: 'user', value: user });
+    // 确定角色配置：
+    // 如果 user 未定义、为空或长度不为 8 (即非教师工号)，则视为学生；否则视为老师。
+    const isTeacher = user && user.length === 8;
+    const roleConfig = isTeacher ? teacherChat : studentChat;
+    // 使用 user || 'undefined' 以便在日志中清晰显示未定义状态
+    console.log(`[Role Init] User: ${user || 'undefined'}, Role: ${isTeacher ? 'Teacher' : 'Student'}, Loading config:`, roleConfig);
 
-      const defaultData = user.length === 8 ? teacherChat : studentChat;
-      console.log(user, user.length);
-      
-      const chatFolders: FolderInterface[] = defaultData.Folders.map(
-        (folder) => ({
-          ...folder,
-          type: 'chat',
-        }),
-      );
+    try {
+      // 验证并设置 allowedAppsConfig
+      if (roleConfig && typeof roleConfig.allowedApps === 'object' && roleConfig.allowedApps !== null) {
+        const parsedAllowedApps = roleConfig.allowedApps as Record<string, any>;
+        const validConfig: Record<string, string[]> = {};
+        let isValidStructure = true; // 保持此变量以备将来需要更严格的验证
+        for (const folderKey in parsedAllowedApps) {
+           if (Array.isArray(parsedAllowedApps[folderKey]) && parsedAllowedApps[folderKey].every((item: any) => typeof item === 'string')) {
+             validConfig[folderKey] = parsedAllowedApps[folderKey];
+           } else {
+             console.warn(`[Role Init] Invalid card list for folderKey "${folderKey}" in role config for user ${user || 'undefined'}. Skipping key.`);
+             // isValidStructure = false; break; // 如果需要，取消注释以进行更严格的验证
+           }
+        }
 
-      const defaultFolders = [...chatFolders];
-      dispatch({ field: 'folders', value: defaultFolders });
+        // Dispatch the validated (possibly empty) config
+        dispatch({ field: 'allowedAppsConfig', value: validConfig });
+        // console.log(`[Role Init] Successfully loaded allowedAppsConfig for user ${user || 'undefined'}:`, validConfig);
 
-      const defaultConversations: Conversation[] = defaultData.Chats.map(
-        (chat) => ({
-          ...chat,
-          conversationID: '',
-          originalName: chat.name,
-          messages: [],
-          prompt: DEFAULT_SYSTEM_PROMPT,
-          temperature: DEFAULT_TEMPERATURE,
-          deletable: false,
-          appId: null,
-          model: 'default'
-        }),
-      );
-
-      const savedConversations = localStorage.getItem('conversationHistory');
-      if (!savedConversations) {
-        const newConversation: Conversation = {
-          id: uuidv4(),
-          name: t('New Conversation'),
-          originalName: '',
-          messages: [],
-          prompt: DEFAULT_SYSTEM_PROMPT,
-          temperature: DEFAULT_TEMPERATURE,
-          folderId: null,
-          conversationID: '',
-          deletable: true,
-          appId: null,
-          model: 'default',
-          modelName: selectedGlobalModelName || difyConfigService.getDefaultGlobalModel()?.name || null,
-        };
-        
-        const initialConversations = [newConversation, ...defaultConversations];
-        dispatch({ field: 'conversations', value: initialConversations });
-        dispatch({ field: 'selectedConversation', value: newConversation });
-        
-        saveConversations(initialConversations);
-        saveConversation(newConversation);
       } else {
-        const parsedConversations = JSON.parse(savedConversations);
-        dispatch({ field: 'conversations', value: parsedConversations });
+        console.warn(`[Role Init] 'allowedApps' key missing or not an object in role config for user ${user || 'undefined'}. Setting to null.`);
+        dispatch({ field: 'allowedAppsConfig', value: null }); // 明确设为 null
       }
+    } catch (error) {
+      console.error(`[Role Init] Error processing role config for user ${user || 'undefined'}:`, error);
+      dispatch({ field: 'allowedAppsConfig', value: null }); // 出错时设为 null
     }
-  }, [user]);
+
+    // 如果 user 有实际值 (非 null, undefined, 空字符串)，则更新 context 中的 user 状态
+    if (user) {
+       dispatch({ field: 'user', value: user });
+    } else {
+      // 当 user 为 falsy 时，可以考虑保持 HomeContext 中的 user 为 'unknown' (initialState 的默认值)
+      // 或者取消注释下一行以显式更新为 'unknown'
+      // dispatch({ field: 'user', value: 'unknown' });
+    }
+
+    // --- 角色特定 Folders/Chats 加载逻辑已被移除 --- 
+
+  }, [user, dispatch]); // 依赖项 user 和 dispatch
 
   const [showSidebar, setShowSidebar] = useState<boolean>(false);
 
@@ -836,7 +826,7 @@ const Home = ({
       if (selectedConversation.modelName) {
         // 如果对话记录了模型名称，使用它
         targetModelName = selectedConversation.modelName;
-        console.log(`[Sync Model] 全局对话 ${selectedConversation.id} 选中，使用其记录的模型: ${targetModelName}`);
+        // console.log(`[Sync Model] 全局对话 ${selectedConversation.id} 选中，使用其记录的模型: ${targetModelName}`);
       } else {
         // 如果是旧的全局对话没有记录模型名称，使用默认模型
         targetModelName = defaultModelName;

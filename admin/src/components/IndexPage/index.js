@@ -72,7 +72,7 @@ const IndexPage = () => {
                     currentCards.push(cardId);
                 }
                 newState[folderKey] = currentCards; // Ensure folderKey exists
-            } else {
+                    } else {
                 // Remove card
                 const index = currentCards.indexOf(cardId);
                 if (index > -1) {
@@ -81,9 +81,9 @@ const IndexPage = () => {
                 // If no cards left for this app, remove the app key
                 if (currentCards.length === 0) {
                     delete newState[folderKey];
-                } else {
+                        } else {
                     newState[folderKey] = currentCards;
-                }
+                        }
             }
             return newState;
         });
@@ -105,9 +105,9 @@ const IndexPage = () => {
 
             if (response.ok && result.success) {
                 message.success('学生可见应用配置保存成功'); // Changed message to Chinese
-            } else {
+                    } else {
                 throw new Error(result.message || '保存配置失败');
-            }
+                    }
         } catch (error) {
             console.error("Error saving student config:", error);
             message.error(`保存失败: ${error.message}`);
@@ -122,7 +122,7 @@ const IndexPage = () => {
         const allowedCardsForApp = allowedApps[folderKey] || [];
         // Ensure allCardIds calculation handles cases where cards might be missing
         const allCardIds = appData?.cards?.map(c => c.cardId) || []; 
-        
+
         // Ensure allCardIds is not empty before proceeding with checks if needed
         if (allCardIds.length === 0) {
              // If an app has no cards defined in dify_keys, its state depends only on whether the key exists in allowedApps
@@ -153,8 +153,8 @@ const IndexPage = () => {
                     disabled={loading || Object.keys(availableAppsData).length === 0}
                 >
                     保存配置
-                </Button>
-                
+            </Button>
+
                 {Object.keys(availableAppsData).length === 0 && !loading ? (
                     <Text>没有可配置的应用。</Text>
                 ) : (
@@ -207,7 +207,7 @@ const IndexPage = () => {
                     disabled={loading || Object.keys(availableAppsData).length === 0}
                  >
                     保存配置
-                 </Button>
+        </Button>
             </Card>
         </Spin>
     );

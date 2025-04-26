@@ -1,3 +1,21 @@
 {
-  "allowedApps": {}
+  "allowedApps": {
+    "campusAssistant": [
+      "ca-network-qa",
+      "ca-teacher-qa",
+      "ca-student-qa",
+      "ca-freshman-helper"
+    ],
+    "courseHelper": [
+      "ch-swe-test",
+      "ch-oss-dev"
+    ],
+    "deepseek": [
+      "ds-network-search",
+      "ds-campus-kb",
+      "ds-academic-search",
+      "ds-ai-tutor",
+      "ds-logistics-assistant"
+    ]
+  }
 }

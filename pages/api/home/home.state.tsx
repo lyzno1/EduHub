@@ -4,7 +4,6 @@ import { FolderInterface } from '@/types/folder';
 import { OpenAIModel, OpenAIModelID } from '@/types/openai';
 import { OpenAIModels, fallbackModelID } from '@/types/openai';
 import { PluginKey } from '@/types/plugin';
-import { Prompt } from '@/types/prompt';
 import { DifyModelConfig } from '@/types/dify';
 
 // HomeInitialState接口包含的属性
