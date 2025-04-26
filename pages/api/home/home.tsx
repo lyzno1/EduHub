@@ -57,6 +57,7 @@ export interface AppConfig {
   apiKey: string;
   apiUrl?: string;
   icon: JSX.Element;
+  folderKey?: string;
 }
 
 // Define Dify related types
@@ -103,7 +104,7 @@ const Home = ({
   // ADD useEffect to load and process configs on mount
   useEffect(() => {
     try {
-      const loadedFolderConfigs = difyConfigService.getAllFolderConfigs();
+      const loadedFolderConfigs: Record<string, DifyFolderConfig> = difyConfigService.getAllFolderConfigs();
       
       const generatedAppConfigs: Record<number, AppConfig> = {};
       
@@ -124,10 +125,12 @@ const Home = ({
           apiUrl: process.env.NEXT_PUBLIC_DIFY_APP_GENERIC_API_URL || 
                   firstCard?.difyConfig?.apiUrl, // Will be undefined if firstCard or difyConfig is missing
           icon: icon,
+          folderKey: folder.folderKey,
         };
       });
       
       setAppConfigsInState(generatedAppConfigs);
+      console.log("[Home Init] Generated App Configs with Folder Keys:", generatedAppConfigs);
 
     } catch (error) {
         console.error("[Home Init] Error processing folder configs:", error);

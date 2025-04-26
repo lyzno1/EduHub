@@ -129,7 +129,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     handleSelectOrStartAppConversation,
     appConfigs,
   } = useContext(HomeContext);
-  const { conversations, selectedConversation, activeAppId } = state;
+  const { conversations, selectedConversation, activeAppId, allowedAppsConfig } = state;
 
   useEffect(() => {
     const checkMobile = () => {
@@ -316,18 +316,36 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
         console.warn("[SidebarNav] appConfigs provided by context is not a valid object:", appConfigs);
         return [];
     }
-    
+
     const allAppConfigsArray = Object.values(appConfigs);
-    
-    return allAppConfigsArray.map((config: AppConfig, index: number) => {
+
+    // 在映射前进行过滤
+    const filteredApps = allAppConfigsArray.filter(appConfig => {
+      // 1. 直接从 appConfig 获取 FolderKey
+      const folderKey = appConfig.folderKey;
+
+      if (!folderKey) {
+         // 如果 folderKey 不存在于 AppConfig 中，可能需要警告或默认隐藏
+         console.warn(`SidebarNav: folderKey missing for appId ${appConfig.id}. Hiding app.`);
+         return false; // 没有 folderKey，无法判断权限，隐藏
+      }
+
+      // 2. 根据 allowedAppsConfig 判断
+      // 如果 allowedAppsConfig 为 null，表示无限制（或未加载完成），显示所有应用
+      // 如果 allowedAppsConfig 不为 null，检查 folderKey 是否是其键
+      return allowedAppsConfig === null || (allowedAppsConfig && allowedAppsConfig.hasOwnProperty(folderKey));
+    });
+
+    // 对过滤后的应用进行颜色分配和映射
+    return filteredApps.map((config: AppConfig, index: number) => {
       const bgColor = sidebarBgColorCycle[index % sidebarBgColorCycle.length];
-      
       return {
         ...config,
         color: bgColor,
+        icon: config.icon || <IconRobot size={18}/> // 提供默认图标
       };
     });
-  }, [appConfigs]);
+  }, [appConfigs, allowedAppsConfig]);
 
   // 新增：根据展开状态决定实际渲染的应用列表
   const appsToRender = useMemo(() => {
@@ -404,7 +422,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
                 <button
                   key={app.id}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 group ${
-                    activeAppId === app.id 
+                    activeAppId === app.id && !selectedConversation 
                       ? 'bg-gray-200 dark:bg-gray-700 font-medium'
                       : ''
                   }`}
@@ -414,10 +432,15 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
                     {app.icon}
                   </div>
                   <span className={`text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 group-hover:text-gray-900 dark:group-hover:text-white ${
-                    activeAppId === app.id ? 'text-gray-900 dark:text-white' : ''
+                    activeAppId === app.id && !selectedConversation ? 'text-gray-900 dark:text-white' : ''
                   }`}>{app.name}</span>
                 </button>
               ))}
+              {dynamicApplications.length === 0 && (
+                <div className="text-center text-sm text-gray-500 dark:text-gray-400 py-2">
+                  无可用应用
+                </div>
+              )}
             </div>
           </div>
 
