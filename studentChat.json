@@ -16,6 +16,15 @@
       "ds-academic-search",
       "ds-ai-tutor",
       "ds-logistics-assistant"
+    ],
+    "teacherAssistant": [
+      "ta-assignment-ideas",
+      "ta-student-tutoring",
+      "ta-concept-explanation",
+      "ta-lecture-design",
+      "ta-lesson-plan",
+      "ta-quiz-generation",
+      "ta-meeting-summary"
     ]
   }
 }

@@ -671,7 +671,7 @@ const Home = ({
       saveConversation(savedConversations[0]);
     } else {
        // 首次加载无历史记录：创建并绑定新对话
-       console.log('[Debug useEffect] No conversations found, creating default new conversation.');
+      //  console.log('[Debug useEffect] No conversations found, creating default new conversation.');
        const newConversation: Conversation = {
          id: uuidv4(),
          name: t('New Conversation'),
@@ -723,7 +723,7 @@ const Home = ({
     const isTeacher = user && user.length === 8;
     const roleConfig = isTeacher ? teacherChat : studentChat;
     // 使用 user || 'undefined' 以便在日志中清晰显示未定义状态
-    console.log(`[Role Init] User: ${user || 'undefined'}, Role: ${isTeacher ? 'Teacher' : 'Student'}, Loading config:`, roleConfig);
+    // console.log(`[Role Init] User: ${user || 'undefined'}, Role: ${isTeacher ? 'Teacher' : 'Student'}, Loading config:`, roleConfig);
 
     try {
       // 验证并设置 allowedAppsConfig
@@ -745,7 +745,7 @@ const Home = ({
         // console.log(`[Role Init] Successfully loaded allowedAppsConfig for user ${user || 'undefined'}:`, validConfig);
 
       } else {
-        console.warn(`[Role Init] 'allowedApps' key missing or not an object in role config for user ${user || 'undefined'}. Setting to null.`);
+        // console.warn(`[Role Init] 'allowedApps' key missing or not an object in role config for user ${user || 'undefined'}. Setting to null.`);
         dispatch({ field: 'allowedAppsConfig', value: null }); // 明确设为 null
       }
     } catch (error) {
@@ -838,7 +838,7 @@ const Home = ({
     } else {
       // 如果选中的是应用对话，重置全局模型状态为默认值
       targetModelName = defaultModelName;
-      console.log(`[Sync Model] 应用对话 ${selectedConversation.id} (appId: ${selectedConversation.appId}) 选中，重置全局模型为默认: ${targetModelName}`);
+      // console.log(`[Sync Model] 应用对话 ${selectedConversation.id} (appId: ${selectedConversation.appId}) 选中，重置全局模型为默认: ${targetModelName}`);
     }
     
     // 仅当计算出的目标模型名称与当前状态不同时才更新，避免不必要的重渲染

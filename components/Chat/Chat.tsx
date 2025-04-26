@@ -434,7 +434,7 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
           if (chatStream.conversationId && chatStream.conversationId !== conversationIdFromStream) {
               conversationIdFromStream = chatStream.conversationId;
               difyIdUpdated = true;
-              console.log(`[Card Send Stream] Received/Confirmed Dify Conversation ID: ${conversationIdFromStream}`);
+              // console.log(`[Card Send Stream] Received/Confirmed Dify Conversation ID: ${conversationIdFromStream}`);
           }
 
           // 构建更新后的对话对象
@@ -483,7 +483,7 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
              setModelWaiting(false);
             return;
           }
-          console.log('[Card Send Stream] Message processing complete');
+          // console.log('[Card Send Stream] Message processing complete');
           homeDispatch({ field: 'messageIsStreaming', value: false });
           setModelWaiting(false);
 
@@ -535,7 +535,7 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
           saveConversation(finalConversationToSave);
           saveConversations(finalUpdatedList);
 
-          console.log('[Card Send Complete] Conversation saved:', finalConversationToSave.id, finalConversationToSave.name);
+          // console.log('[Card Send Complete] Conversation saved:', finalConversationToSave.id, finalConversationToSave.name);
           // 清除输入框内容 (如果需要)
           // setContent(''); 
         });
