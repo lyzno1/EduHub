@@ -1904,3 +1904,121 @@ app.post('/updateMetadata', (req, res) => {
         res.json({ success: true, message: '元数据更新成功', data: newMetadata });
     });
 });
+
+// ######## NEW APIs for App/Card Configuration ########
+
+// GET /api/available-apps: Reads dify_keys.json and returns non-global apps/cards
+app.get('/api/available-apps', (req, res) => {
+    fs.readFile(dify_keys, 'utf8', (err, data) => {
+        if (err) {
+            console.error("Error reading dify_keys.json:", err);
+            return res.status(500).send('Error reading available apps data');
+        }
+        try {
+            const allApps = JSON.parse(data);
+            const availableApps = {};
+            // Filter out 'global' and extract needed info
+            Object.keys(allApps).forEach(folderKey => {
+                if (folderKey !== 'global') {
+                    const appData = allApps[folderKey];
+                    availableApps[folderKey] = {
+                        displayName: appData.displayName || folderKey,
+                        cards: (appData.cards || []).map(card => ({ // Ensure cards array exists
+                            cardId: card.cardId,
+                            name: card.name,
+                            iconName: card.iconName
+                            // Add other fields if needed by frontend display
+                        }))
+                    };
+                }
+            });
+            res.json(availableApps);
+        } catch (parseError) {
+            console.error("Error parsing dify_keys.json for available apps:", parseError);
+            res.status(500).send('Error processing available apps data');
+        }
+    });
+});
+
+// Helper function to read config JSON safely
+const readConfigJson = (filePath, res, callback) => {
+    fs.readFile(filePath, 'utf8', (err, data) => {
+        if (err) {
+            // If file doesn't exist, return the default structure
+            if (err.code === 'ENOENT') {
+                console.warn(`${path.basename(filePath)} not found, returning default structure.`);
+                return callback(null, { allowedApps: {} });
+            }
+            console.error(`Error reading ${path.basename(filePath)}:`, err);
+            return res.status(500).send(`Error reading ${path.basename(filePath)}`);
+        }
+        try {
+            const jsonData = JSON.parse(data);
+            // Basic validation: ensure allowedApps is an object
+            if (typeof jsonData.allowedApps !== 'object' || jsonData.allowedApps === null) {
+                 console.error(`Invalid structure in ${path.basename(filePath)}: allowedApps is not an object.`);
+                 // Return default structure on invalid format
+                 return callback(null, { allowedApps: {} }); 
+            }
+            callback(null, jsonData);
+        } catch (parseError) {
+            console.error(`Error parsing ${path.basename(filePath)}:`, parseError);
+            // Return default structure on parse error
+            callback(null, { allowedApps: {} }); 
+            // Alternatively, send error: res.status(500).send(`Error parsing ${path.basename(filePath)}`);
+        }
+    });
+};
+
+// GET /api/student-config: Reads studentChat.json
+app.get('/api/student-config', (req, res) => {
+    readConfigJson(studentChatPath, res, (err, data) => {
+        if (err) { /* Error already handled by readConfigJson sending response */ return; }
+        res.json(data);
+    });
+});
+
+// GET /api/teacher-config: Reads teacherChat.json
+app.get('/api/teacher-config', (req, res) => {
+    readConfigJson(teacherChatPath, res, (err, data) => {
+        if (err) { /* Error already handled by readConfigJson sending response */ return; }
+        res.json(data);
+    });
+});
+
+// Helper function to write config JSON safely
+const writeConfigJson = (filePath, data, res, callback) => {
+     // Basic validation of incoming data
+     if (typeof data !== 'object' || data === null || typeof data.allowedApps !== 'object' || data.allowedApps === null) {
+        console.error(`Invalid data format received for ${path.basename(filePath)}`);
+        return res.status(400).send(`Invalid data format for ${path.basename(filePath)}.`);
+    }
+    // Ensure only allowedApps is written
+    const dataToWrite = { allowedApps: data.allowedApps }; 
+
+    fs.writeFile(filePath, JSON.stringify(dataToWrite, null, 2), 'utf8', (err) => {
+        if (err) {
+            console.error(`Error writing ${path.basename(filePath)}:`, err);
+            return res.status(500).send(`Error writing ${path.basename(filePath)}`);
+        }
+        callback();
+    });
+};
+
+// POST /api/update-student-config: Writes to studentChat.json
+app.post('/api/update-student-config', (req, res) => {
+    const newConfig = req.body;
+    writeConfigJson(studentChatPath, newConfig, res, () => {
+        res.json({ success: true, message: 'Student configuration updated successfully.' });
+    });
+});
+
+// POST /api/update-teacher-config: Writes to teacherChat.json
+app.post('/api/update-teacher-config', (req, res) => {
+    const newConfig = req.body;
+    writeConfigJson(teacherChatPath, newConfig, res, () => {
+        res.json({ success: true, message: 'Teacher configuration updated successfully.' });
+    });
+});
+
+// ######## END NEW APIs ########
