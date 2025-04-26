@@ -159,9 +159,9 @@ export const ChatSettingsModal: React.FC<Props> = ({
           {/* 其他设置选项可在此处添加 */}
           <div className="border-t border-gray-200 dark:border-gray-700 pt-5">
             <h3 className="text-md font-medium mb-3 text-gray-800 dark:text-gray-200">其他设置</h3>
-            <div className="bg-gray-50 dark:bg-gray-750 rounded-md p-4">
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4">
               <p className="text-gray-600 dark:text-gray-300 font-medium">更多功能</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">...</p>
+              {/* <p className="text-sm text-gray-500 dark:text-gray-400">...</p> */}
             </div>
           </div>
         </div>
