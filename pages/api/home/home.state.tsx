@@ -20,8 +20,6 @@ export interface HomeInitialState {
   conversations: Conversation[];
   selectedConversation: Conversation | undefined;
   currentMessage: Message | undefined;
-  prompts: Prompt[];
-  activePromptID: string;
   temperature: number;
   showChatbar: boolean;
   showPromptbar: boolean;
@@ -38,6 +36,7 @@ export interface HomeInitialState {
   cardInputPrompt: string;
   availableGlobalModels: DifyModelConfig[];
   selectedGlobalModelName: string | null;
+  allowedAppsConfig: Record<string, string[]> | null;
 }
 
 // 首页的初始状态
@@ -53,8 +52,6 @@ export const initialState: HomeInitialState = {
   conversations: [],
   selectedConversation: undefined,
   currentMessage: undefined,
-  prompts: [],
-  activePromptID: "",
   temperature: 1,
   showPromptbar: true,
   showChatbar: true,
@@ -71,4 +68,5 @@ export const initialState: HomeInitialState = {
   cardInputPrompt: '',
   availableGlobalModels: [],
   selectedGlobalModelName: null,
+  allowedAppsConfig: null,
 };

@@ -22,12 +22,10 @@ import {
   updateConversation,
 } from '@/utils/app/conversation';
 import { saveFolders } from '@/utils/app/folders';
-import { savePrompts } from '@/utils/app/prompts';
 import { getSettings } from '@/utils/app/settings';
 
 import { Conversation, Message } from '@/types/chat';
 import { FolderInterface, FolderType } from '@/types/folder';
-import { Prompt } from '@/types/prompt';
 import { DifyModelConfig } from '@/types/dify';
 
 import { Chat } from '@/components/Chat/Chat';
@@ -40,7 +38,6 @@ import { ChatSettingsModal } from '@/components/Settings/ChatSettingsModal';
 import HomeContext from './home.context';
 import { HomeInitialState, initialState } from './home.state';
 
-import defaultPrompt from '@/prompt.json';
 import studentChat from '@/studentChat.json';
 import teacherChat from '@/teacherChat.json';
 import whitelist from '@/whitelist.json';
@@ -145,7 +142,6 @@ const Home = ({
       folders,
       conversations,
       selectedConversation,
-      prompts,
       activeAppId,
       availableGlobalModels,
       selectedGlobalModelName,
@@ -198,20 +194,6 @@ const Home = ({
 
     dispatch({ field: 'conversations', value: updatedConversations });
     saveConversations(updatedConversations);
-
-    const updatedPrompts: Prompt[] = prompts.map((p) => {
-      if (p.folderId === folderId) {
-        return {
-          ...p,
-          folderId: null,
-        };
-      }
-
-      return p;
-    });
-
-    dispatch({ field: 'prompts', value: updatedPrompts });
-    savePrompts(updatedPrompts);
   };
 
   const handleUpdateFolder = (folderId: string, name: string) => {
@@ -642,15 +624,6 @@ const Home = ({
       }
     }
 
-    const promptsStr = localStorage.getItem('prompts');
-    if (promptsStr) {
-      try {
-        dispatch({ field: 'prompts', value: JSON.parse(promptsStr) });
-      } catch (e) {
-        dispatch({ field: 'prompts', value: [] });
-      }
-    }
-
     let savedConversations: Conversation[] = [];
     const conversationHistoryStr = localStorage.getItem('conversationHistory');
     if (conversationHistoryStr) {
@@ -753,14 +726,7 @@ const Home = ({
         }),
       );
 
-      const PromptFolders: FolderInterface[] = defaultPrompt.Folders.map(
-        (folder) => ({
-          ...folder,
-          type: 'prompt',
-        }),
-      );
-
-      const defaultFolders = [...chatFolders, ...PromptFolders];
+      const defaultFolders = [...chatFolders];
       dispatch({ field: 'folders', value: defaultFolders });
 
       const defaultConversations: Conversation[] = defaultData.Chats.map(
@@ -804,12 +770,6 @@ const Home = ({
         const parsedConversations = JSON.parse(savedConversations);
         dispatch({ field: 'conversations', value: parsedConversations });
       }
-
-      const loadedPrompt: Prompt[] = defaultPrompt.Prompts.map((prompt) => ({
-        ...prompt,
-        deletable: false,
-      }));
-      dispatch({ field: 'prompts', value: loadedPrompt });
     }
   }, [user]);
 
