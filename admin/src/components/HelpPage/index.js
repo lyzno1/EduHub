@@ -55,12 +55,12 @@ const HelpPage = () => {
         };
 
         fetch(`${API_URL}/updateMetadata`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
             body: JSON.stringify(metadataToSave),
-        })
+            })
         .then(response => response.json())
         .then(data => {
             if(data.success) {
@@ -78,7 +78,7 @@ const HelpPage = () => {
                 }
             } else {
                 message.error(data.message || '保存关于信息失败');
-            }
+        }
         })
         .catch(error => {
             console.error('保存关于信息失败:', error);

@@ -1,10 +1,10 @@
 {
   "allowedApps": {
     "campusAssistant": [
-      "ca-network-qa",
-      "ca-teacher-qa",
       "ca-student-qa",
-      "ca-freshman-helper"
+      "ca-freshman-helper",
+      "ca-network-qa",
+      "ca-teacher-qa"
     ],
     "courseHelper": [
       "ch-swe-test",
@@ -16,15 +16,6 @@
       "ds-academic-search",
       "ds-ai-tutor",
       "ds-logistics-assistant"
-    ],
-    "teacherAssistant": [
-      "ta-assignment-ideas",
-      "ta-student-tutoring",
-      "ta-concept-explanation",
-      "ta-lecture-design",
-      "ta-lesson-plan",
-      "ta-quiz-generation",
-      "ta-meeting-summary"
     ]
   }
 }

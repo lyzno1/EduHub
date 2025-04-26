@@ -58,25 +58,46 @@ const themeClasses: Record<ThemeColor, {
 
 export const AppPageTemplate: React.FC<Props> = ({ config, themeColor, iconMap }) => {
   const {
-    state: { conversations, selectedCardId, activeAppId },
+    state: { conversations, selectedCardId, activeAppId, allowedAppsConfig },
     handleSelectConversation,
     dispatch,
   } = useContext(HomeContext);
 
-  // Process cards to include default prompts
+  // Process cards to include default prompts, now with filtering based on allowedAppsConfig
   const processedCards = useMemo(() => {
     const appPrompts = prompts.appCardPrompts as AppCardPromptsType;
     const folderKey = config.folderKey;
+    const originalCards = config.cards || []; // Ensure cards is an array
 
-    // console.log(`[AppPageTemplate - ${folderKey}] Processing cards.`); // Optional generic log
+    // console.log(`[AppPageTemplate - ${folderKey}] Processing cards. Allowed config:`, allowedAppsConfig); // Optional log
 
-    return config.cards.map((card: DifyAppCardConfig): ProcessedAppCard => ({
+    // Determine the list of allowed card IDs for the current folderKey based on the role config
+    const allowedCardIds = (allowedAppsConfig && allowedAppsConfig.hasOwnProperty(folderKey))
+      ? allowedAppsConfig[folderKey]
+      : undefined; // If folderKey not in config or config is null, no cards are explicitly allowed
+
+    // Filter the original cards based on the allowed IDs
+    const filteredCards = originalCards.filter(card => {
+      // If allowedCardIds is undefined (meaning role config is null or doesn't list this folder),
+      // then no cards are allowed for this folder under the current role.
+      if (!allowedCardIds) {
+        // console.log(`[AppPageTemplate - ${folderKey}] No allowed cards defined for this role or role config missing.`); // Optional log
+        return false;
+      }
+      // Otherwise, check if the card's ID is in the allowed list
+      return allowedCardIds.includes(card.cardId);
+    });
+
+    // console.log(`[AppPageTemplate - ${folderKey}] Filtered cards count: ${filteredCards.length}`, filteredCards); // Optional log
+
+    // Map the *filtered* cards to add default prompts and other necessary info
+    return filteredCards.map((card: DifyAppCardConfig): ProcessedAppCard => ({
       ...card,
       appId: config.appId,
       appName: folderKey,
       defaultPrompt: appPrompts[folderKey]?.[card.cardId] || ''
     }));
-  }, [config]);
+  }, [config, allowedAppsConfig]); // Added allowedAppsConfig to dependencies
 
   const handleCardClick = (card: ProcessedAppCard) => {
     // Ensure interaction only happens if the current app page matches the active app
