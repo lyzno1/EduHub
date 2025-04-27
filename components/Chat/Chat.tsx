@@ -842,7 +842,6 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
            setModelWaiting(false);
           return;
         }
-        console.log('Message processing complete');
         
         homeDispatch({ field: 'messageIsStreaming', value: false });
         setModelWaiting(false);
@@ -892,8 +891,6 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
         );
         homeDispatch({ field: 'conversations', value: finalConversationsList });
         saveConversations(finalConversationsList);
-
-        console.log('Conversation saved:', finalConversation.id, finalConversation.name);
 
         // Clear input after successful send
         setContent(''); 

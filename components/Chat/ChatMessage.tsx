@@ -2,9 +2,6 @@ import {
   IconCheck,
   IconCopy,
   IconEdit,
-  IconAtom,
-  IconChevronUp,
-  IconChevronDown,
 } from '@tabler/icons-react';
 
 import React, { useState, useEffect, FC, memo, useContext, useRef } from 'react';
@@ -25,285 +22,110 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
 import ReactMarkdown, { Options, Components as ReactMarkdownComponents } from 'react-markdown';
+import ReasoningBlock from './ReasoningBlock';
 
-// Define the new ReasoningBox component
-interface ReasoningBoxProps {
-  children?: React.ReactNode;
-  lightMode: string;
-  isStreaming: boolean;
-}
+// --- Revised Preprocessing Function ---
+const preprocessReasoningTags = (content: string): string => {
+  if (typeof content !== 'string') return content;
 
-const ReasoningBox: FC<ReasoningBoxProps> = ({ children, lightMode, isStreaming }) => {
-  const [isOpen, setIsOpen] = useState(true);
-  const [ellipsis, setEllipsis] = useState('');
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  let processedContent = content;
 
-  useEffect(() => {
-    if (isStreaming) {
-      intervalRef.current = setInterval(() => {
-        setEllipsis(prev => {
-          if (prev.length >= 3) return '.';
-          return prev + '.';
-        });
-      }, 500);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      setEllipsis('');
-    }
+  // 1. Replace opening <think> specifically, ensuring newline if present
+  // Tries to match <think> possibly followed by a newline
+  processedContent = processedContent.replace(/<think>(\n)?/g, '<details data-reasoning-block="true">\n');
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [isStreaming]);
+  // 2. Replace closing </think> specifically, ensuring newline and adding flag
+  // Tries to match newline (optional) followed by </think>
+  processedContent = processedContent.replace(/(\n)?<\/think>/g, '\n[ENDREASONINGFLAG]</details>');
 
-  const handleToggle = () => {
-    if (isStreaming) {
-      return;
-    }
-    setIsOpen(!isOpen);
-  };
 
-  return (
-    <div
-      className={`reasoning-box-container my-2 bg-white rounded-lg border border-gray-200 shadow-sm dark:bg-gray-850 dark:border-gray-700/40`}
-    >
-      {/* Clickable Summary part */}
-      <div
-        className={`reasoning-box-header flex items-center justify-between px-3 py-2 list-none 
-                   ${isStreaming ? 'cursor-default' : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50'} 
-                   bg-gray-50 dark:bg-gray-700/30 
-                   border-b border-gray-200 dark:border-gray-700/40 
-                   font-medium text-sm text-gray-600 dark:text-gray-300 transition-colors rounded-t-md 
-                   select-none`}
-        onClick={handleToggle}
-      >
-        <span className="flex items-center gap-2">
-          <IconAtom size={16} className="text-blue-500" />
-          {isStreaming ? (
-            `正在推理${ellipsis}`
-          ) : (
-            "已完成推理"
-          )}
-        </span>
-        {!isStreaming && (isOpen ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />)}
-      </div>
+   // 3. Handle potential $$..$$ within the block for KaTeX - Run AFTER tag conversion
+   // Target content within the marked <details> blocks
+   // This regex needs to be robust against partial matches during streaming
+   processedContent = processedContent.replace(/(<details data-reasoning-block="true"[^>]*>)([\s\S]*?)(\[ENDREASONINGFLAG\]<\/details>)/g, (match, startTag, innerContent, endTag) => {
+        // Escape $$ only within the inner content part
+       const katexProcessed = innerContent.replaceAll(/\$\$([\s\S]*?)\$\$/g, '`$$$$$1$$$$`');
+       return `${startTag}${katexProcessed}${endTag}`; // Reconstruct with the flag and closing tag
+   });
 
-      {/* Content area - Apply animation classes here */}
-      <div 
-        className={`reasoning-box-content overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out 
-                   ${isStreaming 
-                      ? 'opacity-100' /* No max-h limit during streaming */ 
-                      : isOpen 
-                        ? 'max-h-[5000px] opacity-100' /* Use a much larger max-height when open */ 
-                        : 'max-h-0 opacity-0' /* Collapse when closed and not streaming */
-                    } 
-                   /* Keep original static styles below */
-                   pl-5 pr-5 py-2 border-l-4 border-gray-300 dark:border-gray-600 
-                   prose prose-sm dark:prose-invert max-w-none 
-                   [&_p]:text-gray-500 dark:[&_p]:text-gray-400 
-                   [&_li]:text-gray-500 dark:[&_li]:text-gray-400 
-                   prose-p:my-0 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 
-                   [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 
-                   bg-transparent dark:bg-transparent 
-                   mt-1 mb-1 ml-1`}
-      >
-        {children}
-      </div>
-    </div>
-  );
+
+  // IMPORTANT: We are NOT converting existing <details> tags anymore.
+  // The component mapping will ONLY handle <details> created from <think>.
+
+  return processedContent;
 };
 
-// Define components map type (only details and code needed here now)
-interface CustomComponents extends ReactMarkdownComponents {
-  details?: React.FC<any>; 
-  code?: React.FC<any>; 
-}
+// --- Function for Empty Check (Uses the stripping logic) ---
+const checkCleanedContentIsEmpty = (rawContent: string): boolean => {
+    if (typeof rawContent !== 'string') return true;
+    let cleaned = rawContent;
+    // Prioritize removing the details block structure first
+    cleaned = cleaned.replace(/<details data-reasoning-block="true"[^>]*>[\s\S]*?\[ENDREASONINGFLAG\]<\/details>/g, '');
+    // Fallback to removing think tags if details weren't found
+     if (cleaned === rawContent) {
+          cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/g, '');
+     }
+    return cleaned.trim() === '';
+};
 
-// Define ReasoningBox component (assuming it exists above or is imported)
-// interface ReasoningBoxProps { ... }
-// const ReasoningBox: FC<ReasoningBoxProps> = ({...}) => { ... };
+// --- Revised Component Mapping ---
+// Define components map type - Map 'details' created from 'think'
+interface CustomComponents extends ReactMarkdownComponents {
+  code?: React.FC<any>; 
+  details?: React.FC<any>; // Will only be used for our marked details
+}
 
 /**
  * @component StreamingMarkdownRenderer
  * 
- * Handles rendering Markdown content that might contain special block tags
- * (like <think>) requiring custom rendering within a container (ReasoningBox)
- * while supporting streaming output correctly.
- * 
- * --- How it works ---
- * 1. State (`parts`): Stores the content segmented into three parts: 
- *    `before` (content before the first special tag),
- *    `think` (content inside the first special tag found),
- *    `after` (content after the first special tag's closing tag).
- * 2. Parsing (`useEffect`): When the input `content` changes, it parses the string:
- *    - It looks for the *first* occurrence of any tag listed in `customBoxTags`.
- *    - It splits the content based on the found tag and its closing tag.
- *    - Updates the `parts` state.
- * 3. Rendering: It always renders three potential sections using MemoizedReactMarkdown:
- *    - The `before` part.
- *    - The `think` part, wrapped inside a `ReasoningBox`.
- *    - The `after` part.
- *    Empty parts simply don't render anything.
- * 4. Streaming Indicator (`▍`): Appended to the last non-empty part during streaming.
- * 
- * --- Extensibility ---
- * To add support for a new tag (e.g., `<reflect>`) that should also be rendered 
- * inside a ReasoningBox:
- * 1. Add the tag name (lowercase, without brackets) to the `customBoxTags` array 
- *    within this component's definition.
- *    Example: `const customBoxTags = ['think', 'reflect'];`
- * 2. No other changes are typically needed, as the parsing logic will automatically
- *    detect the first occurrence of any tag in the list and the rendering logic 
- *    will place its content in the ReasoningBox.
- * 
- * --- Limitations ---
- * - Only handles the *first* occurrence of a special tag in the `customBoxTags` list.
- * - Does not support nesting of these special tags.
- * - Assumes tags are lowercase in the `customBoxTags` array and performs case-insensitive matching.
+ * Preprocesses Markdown content to convert <think>/<details> into marked <details> tags
+ * with an internal [ENDREASONINGFLAG]. Renders the processed content, mapping the
+ * marked <details> tags to the ReasoningBlock component.
  */
 interface StreamingMarkdownRendererProps {
-  content: string; // Raw content string
-  isStreaming: boolean;
+  content: string; // Raw Markdown content (will be preprocessed)
   lightMode: string;
-  components: CustomComponents;
-}
-
-interface ContentParts {
-  before: string;
-  specialContent: string | null;
-  after: string;
+  components: Omit<CustomComponents, 'details'>; // Base components
 }
 
 const StreamingMarkdownRenderer: FC<StreamingMarkdownRendererProps> = ({ 
   content,
-  isStreaming,
   lightMode,
-  components 
+  components, // Base components like 'code'
 }) => {
-  const [parts, setParts] = useState<ContentParts>({ before: '', specialContent: null, after: '' });
 
-  // Effect to parse content and update parts state
-  useEffect(() => {
-    const specialTags = [
-      { name: 'think', startTag: '<think>', endTag: '</think>' },
-      { name: 'details', startTag: '<details', endTag: '</details>' },
-    ];
+  // Preprocess the content BEFORE passing to ReactMarkdown
+  const processedContent = preprocessReasoningTags(content);
 
-    let firstTagInfo: { index: number; tag: typeof specialTags[0]; actualContentStartIndex: number } | null = null;
-
-    for (const tag of specialTags) {
-      const startIndex = content.toLowerCase().indexOf(tag.startTag.toLowerCase());
-      if (startIndex !== -1) {
-        if (firstTagInfo === null || startIndex < firstTagInfo.index) {
-          let actualStartIndex = startIndex;
-          if (tag.name === 'details') {
-             const closingBracketIndex = content.indexOf('>', startIndex);
-             if (closingBracketIndex !== -1) {
-               actualStartIndex = closingBracketIndex + 1;
-             } else {
-               actualStartIndex = startIndex + tag.startTag.length; 
-             }
-          } else {
-              actualStartIndex = startIndex + tag.startTag.length;
-          }
-          
-          firstTagInfo = { index: startIndex, tag: tag, actualContentStartIndex: actualStartIndex };
-        }
+  // Define the components map for ReactMarkdown
+  const enhancedComponents: CustomComponents = {
+    ...components, // Include base components
+    // Map ONLY 'details' tag to ReasoningBlock
+    details: (props: any) => {
+      // Rely on the data attribute added during preprocessing
+      if (props['data-reasoning-block'] === 'true') {
+           // Pass lightMode and children (which contain the content + flag)
+          return <ReasoningBlock lightMode={lightMode} {...props} />;
       }
-    }
+      // Render standard details if NOT marked by us (preserves normal details usage)
+      return <details {...props}>{props.children}</details>;
+    },
+  };
 
-    let beforeContent = '';
-    let specialPartContent: string | null = null;
-    let afterContent = '';
-
-    if (firstTagInfo === null) {
-      beforeContent = content;
-    } else {
-      beforeContent = content.substring(0, firstTagInfo.index);
-      const searchStartIndex = firstTagInfo.actualContentStartIndex;
-      const endIndex = content.toLowerCase().indexOf(firstTagInfo.tag.endTag.toLowerCase(), searchStartIndex);
-
-      if (endIndex === -1) {
-        specialPartContent = content.substring(searchStartIndex);
-      } else {
-        specialPartContent = content.substring(searchStartIndex, endIndex);
-        afterContent = content.substring(endIndex + firstTagInfo.tag.endTag.length);
-      }
-
-      if (specialPartContent !== null) {
-        specialPartContent = specialPartContent.replaceAll(/\$\$([\s\S]*?)\$\$/g, '`$$$1$$`');
-      }
-    }
-
-    setParts({ before: beforeContent, specialContent: specialPartContent, after: afterContent });
-
-  }, [content]); // Depend only on content
-
-  // Determine where to place the streaming indicator
-  const streamingIndicator = isStreaming ? '' : ''; // Always empty string now
-  let beforeSuffix = '';
-  let specialContentSuffix = '';
-  let afterSuffix = '';
-
-  if (isStreaming) {
-    if (parts.after) {
-      afterSuffix = streamingIndicator;
-    } else if (parts.specialContent !== null) {
-      specialContentSuffix = streamingIndicator;
-    } else {
-      beforeSuffix = streamingIndicator;
-    }
-  }
-
+  // Render the PREPROCESSED content
   return (
-    <>
-      {/* Render part before special block */} 
-      {parts.before && (
         <MemoizedReactMarkdown
           className="prose dark:prose-invert max-w-none w-full text-gray-900 dark:text-gray-100"
           remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[rehypeKatex, rehypeRaw as any]}
-          components={components}
-        >
-          {parts.before + beforeSuffix}
+      rehypePlugins={[rehypeKatex, rehypeRaw as any]} // rehypeRaw is essential
+      components={enhancedComponents}
+    >
+      {processedContent}
         </MemoizedReactMarkdown>
-      )}
-
-      {/* Render special block if it exists */} 
-      {parts.specialContent !== null && (
-        <ReasoningBox lightMode={lightMode} isStreaming={isStreaming}>
-          <MemoizedReactMarkdown
-            className="prose dark:prose-invert max-w-none w-full text-gray-900 dark:text-gray-100"
-            remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[rehypeKatex, rehypeRaw as any]}
-            components={components}
-          >
-            {parts.specialContent + specialContentSuffix}
-          </MemoizedReactMarkdown>
-        </ReasoningBox>
-      )}
-
-      {/* Render part after special block */} 
-      {parts.after && (
-        <MemoizedReactMarkdown
-          className="prose dark:prose-invert max-w-none w-full text-gray-900 dark:text-gray-100"
-          remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[rehypeKatex, rehypeRaw as any]}
-          components={components}
-        >
-          {parts.after + afterSuffix}
-        </MemoizedReactMarkdown>
-      )}
-    </>
   );
 };
 // --- End StreamingMarkdownRenderer Component --- 
+
 
 export interface Props {
   message: Message;
@@ -315,6 +137,21 @@ export interface Props {
   userAvatar?: string;
   assistantAvatar?: string;
 }
+
+// --- cleanReasoningContent needs adjustment ---
+// Helper function ONLY for cleaning content for copying/empty checks
+// Needs to work on RAW content
+const cleanReasoningContent = (rawContent: string): string => {
+    if (typeof rawContent !== 'string') return rawContent;
+    let cleaned = rawContent;
+    // Just remove the <think> tags for cleaning
+    cleaned = cleaned.replace(/<think>([\s\S]*?)<\/think>/g, '$1');
+    // Also remove any standard details tags if they shouldn't be copied/checked
+    // cleaned = cleaned.replace(/<details[^>]*>([\s\S]*?)<\/details>/g, '$1');
+    // The ENDREASONINGFLAG should not exist in rawContent
+    return cleaned.trim();
+};
+
 
 export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lightMode, isStreaming, isWaiting, userAvatar, assistantAvatar }) => {
   const { t } = useTranslation('chat');
@@ -332,6 +169,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+   // --- Handlers remain the same ---
   const toggleEditing = () => {
     setIsEditing(!isEditing);
   };
@@ -389,24 +227,31 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
     }
   };
 
+    const copyUserMessage = () => {
+        if (!navigator.clipboard) return;
+        navigator.clipboard.writeText(message.content).then(() => {
+        setUserMessageCopied(true);
+        setTimeout(() => {
+            setUserMessageCopied(false);
+        }, 2000);
+        });
+    };
+
+  // --- Final copyOnClick (Copies the RAW content) ---
   const copyOnClick = () => {
     if (!navigator.clipboard) return;
+    const contentToCopy = message.content || ''; // Get the raw content directly
 
-    navigator.clipboard.writeText(message.content).then(() => {
+    // Log what is being copied
+    // console.log("Copying raw content:", JSON.stringify(contentToCopy));
+
+    // Remove the .replace() logic entirely
+    // const contentToCopy = rawContent.replace(/<think>([\s\S]*?)<\/think>/g, '$1').trim(); // REMOVE THIS LINE
+
+    navigator.clipboard.writeText(contentToCopy).then(() => {
       setMessageCopied(true);
       setTimeout(() => {
         setMessageCopied(false);
-      }, 2000);
-    });
-  };
-
-  const copyUserMessage = () => {
-    if (!navigator.clipboard) return;
-
-    navigator.clipboard.writeText(message.content).then(() => {
-      setUserMessageCopied(true);
-      setTimeout(() => {
-        setUserMessageCopied(false);
       }, 2000);
     });
   };
@@ -423,18 +268,15 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
   }, [isEditing]);
 
   const isUser = message.role === 'user';
-  const isEmptyAssistantMessage = !isUser && message.content === '';
 
+  // --- Use updated empty check ---
+  const isEmptyAssistantMessage = !isUser && checkCleanedContentIsEmpty(message.content || '');
   if (isEmptyAssistantMessage && !messageIsStreaming) {
     return null;
   }
 
-  const lastMessageIndex = (selectedConversation?.messages.length ?? 0) - 1;
-  const isCurrentStreamingMessage = messageIsStreaming && messageIndex === lastMessageIndex;
-
-  // Define the components mapping passed to Markdown renderers
-  // No longer needs special div handling for KaTeX
-  const markdownComponents: CustomComponents = {
+  // Define the base components mapping (passed to StreamingMarkdownRenderer)
+   const markdownComponents: Omit<CustomComponents, 'details'> = { // Exclude 'details'
     code: ({ node, inline, className, children, ...props }) => {
       const match = /language-(\w+)/.exec(className || '');
       return !inline ? (
@@ -450,14 +292,19 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
         </code>
       );
     },
+     // Add other base component mappings if needed (p, a, img...)
   };
+
 
   return (
     <div className={`flex justify-center py-3 w-full`}>
       <div className={`w-full max-w-[800px] px-2 sm:px-4`}>
         {isUser ? (
+          // --- User Message Rendering (remains the same) ---
           <div className="flex justify-end">
+            {/* ... existing user message JSX ... */}
             <div className="max-w-[75%]">
+               {/* ... existing user message JSX ... */}
               <div className="group relative">
                 {isEditing ? (
                   <div className="flex w-full flex-col">
@@ -528,22 +375,23 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
             </div>
           </div>
         ) : (
+          // --- Assistant Message Rendering ---
           <div className="w-full">
             <div className="max-w-none w-full">
+              {/* StreamingMarkdownRenderer uses preprocessing internally now */}
               <StreamingMarkdownRenderer 
                 content={message.content || ''} 
-                isStreaming={isCurrentStreamingMessage}
                 lightMode={lightMode}
                 components={markdownComponents}
               />
-
+              {/* Copy button shown when not streaming */}
               {message.content && !messageIsStreaming && (
                  <div className="relative mt-2 flex justify-start">
                    <button
                     className={`flex items-center justify-center rounded-md p-1 px-1.5 text-xs
                     text-gray-500 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700
                     transition-colors duration-200 shadow-sm`}
-                    onClick={copyOnClick} 
+                    onClick={copyOnClick} // Uses updated logic
                     data-tooltip={messagedCopied ? "已复制到剪贴板" : "复制消息内容"} 
                     data-placement="bottom"
                   >
