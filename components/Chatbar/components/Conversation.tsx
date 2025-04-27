@@ -5,6 +5,8 @@ import {
   IconTrash,
   IconX,
   IconDotsVertical,
+  IconPin,
+  IconPinnedOff,
 } from '@tabler/icons-react';
 import {
   KeyboardEvent,
@@ -92,6 +94,7 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, i
     handleSelectConversation,
     handleDeleteConversation,
     handleUpdateConversation,
+    handleTogglePinConversation,
   } = useContext(HomeContext);
 
   // --- State Management ---
@@ -150,6 +153,14 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, i
       // 桌面端不需要显示底部操作表
       setShowMobileBottomSheet(false);
     }
+  };
+
+  // Add handler for pinning/unpinning
+  const handleTogglePin = () => {
+    handleTogglePinConversation(conversation.id);
+    // Close menus immediately after action
+    setShowMenu(false); 
+    triggerCloseMobileSheet(); 
   };
 
   // 开始关闭动画 (替代直接关闭)
@@ -385,7 +396,8 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, i
           onClick={() => handleSelectConversation(conversation)}
           disabled={messageIsStreaming}
         >
-          {icon}
+          {conversation.pinned && <IconPin size={14} className="text-blue-500 flex-shrink-0" />}
+          {!conversation.pinned && icon}
         <div className="relative flex-1 overflow-hidden text-left text-[13px] leading-5 py-0.5 flex items-center min-w-0">
           {/* --- 修改：使用计算好的 displayName --- */}
           <span className="block overflow-hidden whitespace-nowrap text-ellipsis">{displayName}</span>
@@ -418,6 +430,13 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, i
           className="fixed bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 min-w-[120px] z-50"
           style={{ top: menuPosition.top, left: menuPosition.left }}
         >
+          <button 
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            onClick={handleTogglePin}
+          >
+            {conversation.pinned ? <IconPinnedOff size={16} /> : <IconPin size={16} />}
+            <span>{conversation.pinned ? '取消固定' : '固定对话'}</span>
+          </button>
           <button 
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
             onClick={handleRename}
@@ -523,14 +542,23 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, i
           >
             {/* 可选的拖动指示器 */}
             <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-3"></div>
-            {/* 操作按钮 */}
+            {/* Add Pin/Unpin Button */}
             <button 
-              className="w-full flex items-center gap-3 px-3 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+              className="w-full flex items-center gap-3 px-3 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+              onClick={handleTogglePin}
+            >
+              {conversation.pinned ? <IconPinnedOff size={20} /> : <IconPin size={20} />}
+              <span>{conversation.pinned ? '取消固定' : '固定对话'}</span>
+            </button>
+            {/* Delete Button */}
+            <button 
+              className="w-full flex items-center gap-3 px-3 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md mt-2"
               onClick={handleDelete}
             >
               <IconTrash size={20} />
               <span>删除对话</span>
             </button>
+            {/* Rename Button */}
             <button 
               className="w-full flex items-center gap-3 px-3 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md mt-2"
               onClick={handleRename}

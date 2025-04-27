@@ -556,6 +556,36 @@ const Home = ({
     saveConversations(updatedConversations);
   };
 
+  // Add the handleTogglePinConversation function
+  const handleTogglePinConversation = (conversationId: string) => {
+    const targetConversation = conversations.find(conv => conv.id === conversationId);
+    if (!targetConversation) return; // Conversation not found
+
+    const updatedConversation = {
+      ...targetConversation,
+      pinned: !targetConversation.pinned, // Toggle the pinned status
+    };
+
+    const updatedConversations = conversations.map(conv =>
+      conv.id === conversationId ? updatedConversation : conv
+    );
+
+    // Update state
+    dispatch({ field: 'conversations', value: updatedConversations });
+
+    // Update selected conversation if it was the one pinned/unpinned
+    if (selectedConversation?.id === conversationId) {
+      dispatch({ field: 'selectedConversation', value: updatedConversation });
+    }
+
+    // Save to local storage
+    saveConversations(updatedConversations);
+    // Also save the potentially updated selected conversation
+    if (selectedConversation?.id === conversationId) {
+      saveConversation(updatedConversation);
+    }
+  };
+
   // EFFECTS  --------------------------------------------
 
   useEffect(() => {
@@ -862,6 +892,7 @@ const Home = ({
         handleUpdateFolder,
         handleSelectOrStartAppConversation,
         startConversationFromActiveApp,
+        handleTogglePinConversation,
       }}
     >
       <Head>

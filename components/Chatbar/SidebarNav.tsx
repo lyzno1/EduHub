@@ -205,6 +205,39 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     });
   }, [appConfigs, allowedAppsConfig]);
 
+  // Sort conversations: pinned first, then by original order (implicitly by time)
+  const sortedConversations = useMemo(() => {
+    return [...conversations].sort((a, b) => {
+      // Pinned items come first
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      // Otherwise, maintain original relative order (or add other criteria like date)
+      return 0; // Keep original order among pinned/unpinned groups
+    });
+  }, [conversations]);
+
+  // Apply search filtering AFTER sorting by pin status
+  const filteredSortedConversations = useMemo(() => {
+    if (!isSearching) return sortedConversations;
+    return sortedConversations.filter(conversation =>
+      conversation.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [isSearching, searchTerm, sortedConversations]);
+
+  // Apply display limit AFTER sorting and filtering
+  const conversationsToRender = useMemo(() => {
+    const listToLimit = filteredSortedConversations; // Use the filtered & sorted list
+    // Always show all results when searching
+    if (isSearching) {
+      return listToLimit;
+    }
+    // Show limited or all based on expansion state
+    if (isConversationListExpanded) {
+      return listToLimit;
+    }
+    return listToLimit.slice(0, INITIAL_CONVERSATION_DISPLAY_LIMIT);
+  }, [filteredSortedConversations, isSearching, isConversationListExpanded]);
+
   // 新增：根据展开状态决定实际渲染的应用列表
   const appsToRender = useMemo(() => {
       if (isAppListExpanded) {
@@ -213,20 +246,6 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
       // 收起时只显示前 N 个
       return dynamicApplications.slice(0, INITIAL_APP_DISPLAY_LIMIT); 
   }, [dynamicApplications, isAppListExpanded]);
-
-  // 新增：根据展开状态决定实际渲染的对话列表
-  const conversationsToRender = useMemo(() => {
-    // 搜索时显示所有搜索结果
-    if (isSearching) {
-      return displayedConversations;
-    }
-    // 列表展开时显示所有对话
-    if (isConversationListExpanded) {
-      return conversations;
-    }
-    // 默认显示限定数量的对话
-    return conversations.slice(0, INITIAL_CONVERSATION_DISPLAY_LIMIT);
-  }, [conversations, displayedConversations, isSearching, isConversationListExpanded]);
 
   return (
     <div
@@ -378,7 +397,7 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
                     <IconChevronDown size={18} className="text-gray-500 dark:text-gray-400" />
                   </div>
                   <span className="truncate">
-                    更多
+                    显示全部 {conversations.length} 条
                   </span>
                 </>
               )}

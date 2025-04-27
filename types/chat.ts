@@ -48,5 +48,6 @@ export interface Conversation {
   appId?: number | null;
   cardId?: string | null;
   modelName?: string | null;
+  pinned?: boolean;
 }
 

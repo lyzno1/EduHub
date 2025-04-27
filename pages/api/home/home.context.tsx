@@ -24,6 +24,7 @@ export interface HomeContextProps {
   handleDeleteConversation: (conversationId: string) => void;
   handleSelectOrStartAppConversation: (appId: number) => void;
   startConversationFromActiveApp: (message: Message) => Promise<void>;
+  handleTogglePinConversation: (conversationId: string) => void;
   appConfigs: Record<number, AppConfig>;
 }
 
