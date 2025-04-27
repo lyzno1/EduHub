@@ -4,6 +4,7 @@ import {
   IconChevronUp,
   IconChevronDown,
 } from '@tabler/icons-react';
+import Spinner from '../Spinner/Spinner'; // Import the Spinner component
 // Remove unused imports if they were only for preprocessing
 // import { updateConversation } from '@/utils/app/conversation';
 // import { Message } from '@/types/chat';
@@ -60,49 +61,30 @@ interface ReasoningBlockProps extends React.HTMLAttributes<HTMLDivElement> {
 const ReasoningBlock: FC<ReasoningBlockProps> = ({ children, lightMode, className, ...props }) => {
   const [isComplete, setIsComplete] = useState(() => hasEndFlag(children));
   const [isOpen, setIsOpen] = useState(true);
-  const [ellipsis, setEllipsis] = useState('');
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Remove ellipsis state and effect
+  // const [ellipsis, setEllipsis] = useState('');
+  // const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Effect to update completion status when children change (due to streaming)
   useEffect(() => {
     setIsComplete(hasEndFlag(children));
   }, [children]);
 
-  // Effect for ellipsis animation, depends on `isComplete`
-  useEffect(() => {
-    if (!isComplete) {
-      intervalRef.current = setInterval(() => {
-        setEllipsis(prev => (prev.length >= 3 ? '.' : prev + '.'));
-      }, 500);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      setEllipsis('');
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [isComplete]);
+  // Remove ellipsis animation effect
+  // useEffect(() => {
+  //   // ... (effect logic for ellipsis)
+  // }, [isComplete]);
 
   const handleToggle = () => {
-    // Allow toggle only when complete? Let's stick to always allowing toggle for now.
     setIsOpen(!isOpen);
   };
 
-  // Remove the flag from the children before rendering the content
   const displayContent = removeEndFlag(children);
 
   return (
-    // Render the block structure (UI remains the same)
     <div
-      {...props} // Spread other props like node if necessary
-      className={`reasoning-box-container my-2 bg-white rounded-lg border border-gray-200 shadow-sm dark:bg-gray-850 dark:border-gray-700/40 ${className || ''}`} // Combine classes
+      {...props}
+      className={`reasoning-box-container my-2 bg-white rounded-lg border border-gray-200 shadow-sm dark:bg-gray-850 dark:border-gray-700/40 ${className || ''}`}
     >
       {/* Header */}
       <div
@@ -116,7 +98,16 @@ const ReasoningBlock: FC<ReasoningBlockProps> = ({ children, lightMode, classNam
       >
         <span className="flex items-center gap-2">
           <IconAtom size={16} className="text-blue-500" />
-          {!isComplete ? `正在推理${ellipsis}` : "已完成推理"}
+          {/* Conditional rendering for Spinner */} 
+          {!isComplete ? (
+            <>
+              正在推理
+              {/* Use Spinner component, remove invalid 'loading' prop */}
+              <Spinner className="h-3 w-3 text-gray-600 dark:text-gray-300 ml-1" /> 
+            </>
+          ) : (
+            "已完成推理"
+          )}
         </span>
         {isComplete && (isOpen ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />)}
       </div>
