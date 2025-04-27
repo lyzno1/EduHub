@@ -170,6 +170,7 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
   // === Chat Scroll Hook ===
   const { showScrollDownButton, handleScrollDown } = useChatScroll({
     chatContainerRef,
+    lastUserMessageSelector: '.user-message-bubble', // Pass the selector for user messages
   });
 
   // === Input Height Observer Hook ===
@@ -375,6 +376,17 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
 
         chatStream.onMessage((chunk: string) => {
         
+          // --- 添加：检查滚动位置 START ---
+          let shouldScroll = false;
+          if (chatContainerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+            // Threshold can be adjusted, e.g., 20 pixels
+            const threshold = 20; 
+            if (scrollHeight - scrollTop <= clientHeight + threshold) {
+              shouldScroll = true;
+            }
+          }
+          // --- 添加：检查滚动位置 END ---
 
           if (isStreamHalted) return;
           if (stopConversationRef.current) {
@@ -394,8 +406,6 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
           // ===== 修改开始: 通过 ID 在列表中查找对话 =====
           const currentConversationsList = latestHomeContextStateRef.current.conversations; // 使用 Ref
           const targetConvIndex = currentConversationsList.findIndex(conv => conv.id === newConversation.id);
-          
-
           
           if (targetConvIndex === -1) {
               // 这理论上不应该发生，因为我们刚添加了它
@@ -463,6 +473,17 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
             field: 'selectedConversation',
             value: streamUpdatedConversation
           });
+
+          // --- 添加：条件滚动 START ---
+          if (shouldScroll && chatContainerRef.current) {
+            // Use requestAnimationFrame for smoother scrolling after state update
+            requestAnimationFrame(() => {
+              if (chatContainerRef.current) {
+                 chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+              }
+            });
+          }
+          // --- 添加：条件滚动 END ---
         });
 
         chatStream.onError((error: Error) => {
@@ -663,6 +684,17 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
       }, 10000); // 最多尝试10秒
 
       chatStream.onMessage((chunk: string) => {
+        // --- 添加：检查滚动位置 START ---
+        let shouldScroll = false;
+        if (chatContainerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+            const threshold = 20; // Threshold for being "at the bottom"
+            if (scrollHeight - scrollTop <= clientHeight + threshold) {
+                shouldScroll = true;
+            }
+        }
+        // --- 添加：检查滚动位置 END ---
+
         if (isStreamHalted) return;
         if (stopConversationRef.current) {
           console.log('Stop signal detected inside onMessage. Halting stream permanently for this request.');
@@ -783,6 +815,17 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
           field: 'selectedConversation',
           value: streamUpdatedConversation
         });
+
+        // --- 添加：条件滚动 START ---
+        if (shouldScroll && chatContainerRef.current) {
+           // Use requestAnimationFrame for smoother scrolling after state update
+            requestAnimationFrame(() => {
+              if (chatContainerRef.current) {
+                 chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+              }
+            });
+        }
+        // --- 添加：条件滚动 END ---
       });
 
       chatStream.onError((error: Error) => {

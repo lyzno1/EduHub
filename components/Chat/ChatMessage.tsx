@@ -301,7 +301,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit, lig
       <div className={`w-full max-w-[800px] px-2 sm:px-4`}>
         {isUser ? (
           // --- User Message Rendering (remains the same) ---
-          <div className="flex justify-end">
+          <div className="flex justify-end user-message-bubble">
             {/* ... existing user message JSX ... */}
             <div className="max-w-[75%]">
                {/* ... existing user message JSX ... */}
