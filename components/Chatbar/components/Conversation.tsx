@@ -24,48 +24,11 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChalkboardUser,faUser,faGlobe,faFileLines,faSquareRootVariable,faServer } from '@fortawesome/free-solid-svg-icons';
 
 import { Conversation } from '@/types/chat';
-
+import { DifyAppCardConfig } from '@/types/dify';
 import HomeContext from '@/pages/api/home/home.context';
-
-import SidebarActionButton from '@/components/Buttons/SidebarActionButton';
+import difyConfigService from '@/services/difyConfigService';
 import { DifyClient } from '@/services/dify/client';
 import { getApiKey } from '@/utils/app/api';
-
-// ===== 临时添加卡片定义 START =====
-// (理想情况下应从共享位置导入)
-import { IconWorldWww, IconDatabase, IconMessageChatbot, IconUsers as IconUsersDs, IconTestPipe, IconCode as IconCodeCh, IconInfoCircle, IconUsers as IconUsersCa, IconHelp, IconMoodBoy, IconMessageCircleQuestion, IconBulb, IconPresentation, IconListDetails, IconCheckbox, IconMessageReport } from '@tabler/icons-react';
-
-interface TempAppCard {
-  id: string;
-  name: string;
-  appId: number;
-}
-
-const allCards: TempAppCard[] = [
-  // DeepSeek (appId: 1)
-  { id: 'ds-network-search', name: '网络搜索', appId: 1 },
-  { id: 'ds-campus-kb', name: '校园知识库', appId: 1 },
-  { id: 'ds-academic-search', name: '学术检索', appId: 1 },
-  { id: 'ds-ai-tutor', name: 'AI辅导员', appId: 1 },
-  { id: 'ds-logistics-assistant', name: '后勤助手', appId: 1 },
-  // Course Helper (appId: 2)
-  { id: 'ch-swe-test', name: '软件工程测试', appId: 2 },
-  { id: 'ch-oss-dev', name: '开源软件开发技术', appId: 2 },
-  // Campus Assistant (appId: 3)
-  { id: 'ca-network-qa', name: '信息网络问答', appId: 3 },
-  { id: 'ca-teacher-qa', name: '教师问答', appId: 3 },
-  { id: 'ca-student-qa', name: '学生问答', appId: 3 },
-  { id: 'ca-freshman-helper', name: '新生助手', appId: 3 },
-  // Teacher Assistant (appId: 4)
-  { id: 'ta-assignment-ideas', name: '作业构思', appId: 4 },
-  { id: 'ta-student-tutoring', name: '学生辅导', appId: 4 },
-  { id: 'ta-concept-explanation', name: '概念解释', appId: 4 },
-  { id: 'ta-lecture-design', name: '讲座设计', appId: 4 },
-  { id: 'ta-lesson-plan', name: '课程计划', appId: 4 },
-  { id: 'ta-quiz-generation', name: '测验生成', appId: 4 },
-  { id: 'ta-meeting-summary', name: '会议总结', appId: 4 },
-];
-// ===== 临时添加卡片定义 END =====
 
 // --- 定义 AppConfig 接口 (与 home.tsx/home.context.tsx 一致) ---
 interface AppConfig {
@@ -346,34 +309,35 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, i
   const icon = <IconMessage size={18} />;
 
   // --- 修改：计算标题和 Tag --- 
-  let displayName = conversation.name; // 默认标题为对话名称
-  let indicatorText: string | null = null; // 默认没有 Tag
+  let displayName = conversation.name; 
+  let indicatorText: string | null = null; 
 
-  // 健壮性修复：确保 appId 是有效数字且存在于 appConfigs 中
   if (
-    conversation.appId !== null && 
-    typeof conversation.appId === 'number' && 
-    appConfigs && 
-    conversation.appId in appConfigs // 使用 in 操作符
-  ) { 
-    const currentAppConfig = appConfigs[conversation.appId]; // 安全获取配置
-    
-    // 设置 Tag 为应用名称
+    conversation.appId !== null &&
+    typeof conversation.appId === 'number' &&
+    appConfigs &&                       
+    conversation.appId in appConfigs   
+  ) {
+    const currentAppConfig = appConfigs[conversation.appId]; 
+
     indicatorText = currentAppConfig.name;
 
-    // 如果有 cardId，优先使用卡片名称作为标题
-    if (conversation.cardId !== null) {
-      const card = allCards.find(c => c.appId === conversation.appId && c.id === conversation.cardId);
-      if (card) {
-        displayName = card.name; // 标题设为卡片名称
+    // Use difyConfigService to get card name if cardId exists
+    if (conversation.cardId) { 
+      const cardConfig = difyConfigService.getCardConfig(conversation.cardId);
+      if (cardConfig && cardConfig.name) { 
+        displayName = cardConfig.name; // Use name from service
       } else {
-        // 如果找不到卡片，标题回退到应用名称
+        // Fallback to app name if card config not found or name missing
+        console.warn(`Card config for id ${conversation.cardId} not found or missing name. Falling back to app name.`);
         displayName = currentAppConfig.name;
       }
     } else {
-      // 如果只有 appId 没有 cardId，标题设为应用名称
-       displayName = currentAppConfig.name;
+      // If no cardId, use app name
+      displayName = currentAppConfig.name;
     }
+  } else if (conversation.appId !== null) {
+    console.warn(`App config for appId ${conversation.appId} not found. Using original conversation name.`);
   }
   // --- 修改结束 ---
 
