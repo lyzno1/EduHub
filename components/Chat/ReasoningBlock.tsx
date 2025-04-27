@@ -126,11 +126,7 @@ const ReasoningBlock: FC<ReasoningBlockProps> = ({ children, lightMode, classNam
         className={`reasoning-box-content overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out 
                    ${isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'} 
                    pl-5 pr-5 py-2 border-l-4 border-gray-300 dark:border-gray-600 
-                   prose prose-sm dark:prose-invert max-w-none 
-                   [&_p]:text-gray-500 dark:[&_p]:text-gray-400 
-                   [&_li]:text-gray-500 dark:[&_li]:text-gray-400 
-                   prose-p:my-0 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 
-                   [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 
+                   text-sm text-gray-600 dark:text-gray-300 leading-relaxed [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 
                    bg-transparent dark:bg-transparent 
                    mt-1 mb-1 ml-1`}
       >

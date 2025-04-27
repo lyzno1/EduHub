@@ -880,7 +880,7 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
           // conversationID: conversationId // Already in updatedConversation if updated
         };
         
-                    homeDispatch({
+        homeDispatch({
           field: 'selectedConversation',
           value: finalConversation
         });
