@@ -7,14 +7,12 @@ import {
   IconDotsVertical,
 } from '@tabler/icons-react';
 import {
-  DragEvent,
   KeyboardEvent,
   MouseEventHandler,
   useContext,
   useEffect,
   useState,
   useRef,
-  useCallback,
 } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -83,12 +81,12 @@ interface Props {
   conversation: Conversation;
   activeAppId: number | null;
   appConfigs: Record<number, AppConfig>; // 确保 appConfigs 是 Record 类型
-  modalOpen: ModalType | null;
+  isModalPotentiallyOpen: boolean;
   onSetModalOpen: (modalOpen: ModalType | null) => void;
 }
 
 // 单个会话的删除、重命名等操作
-export const ConversationComponent = ({ conversation, activeAppId, appConfigs, modalOpen, onSetModalOpen }: Props) => {
+export const ConversationComponent = ({ conversation, activeAppId, appConfigs, isModalPotentiallyOpen, onSetModalOpen }: Props) => {
   const {
     state: { selectedConversation, messageIsStreaming }, // 不再需要 lightMode?
     handleSelectConversation,
@@ -153,31 +151,6 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
       setShowMobileBottomSheet(false);
     }
   };
-
-  // 关键：阻止可能触发拖动的 mousedown/touchstart 事件冒泡
-  const stopDragInitiation = (e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation();
-  };
-
-  // 外部点击关闭 - 需要同时处理桌面菜单和移动底部菜单
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      // menuRef 现在可能指向桌面菜单或移动菜单的内容区域
-      // buttonRef 始终指向触发按钮
-      if (menuRef.current && !menuRef.current.contains(event.target as Node) &&
-          buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
-        // 如果点击发生在菜单和按钮之外，关闭两者
-        setShowMenu(false);
-        // 注意：移动端底部菜单的关闭通常通过点击遮罩层处理，这里可以保留以防万一
-        // 或者将移动端菜单的关闭逻辑完全交给遮罩层点击事件
-        // setShowMobileBottomSheet(false); // 暂时注释掉，依赖遮罩层关闭
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []); // 保持空依赖，一直监听
 
   // 开始关闭动画 (替代直接关闭)
   const triggerCloseMobileSheet = () => {
@@ -358,12 +331,6 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
     }, 0);
   };
 
-  const handleDragStart = (e: DragEvent<HTMLButtonElement>, conversation: Conversation) => {
-    if (e.dataTransfer) {
-      e.dataTransfer.setData('conversation', JSON.stringify(conversation));
-    }
-  };
-
   // 使用默认图标
   const icon = <IconMessage size={18} />;
 
@@ -417,8 +384,6 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
           }`}
           onClick={() => handleSelectConversation(conversation)}
           disabled={messageIsStreaming}
-          draggable="true"
-          onDragStart={(e) => handleDragStart(e, conversation)}
         >
           {icon}
         <div className="relative flex-1 overflow-hidden text-left text-[13px] leading-5 py-0.5 flex items-center min-w-0">
@@ -442,8 +407,6 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
             size={16}
             className="text-gray-500 dark:text-gray-400"
             onClick={handleMenuClick}
-            onMouseDown={stopDragInitiation} // Add mousedown stop
-            onTouchStart={stopDragInitiation} // Add touchstart stop
           />
         </div>
       </div>
@@ -475,7 +438,10 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
 
       {/* 重命名模态框 - 提高 z-index 到最高 */}
       {showRenameModal && createPortal(
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10010]" onClick={(e) => { if (e.target === e.currentTarget) { setShowRenameModal(false); onSetModalOpen(null); } }}>
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10010]" 
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowRenameModal(false); onSetModalOpen(null); } }}
+        >
           {/* 模态框内容 div */}
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-full max-w-md mx-4 md:mx-0 md:w-[300px] shadow-xl animate-fadeIn" onClick={(e) => e.stopPropagation()}> 
             <div className="text-lg font-medium mb-4">重命名对话</div>
@@ -489,7 +455,6 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
                   handleConfirmRename();
                 }
               }}
-              onMouseDown={(e) => e.stopPropagation()}
               autoFocus
             />
             <div className="flex justify-end gap-2 mt-4">
@@ -513,7 +478,10 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, m
 
       {/* 删除确认模态框 - 提高 z-index 到最高 */}
       {showDeleteModal && createPortal(
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10010]" onClick={(e) => { if (e.target === e.currentTarget) { setShowDeleteModal(false); onSetModalOpen(null); } }}>
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10010]" 
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowDeleteModal(false); onSetModalOpen(null); } }}
+        >
           {/* 模态框内容 div */}
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 w-full max-w-md mx-4 md:mx-0 md:w-[300px] shadow-xl animate-fadeIn" onClick={(e) => e.stopPropagation()}> 
             <div className="text-lg font-medium mb-4">删除对话</div>

@@ -1,27 +1,6 @@
 import { IconMessagePlus, IconSearch, IconX, IconBrandChrome, IconSchool, IconBook, IconCode, IconBrain, IconRobot, IconBook2, IconUsers, IconGripVertical, IconMenu2, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { FC, useContext, useEffect, useState, useRef, CSSProperties, useMemo } from 'react';
 import { useTranslation } from 'next-i18next';
-import {
-  DndContext, 
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverEvent,
-  DragOverlay,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers';
 import { useDrag } from '@use-gesture/react';
 
 import HomeContext from '@/pages/api/home/home.context';
@@ -30,61 +9,6 @@ import { ConversationComponent } from './components/Conversation';
 import Link from 'next/link';
 import { saveConversations } from '@/utils/app/conversation';
 import { AppConfig } from '@/pages/api/home/home';
-
-// 可排序对话组件接口
-interface SortableConversationProps {
-  conversation: Conversation;
-  activeAppId: number | null;
-  appConfigs: Record<string, any>;
-  isDragging: boolean;
-  modalOpen: boolean;
-  onSetModalOpen: (conversationId: string | null) => void;
-}
-
-// 可排序对话组件
-const SortableConversation: FC<SortableConversationProps> = ({ conversation, activeAppId, appConfigs, isDragging, modalOpen, onSetModalOpen }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition
-  } = useSortable({id: conversation.id});
-  
-  const style: CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    position: 'relative',
-    zIndex: isDragging ? 999 : 'auto'
-  };
-
-  return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
-      className="relative group cursor-grab active:cursor-grabbing" 
-      data-id={conversation.id}
-      {...attributes}
-      {...(!modalOpen ? listeners : {})}
-    >
-      <div className="flex w-full overflow-hidden">
-        <div className="flex-grow truncate">
-          <ConversationComponent 
-            key={conversation.id}
-            conversation={conversation}
-            activeAppId={activeAppId}
-            appConfigs={appConfigs}
-            onSetModalOpen={onSetModalOpen} modalOpen={null}          />
-        </div>
-      </div>
-      
-      {/* 辅助定位线 */}
-      <div className="drag-indicator hidden absolute left-0 right-0 -top-1 h-[1px] bg-gray-500 dark:bg-gray-400 rounded-full" />
-      <div className="drag-indicator hidden absolute left-0 right-0 -bottom-1 h-[1px] bg-gray-500 dark:bg-gray-400 rounded-full" />
-    </div>
-  );
-};
 
 // Default background color (no longer primary, but keep as fallback?)
 const defaultAppBgColor = 'bg-gray-100 dark:bg-gray-700';
@@ -112,7 +36,6 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [modalOpenConversationId, setModalOpenConversationId] = useState<string | null>(null);
   const [isAppListExpanded, setIsAppListExpanded] = useState<boolean>(false);
   const [isConversationListExpanded, setIsConversationListExpanded] = useState<boolean>(false); // 新增：对话列表展开状态
@@ -120,6 +43,8 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [translateX, setTranslateX] = useState(0);
   const [isDraggingSidebar, setIsDraggingSidebar] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const {
     state,
@@ -199,62 +124,6 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
     e.stopPropagation();
   };
   
-  const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event;
-    setActiveDragId(active.id as string);
-    
-    document.body.classList.add('dragging-conversation');
-  };
-  
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveDragId(null);
-    
-    document.body.classList.remove('dragging-conversation');
-    
-    if (over && active.id !== over.id) {
-      const oldIndex = conversations.findIndex(conv => conv.id === active.id);
-      const newIndex = conversations.findIndex(conv => conv.id === over.id);
-      
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const reorderedConversations = arrayMove(conversations, oldIndex, newIndex);
-        
-        dispatch({ field: 'conversations', value: reorderedConversations });
-        saveConversations(reorderedConversations);
-      }
-    }
-    
-    const indicators = document.querySelectorAll('.drag-indicator');
-    indicators.forEach(ind => ind.classList.add('hidden'));
-  };
-  
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    
-    if (over && active.id !== over.id) {
-      const indicators = document.querySelectorAll('.drag-indicator');
-      indicators.forEach(ind => ind.classList.add('hidden'));
-      
-      const activeRect = document.querySelector(`[data-id="${active.id}"]`)?.getBoundingClientRect();
-      const overRect = document.querySelector(`[data-id="${over.id}"]`)?.getBoundingClientRect();
-      
-      if (activeRect && overRect) {
-        const isMovingDown = activeRect.top < overRect.top;
-        
-        const overElement = document.querySelector(`[data-id="${over.id}"]`);
-        if (overElement) {
-          const indicator = isMovingDown 
-            ? overElement.querySelector('.drag-indicator:last-child')
-            : overElement.querySelector('.drag-indicator:first-child');
-            
-          if (indicator) {
-            indicator.classList.remove('hidden');
-          }
-        }
-      }
-    }
-  };
-
   const handleAppClick = (appId: number) => {
      handleSelectOrStartAppConversation(appId);
      if (isMobile) {
@@ -298,17 +167,6 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
       filterTaps: true,
       pointer: { touch: true },
     }
-  );
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
   );
 
   const dynamicApplications = useMemo(() => {
@@ -486,46 +344,18 @@ export const SidebarNav: FC<Props> = ({ onToggle, isOpen }) => {
               未找到相关聊天
             </div>
           ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              onDragOver={handleDragOver}
-              modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
-            >
-              <SortableContext
-                items={displayedConversations.map(c => c.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="space-y-1">
-                  {conversationsToRender.map((conversation) => (
-                    <SortableConversation
-                      key={conversation.id}
-                      conversation={conversation}
-                      activeAppId={activeAppId}
-                      appConfigs={appConfigs as any}
-                      isDragging={conversation.id === activeDragId}
-                      modalOpen={modalOpenConversationId === conversation.id}
-                      onSetModalOpen={handleSetModalOpen}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-              
-              <DragOverlay>
-                {activeDragId ? (
-                  <div className="p-1 bg-gray-100 dark:bg-gray-700 rounded-lg shadow-lg border border-gray-300 dark:border-gray-600 w-[230px]">
-                    <ConversationComponent
-                        conversation={conversations.find((c: Conversation) => c.id === activeDragId)!}
-                        activeAppId={activeAppId}
-                        appConfigs={appConfigs as any}
-                        onSetModalOpen={() => { } } modalOpen={null}
-                    />
-                  </div>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
+            <div className="space-y-1">
+              {conversationsToRender.map((conversation) => (
+                <ConversationComponent
+                  key={conversation.id}
+                  conversation={conversation}
+                  activeAppId={activeAppId}
+                  appConfigs={appConfigs as any}
+                  isModalPotentiallyOpen={modalOpenConversationId === conversation.id}
+                  onSetModalOpen={handleSetModalOpen}
+                />
+              ))}
+            </div>
           )}
 
           {conversations.length > INITIAL_CONVERSATION_DISPLAY_LIMIT && !isSearching && (
