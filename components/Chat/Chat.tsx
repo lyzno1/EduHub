@@ -45,7 +45,7 @@ import difyConfigService from '@/services/difyConfigService';
 import { DifyFolderConfig } from '@/types/dify';
 import { iconMapForAllCards, themeColorCycle } from '@/constants/uiConstants';
 import { useMobileDetection } from '@/hooks/useMobileDetection'; // Import the new hook
-import { useChatScroll } from '@/hooks/useChatScroll'; // Import the chat scroll hook
+import { useChatScroll } from '@/hooks/useChatScroll'; // Import the simplified hook
 import { WelcomeScreen } from './WelcomeScreen'; // Import the new WelcomeScreen component
 import { useInputHeightObserver } from '@/hooks/useInputHeightObserver'; // Import the input height observer hook
 import { AppInitialPage } from './AppInitialPage'; // Import the new AppInitialPage component
@@ -168,17 +168,13 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
   }, []);
 
   // === Chat Scroll Hook ===
-  const { showScrollDownButton, handleScrollDown, autoScrollEnabled } = useChatScroll({
+  const { showScrollDownButton, handleScrollDown } = useChatScroll({
     chatContainerRef,
-    messagesEndRef,
-    selectedConversation,
-    messageIsStreaming,
   });
 
   // === Input Height Observer Hook ===
   const { inputBoxHeight, isInputExpanded, bottomInputHeight } = useInputHeightObserver({ 
     messagesLength, 
-    // messageIsStreaming // Pass if needed by the hook
   });
 
   // 添加一个useEffect来监听输入框高度的变化(初始界面) (Moved to useInputHeightObserver)
@@ -457,13 +453,16 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
           }
           // ===== 修改结束 =====
 
-          if (autoScrollEnabled) {
-            setTimeout(() => {
-              if (chatContainerRef.current) {
-                chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-              }
-            }, 50);
-          }
+          const streamUpdatedConversation = {
+            ...updatedConversation,
+            messages: currentMessages, // Use the locally updated messages
+            conversationID: conversationIdFromStream // Ensure conversationID is updated
+          };
+          
+          homeDispatch({
+            field: 'selectedConversation',
+            value: streamUpdatedConversation
+          });
         });
 
         chatStream.onError((error: Error) => {
@@ -784,14 +783,6 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
           field: 'selectedConversation',
           value: streamUpdatedConversation
         });
-        
-        if (autoScrollEnabled) {
-          setTimeout(() => {
-            if (chatContainerRef.current) {
-              chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-            }
-          }, 50);
-        }
       });
 
       chatStream.onError((error: Error) => {
@@ -1456,7 +1447,7 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
           {messagesLength > 0 && selectedConversation ? (
             // *** 1. Render Chat Messages (if messages exist) ***
             <MessageList
-              messages={selectedConversation.messages} // Now safe to access
+              messages={selectedConversation.messages}
               messageIsStreaming={messageIsStreaming}
               modelWaiting={modelWaiting}
               currentTheme={currentTheme}
@@ -1464,7 +1455,6 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
               messagesEndRef={messagesEndRef}
               bottomInputHeight={bottomInputHeight}
               onEdit={(editedMessage, index) => {
-                // Reconstruct the onEdit logic here
                 const deleteCount = (selectedConversation?.messages?.length || 0) - index;
                 onSend(editedMessage, deleteCount - 1);
               }}
@@ -1520,16 +1510,14 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
                 textareaRef={textareaRef}
                 onSend={(message) => { onSend(message, 0); }}
                 onScrollDownClick={handleScrollDown}
-                // 移动端欢迎界面不重新生成
                 onRegenerate={isWelcomeScreen ? () => {} : (activeAppId === null ? () => { if (currentMessage) { onSend(currentMessage, 2); }} : () => {})}
-                // 移动端欢迎界面不显示滚动按钮
-                showScrollDownButton={!isWelcomeScreen && activeAppId === null && showScrollDownButton}
-                isCentered={false} // 移动端输入框永远不居中
+                showScrollDownButton={showScrollDownButton}
+                isCentered={false}
                 showSidebar={showSidebar}
                 isMobile={isMobile}
                 handleStopConversation={handleStopConversation}
                 messageIsStreaming={messageIsStreaming}
-                isDisabled={isInputDisabled} // <-- 添加 isDisabled prop
+                isDisabled={isInputDisabled}
               />
             </div>
           </div>
@@ -1550,13 +1538,13 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
                       onSend={(message) => { onSend(message, 0); }}
                     onScrollDownClick={handleScrollDown}
                       onRegenerate={activeAppId === null ? () => { if (currentMessage) { onSend(currentMessage, 2); }} : () => {}}
-                      showScrollDownButton={activeAppId === null && showScrollDownButton}
+                      showScrollDownButton={showScrollDownButton}
                       isCentered={false}
                     showSidebar={showSidebar}
                     isMobile={isMobile}
                     handleStopConversation={handleStopConversation}
                       messageIsStreaming={messageIsStreaming}
-                    isDisabled={isInputDisabled} // <-- 添加 isDisabled prop
+                    isDisabled={isInputDisabled}
                   />
                 </div>
               </div>
@@ -1575,13 +1563,13 @@ export const Chat = ({ stopConversationRef, showSidebar = false }: Props) => {
                          onSend={(message) => { onSend(message, 0); }}
                          onScrollDownClick={handleScrollDown}
                          onRegenerate={() => { /* Welcome 不重新生成 */ }}
-                         showScrollDownButton={false}
-                      isCentered={true} // 桌面欢迎居中
+                         showScrollDownButton={showScrollDownButton}
+                      isCentered={true}
                          showSidebar={showSidebar}
                          isMobile={isMobile}
                          handleStopConversation={handleStopConversation}
                       messageIsStreaming={messageIsStreaming}
-                       isDisabled={isInputDisabled} // <-- 添加 isDisabled prop
+                       isDisabled={isInputDisabled}
                        /> 
                      </div> 
                    </div> 
