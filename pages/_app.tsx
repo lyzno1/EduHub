@@ -6,6 +6,8 @@ import type { AppProps } from 'next/app';
 import { Inter } from 'next/font/google';
 import { useEffect, useState } from 'react';
 import { MetadataProvider } from '@/context/MetadataContext';
+import { UpdateNotification } from '@/components/ui/UpdateNotification';
+import useUpdateNotification from '@/hooks/useUpdateNotification';
 
 import 'katex/dist/katex.min.css';
 import '@/styles/globals.css';
@@ -21,6 +23,8 @@ function App({ Component, pageProps }: AppProps<{}>) {
   const queryClient = new QueryClient();
   const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<string>('light');
+  const [userId, setUserId] = useState<string>('');
+  const { updateInfo, isLoading, closeNotification } = useUpdateNotification(userId);
 
   // 页面加载时应用保存的主题
   useEffect(() => {
@@ -76,6 +80,24 @@ function App({ Component, pageProps }: AppProps<{}>) {
     };
   }, []);
 
+  // 获取用户ID
+  useEffect(() => {
+    // 仅在客户端环境中执行
+    if (typeof window !== 'undefined') {
+      // 尝试从localStorage获取用户ID
+      const storedUserId = localStorage.getItem('userId');
+      
+      if (storedUserId) {
+        setUserId(storedUserId);
+      } else {
+        // 如果没有用户ID，生成一个新的
+        const newUserId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        localStorage.setItem('userId', newUserId);
+        setUserId(newUserId);
+      }
+    }
+  }, []);
+
   // 使用 variable 类名来应用字体
   const baseClassName = `${inter.variable} font-sans`;
 
@@ -96,6 +118,13 @@ function App({ Component, pageProps }: AppProps<{}>) {
   return (
     <div className={`${baseClassName} ${theme}`}>
       <Toaster />
+      {typeof window !== 'undefined' && updateInfo && !isLoading && (
+        <UpdateNotification 
+          updateInfo={updateInfo} 
+          onClose={closeNotification} 
+          position="top-right" 
+        />
+      )}
       <QueryClientProvider client={queryClient}>
         <MetadataProvider>
           <Component {...pageProps} />
