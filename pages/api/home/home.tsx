@@ -48,6 +48,7 @@ import { DifyClient } from '@/services/dify/client';
 import { getDifyConfig } from '@/config/dify';
 import { toast } from 'react-hot-toast';
 import difyConfigService from '@/services/difyConfigService';
+import { useMetadata } from '@/context/MetadataContext';
 
 // Define and export AppConfig interface here
 export interface AppConfig {
@@ -84,6 +85,10 @@ const Home = ({
   serverSideApiKeyIsSet,
   serverSidePluginKeysSet,
 }: Props) => {
+  // 添加metadata获取
+  const metadata = useMetadata();
+  const pageTitle = metadata ? metadata.pageTitle : 'Loading...'; // 默认值以防metadata为null
+
   function CheckLogin() {
     const user = Cookie.get('user');
     console.log(user);
@@ -896,7 +901,7 @@ const Home = ({
       }}
     >
       <Head>
-        <title>llm</title>
+        <title>{pageTitle}</title>
         <meta name="description" content="ChatGPT but better." />
         <meta
           name="viewport"

@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 interface Metadata {
   title: string;
   subtitle: string;
+  pageTitle: string;
   aboutContent: string;
   version: string;
   copyright: string;
