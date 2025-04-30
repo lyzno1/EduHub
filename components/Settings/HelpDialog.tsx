@@ -22,22 +22,22 @@ export const HelpDialog: React.FC<Props> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" // Slightly darker backdrop
       onClick={onClose}
     >
-      <div 
-        // Increased max-width, adjusted padding, added slight border in dark mode
-        className="relative w-full max-w-2xl rounded-lg bg-white dark:bg-gray-850 shadow-xl p-6 pt-8 md:p-8 md:pt-10 border border-transparent dark:border-gray-700/50" 
-        onClick={(e) => e.stopPropagation()} 
+      <div
+        // Changed dark mode background from dark:bg-gray-850 to dark:bg-[#202123] for better dark mode adaptation
+        className="relative w-full max-w-2xl rounded-lg bg-white dark:bg-[#202123] shadow-xl p-6 pt-8 md:p-8 md:pt-10 border border-transparent dark:border-gray-700/50"
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Close button styling adjusted */}
-        <button 
+        <button
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
           onClick={onClose}
           aria-label="关闭"
         >
-          <IconX size={22} /> 
+          <IconX size={22} />
         </button>
 
         {/* Title styling adjusted */}
@@ -49,11 +49,12 @@ export const HelpDialog: React.FC<Props> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Content area styling: removed prose, added specific styles */}
-        <div className="text-sm text-gray-700 dark:text-gray-300 overflow-y-auto max-h-[65vh] pr-3 custom-scrollbar"> 
+        <div className="text-sm text-gray-700 dark:text-gray-300 overflow-y-auto max-h-[65vh] pr-3 custom-scrollbar">
           {metadata ? (
             // Styling for <pre> tag: improved readability and colors
-            <pre 
-              className="whitespace-pre-wrap font-mono text-[13.5px] leading-relaxed bg-gray-50 dark:bg-gray-900/50 p-4 rounded-md border border-gray-200 dark:border-gray-700"
+            <pre
+              // Ensure pre background contrasts well with the new dialog background
+              className="whitespace-pre-wrap font-mono text-[13.5px] leading-relaxed bg-gray-50 dark:bg-gray-800/60 p-4 rounded-md border border-gray-200 dark:border-gray-700"
             >
               {formatContent(metadata.aboutContent)}
             </pre>
@@ -65,7 +66,7 @@ export const HelpDialog: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
           )}
         </div>
-        
+
         {/* Optional: Add a subtle bottom padding or divider if needed */}
         {/* <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700/50"></div> */}
       </div>
@@ -79,7 +80,7 @@ export const HelpDialog: React.FC<Props> = ({ isOpen, onClose }) => {
   width: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent; 
+  background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: rgba(0, 0, 0, 0.2);
