@@ -851,24 +851,10 @@ export class DifyClient {
     }
 
     try {
-      // --- 健壮地构建基础 API URL --- 
-      const apiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || '';
-      let baseApiUrl = '';
-      const v1Index = apiUrl.indexOf('/v1'); // 查找 "/v1" 的位置
-      if (v1Index !== -1) {
-          // 提取到 "/v1" 为止的部分
-          baseApiUrl = apiUrl.substring(0, v1Index + 3); 
-      } else {
-          // 如果找不到 "/v1"，尝试做简单的清理，但这不太可靠
-          console.warn("无法从 NEXT_PUBLIC_DIFY_API_URL 中可靠地提取 /v1 基础路径:", apiUrl);
-          baseApiUrl = apiUrl.replace('/chat-messages', ''); 
-      }
-      // 确保基础 URL 没有末尾斜杠
-      baseApiUrl = baseApiUrl.replace(/\/$/, ''); 
-      // --- URL 构建结束 ---
-        
-      const apiEndpoint = `${baseApiUrl}/conversations/${conversationId}/name`;
-      
+      // --- 修改：直接使用 this.baseUrl ---
+      const apiEndpoint = `${this.baseUrl}/conversations/${conversationId}/name`;
+      // --- 修改结束 ---
+
       if (this.debug) {
         console.log('异步生成对话标题 - 配置信息:', {
           endpoint: apiEndpoint,
@@ -918,24 +904,10 @@ export class DifyClient {
     }
 
     try {
-      // --- 健壮地构建基础 API URL --- 
-      const apiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || '';
-      let baseApiUrl = '';
-      const v1Index = apiUrl.indexOf('/v1'); // 查找 "/v1" 的位置
-      if (v1Index !== -1) {
-          // 提取到 "/v1" 为止的部分
-          baseApiUrl = apiUrl.substring(0, v1Index + 3); 
-      } else {
-          // 如果找不到 "/v1"，尝试做简单的清理，但这不太可靠
-          console.warn("无法从 NEXT_PUBLIC_DIFY_API_URL 中可靠地提取 /v1 基础路径:", apiUrl);
-          baseApiUrl = apiUrl.replace('/chat-messages', ''); 
-      }
-      // 确保基础 URL 没有末尾斜杠
-      baseApiUrl = baseApiUrl.replace(/\/$/, ''); 
-      // --- URL 构建结束 ---
-        
-      const apiEndpoint = `${baseApiUrl}/conversations/${conversationId}/name`;
-      
+      // --- 修改：直接使用 this.baseUrl ---
+      const apiEndpoint = `${this.baseUrl}/conversations/${conversationId}/name`;
+      // --- 修改结束 ---
+
       if (this.debug) {
         console.log('手动重命名对话 - 请求信息:', {
           endpoint: apiEndpoint,
@@ -981,23 +953,9 @@ export class DifyClient {
     }
 
     try {
-      // --- 健壮地构建基础 API URL --- 
-      const apiUrl = process.env.NEXT_PUBLIC_DIFY_API_URL || '';
-      let baseApiUrl = '';
-      const v1Index = apiUrl.indexOf('/v1'); // 查找 "/v1" 的位置
-      if (v1Index !== -1) {
-          // 提取到 "/v1" 为止的部分
-          baseApiUrl = apiUrl.substring(0, v1Index + 3); 
-      } else {
-          // 如果找不到 "/v1"，尝试做简单的清理，但这不太可靠
-          console.warn("无法从 NEXT_PUBLIC_DIFY_API_URL 中可靠地提取 /v1 基础路径:", apiUrl);
-          baseApiUrl = apiUrl.replace('/chat-messages', ''); 
-      }
-      // 确保基础 URL 没有末尾斜杠
-      baseApiUrl = baseApiUrl.replace(/\/$/, ''); 
-      // --- URL 构建结束 ---
-        
-      const apiEndpoint = `${baseApiUrl}/conversations/${conversationId}`; // 删除路径
+      // --- 修改：直接使用 this.baseUrl ---
+      const apiEndpoint = `${this.baseUrl}/conversations/${conversationId}`; // 删除路径
+      // --- 修改结束 ---
 
       if (this.debug) {
         console.log('删除对话 - 请求信息:', {
