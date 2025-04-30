@@ -978,20 +978,40 @@ export class DifyClient {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = await response.text(); // 获取文本以获得更多错误信息
         try {
+          // 尝试解析为JSON，获取标准错误消息
           const errorData = JSON.parse(errorText);
           throw new Error(errorData.message || `删除对话失败: ${response.status}`);
         } catch (e) {
-          throw new Error(`删除对话请求失败: ${response.status}`);
+          // 如果无法解析为JSON，抛出包含状态码和文本的错误
+           throw new Error(`删除对话请求失败: ${response.status} ${response.statusText} - ${errorText || '无响应体'}`);
         }
       }
 
-      // API 成功时返回 { result: "success" }
-      return await response.json(); 
+      // --- 修改：处理成功响应 ---
+      if (response.status === 204) {
+        // 成功删除，无内容返回
+        console.log(`对话 ${conversationId} 删除成功 (204 No Content)`);
+        return { result: "success" }; // 直接返回成功状态
+      } else {
+        // 对于其他成功状态 (如 200 OK)，尝试解析 JSON
+        try {
+          const data = await response.json();
+          // 可以选择性地验证 data 结构，例如：if (data.result === 'success') return data;
+          return data; // 假设 Dify 在 200 OK 时可能返回 { result: "success" }
+        } catch (jsonError: any) {
+          // 如果 JSON 解析失败，但 HTTP 状态是成功的，也认为操作成功
+          console.warn(`删除对话 ${conversationId} 成功 (${response.status})，但响应体无法解析为 JSON:`, jsonError.message);
+          return { result: "success" }; // 回退到标准成功对象
+        }
+      }
+      // --- 修改结束 ---
+
     } catch (error: any) {
+      // 捕获 fetch 错误 或上面抛出的错误
       console.error('删除对话错误:', error);
-      throw error;
+      throw error; // 重新抛出错误，以便上层可以处理
     }
   }
 }

@@ -30,14 +30,14 @@ import difyConfigService from '@/services/difyConfigService';
 import { DifyClient } from '@/services/dify/client';
 import { getApiKey } from '@/utils/app/api';
 
-// --- 定义 AppConfig 接口 (与 home.tsx/home.context.tsx 一致) ---
+// --- AppConfig Interface (Ensure apiUrl is optional) ---
 interface AppConfig {
   id: number;
   name: string;
   apiKey: string;
-  apiUrl?: string;
+  apiUrl?: string; // <-- Ensure apiUrl exists and is optional
 }
-// --- END 定义 ---
+// --- END Definition ---
 
 // 定义 ModalType
 type ModalType = 'rename' | 'delete';
@@ -172,47 +172,59 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, i
     if (renameValue.trim().length > 0) {
       // 先更新前端状态
       handleUpdateConversation(conversation, { key: 'name', value: renameValue });
-      // 立即关闭对话框
       setShowRenameModal(false);
-      // onSetModalOpen 由 useEffect 处理
-      
-      // 使用setTimeout确保UI更新完成后再进行API调用
+      // onSetModalOpen is handled by useEffect
+
       setTimeout(() => {
-        // 如果有会话ID，异步更新到后端
         if (conversation.id && conversation.conversationID) {
           try {
-            // --- 确定要使用的 API Key --- 
             let apiKeyToUse: string | undefined;
-            
-            // 健壮性修复：确保 appId 是有效数字且存在于 appConfigs 中
+            let apiUrlToUse: string | undefined; // <-- Declare apiUrlToUse
+
+            // Determine API Key and API URL
             if (
-              conversation.appId !== null && 
-              typeof conversation.appId === 'number' && 
-              appConfigs && 
-              conversation.appId in appConfigs // 使用 in 操作符更简洁
+              conversation.appId !== null &&
+              typeof conversation.appId === 'number' &&
+              appConfigs &&
+              conversation.appId in appConfigs
             ) {
-              // 优先使用当前会话所属应用的 API Key
-              const appConfig = appConfigs[conversation.appId]; // 安全访问
+              const appConfig = appConfigs[conversation.appId];
               apiKeyToUse = appConfig.apiKey;
-              console.log(`重命名: 使用 App ID ${conversation.appId} 的 API Key`);
+              apiUrlToUse = appConfig.apiUrl || undefined; // <-- Get app's apiUrl, convert null to undefined
+              console.log(`重命名: 使用 App ID ${conversation.appId} 的配置 - API Key: ${apiKeyToUse ? 'Yes' : 'No'}, API URL: ${apiUrlToUse || '未提供'}`);
+              // Fallback to global URL if app's apiUrl is not defined
+               if (!apiUrlToUse) {
+                   console.warn(`App ID ${conversation.appId} 的配置中缺少 apiUrl，将使用全局 apiUrl`);
+                   apiUrlToUse = difyConfigService.getGlobalApiUrl() || undefined; // Convert null to undefined
+               }
             } else {
-              // 否则，使用全局默认的 API Key
-              apiKeyToUse = getApiKey(); 
-              console.log("重命名: 使用全局 API Key");
-            }
-            // --- API Key 确定结束 ---
+              // Global conversation or app config not found
+              // --- 修改：获取默认全局模型的 API Key ---
+              const defaultGlobalModel = difyConfigService.getDefaultGlobalModel();
+              if (defaultGlobalModel) {
+                  apiKeyToUse = defaultGlobalModel.apiKey;
+              } else {
+                  console.error("未找到默认的全局模型配置！");
+                  apiKeyToUse = undefined; // 确保是 undefined
+              }
+              // --- 修改结束 ---
 
-            // 检查是否成功获取到 API Key
-            if (!apiKeyToUse) {
-              console.error('无法确定有效的 API Key 进行重命名');
-              // 这里可以抛出错误或采取其他错误处理措施
-              return; 
+              apiUrlToUse = difyConfigService.getGlobalApiUrl() || undefined; // <--- Get global URL, convert null to undefined
+              console.log(`重命名: 使用全局配置 - API Key: ${apiKeyToUse ? 'Yes' : 'No'}, API URL: ${apiUrlToUse || '未找到'}`);
             }
 
-            const client = new DifyClient();
+            // Check if config was successfully obtained
+            if (!apiKeyToUse || !apiUrlToUse) {
+              console.error('无法确定有效的 API Key 或 API URL 进行重命名');
+              return;
+            }
+
+            // --- Modify: Pass apiUrl when creating the Client ---
+            const client = new DifyClient({ apiUrl: apiUrlToUse });
+            // --- End modification ---
+
             const user = 'unknown';
-            
-            // 异步调用API，不阻塞UI
+
             client.renameConversation(
               conversation.conversationID,
               renameValue,
@@ -234,50 +246,64 @@ export const ConversationComponent = ({ conversation, activeAppId, appConfigs, i
   };
 
   const handleConfirmDelete = () => {
-    // 立即关闭模态框，并通知父组件
     setShowDeleteModal(false);
-    // onSetModalOpen 由 useEffect 处理
-    
-    // 使用setTimeout确保UI更新完成后再进行操作
-    setTimeout(() => {
-      // 1. 先从前端移除（乐观UI）
-      handleDeleteConversation(conversation.id);
+    // onSetModalOpen is handled by useEffect
 
-      // 2. 再异步调用后端API删除
+    setTimeout(() => {
+      handleDeleteConversation(conversation.id); // Optimistic UI update
+
       if (conversation.id && conversation.conversationID) {
         try {
-          // --- 确定要使用的 API Key --- 
           let apiKeyToUse: string | undefined;
-          
-          // 健壮性修复：确保 appId 是有效数字且存在于 appConfigs 中
+          let apiUrlToUse: string | undefined; // <-- Declare apiUrlToUse
+
+          // Determine API Key and API URL
           if (
-            conversation.appId !== null && 
-            typeof conversation.appId === 'number' && 
-            appConfigs && 
-            conversation.appId in appConfigs // 使用 in 操作符更简洁
+            conversation.appId !== null &&
+            typeof conversation.appId === 'number' &&
+            appConfigs &&
+            conversation.appId in appConfigs
           ) {
-            // 优先使用当前会话所属应用的 API Key
-            const appConfig = appConfigs[conversation.appId]; // 安全访问
+            const appConfig = appConfigs[conversation.appId];
             apiKeyToUse = appConfig.apiKey;
-            console.log(`删除: 使用 App ID ${conversation.appId} 的 API Key`);
+            apiUrlToUse = appConfig.apiUrl || undefined; // <-- Get app's apiUrl, convert null to undefined
+            console.log(`删除: 使用 App ID ${conversation.appId} 的配置 - API Key: ${apiKeyToUse ? 'Yes' : 'No'}, API URL: ${apiUrlToUse || '未提供'}`);
+
+            // Fallback to global URL if app's apiUrl is not defined
+            if (!apiUrlToUse) {
+                console.warn(`App ID ${conversation.appId} 的配置中缺少 apiUrl，将使用全局 apiUrl`);
+                apiUrlToUse = difyConfigService.getGlobalApiUrl() || undefined; // Convert null to undefined
+            }
+
           } else {
-            // 否则，使用全局默认的 API Key
-            apiKeyToUse = getApiKey();
-            console.log("删除: 使用全局 API Key");
-          }
-          // --- API Key 确定结束 ---
+            // Global conversation or app config not found
+            // --- 修改：获取默认全局模型的 API Key ---
+            const defaultGlobalModel = difyConfigService.getDefaultGlobalModel();
+            if (defaultGlobalModel) {
+                apiKeyToUse = defaultGlobalModel.apiKey;
+            } else {
+                console.error("未找到默认的全局模型配置！");
+                apiKeyToUse = undefined; // 确保是 undefined
+            }
+            // --- 修改结束 ---
 
-          // 检查是否成功获取到 API Key
-          if (!apiKeyToUse) {
-            console.error('无法确定有效的 API Key 进行删除');
-            // 考虑是否需要恢复前端状态，因为后端调用无法进行
-            // 例如: dispatch({ type: 'ADD_CONVERSATION', payload: conversation });
-            return; 
+            apiUrlToUse = difyConfigService.getGlobalApiUrl() || undefined; // <--- Get global URL, convert null to undefined
+            console.log(`删除: 使用全局配置 - API Key: ${apiKeyToUse ? 'Yes' : 'No'}, API URL: ${apiUrlToUse || '未找到'}`);
           }
 
-          const client = new DifyClient();
+          // Check if config was successfully obtained
+          if (!apiKeyToUse || !apiUrlToUse) {
+            console.error('无法确定有效的 API Key 或 API URL 进行删除');
+            // Consider reverting the optimistic UI update here
+            return;
+          }
+
+          // --- Modify: Pass apiUrl when creating the Client ---
+          const client = new DifyClient({ apiUrl: apiUrlToUse });
+          // --- End modification ---
+
           const user = 'unknown';
-          
+
           client.deleteConversation(
             conversation.conversationID,
             apiKeyToUse, // 使用动态确定的 API Key
