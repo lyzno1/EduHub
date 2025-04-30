@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { UpdateInfo } from '@/utils/app/updateInfo';
-import { markUpdateAsViewed, hasUserViewedUpdate } from '@/utils/app/updateInfo';
+import { markUpdateAsViewed, hasViewedUpdateInCurrentSession } from '@/utils/app/updateInfo';
 
 interface UseUpdateNotificationResult {
   updateInfo: UpdateInfo | null;
@@ -24,8 +24,8 @@ export const useUpdateNotification = (userId: string): UseUpdateNotificationResu
     try {
       setIsLoading(true);
       
-      // 检查用户是否已经查看过更新
-      if (hasUserViewedUpdate(userId)) {
+      // 检查当前会话是否已经查看过更新
+      if (hasViewedUpdateInCurrentSession()) {
         setUpdateInfo(null);
         setIsLoading(false);
         return;
@@ -48,19 +48,17 @@ export const useUpdateNotification = (userId: string): UseUpdateNotificationResu
   };
 
   const closeNotification = () => {
-    // 标记更新为已查看
-    if (userId) {
-      markUpdateAsViewed(userId);
-    }
+    // 标记当前会话已查看更新
+    markUpdateAsViewed(userId);
     setUpdateInfo(null);
   };
 
   useEffect(() => {
     // 确保在客户端环境中执行
-    if (typeof window !== 'undefined' && userId) {
+    if (typeof window !== 'undefined') {
       fetchUpdateInfo();
     }
-  }, [userId]);
+  }, []);
 
   return { updateInfo, isLoading, error, closeNotification };
 };

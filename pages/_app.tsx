@@ -23,8 +23,7 @@ function App({ Component, pageProps }: AppProps<{}>) {
   const queryClient = new QueryClient();
   const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<string>('light');
-  const [userId, setUserId] = useState<string>('');
-  const { updateInfo, isLoading, closeNotification } = useUpdateNotification(userId);
+  const { updateInfo, isLoading, closeNotification } = useUpdateNotification('');
 
   // 页面加载时应用保存的主题
   useEffect(() => {
@@ -78,24 +77,6 @@ function App({ Component, pageProps }: AppProps<{}>) {
     return () => {
       window.removeEventListener('themeChange' as any, handleThemeChange as any);
     };
-  }, []);
-
-  // 获取用户ID
-  useEffect(() => {
-    // 仅在客户端环境中执行
-    if (typeof window !== 'undefined') {
-      // 尝试从localStorage获取用户ID
-      const storedUserId = localStorage.getItem('userId');
-      
-      if (storedUserId) {
-        setUserId(storedUserId);
-      } else {
-        // 如果没有用户ID，生成一个新的
-        const newUserId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        localStorage.setItem('userId', newUserId);
-        setUserId(newUserId);
-      }
-    }
   }, []);
 
   // 使用 variable 类名来应用字体
