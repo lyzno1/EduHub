@@ -23,6 +23,7 @@ const whitelistPath = path.join(EDUHUB_BASE_PATH, 'whitelist.json');
 const blacklistPath = path.join(EDUHUB_BASE_PATH, 'blacklist.json');
 const openAiTsFile = path.join(EDUHUB_BASE_PATH, 'types/openai.ts');
 const metadataJsonPath = path.join(EDUHUB_BASE_PATH, 'public/config/metadata.json');
+const updateInfoPath = path.join(EDUHUB_BASE_PATH, 'public/config/update-info.json');
 
 const bcrypt = require('bcryptjs');
 const { exec } = require('child_process');
@@ -2022,3 +2023,92 @@ app.post('/api/update-teacher-config', (req, res) => {
 });
 
 // ######## END NEW APIs ########
+
+// 获取更新信息
+app.get('/getUpdateInfo', (req, res) => {
+    fs.readFile(updateInfoPath, 'utf8', (err, data) => {
+        if (err) {
+            // 如果文件不存在，返回默认结构
+            if (err.code === 'ENOENT') {
+                console.warn(`update-info.json not found at ${updateInfoPath}, returning default structure.`);
+                return res.json({
+                    version: '',
+                    title: '最新功能更新',
+                    date: '',
+                    content: []
+                });
+            }
+            console.error(`读取更新信息文件失败: ${err}`);
+            return res.status(500).json({ 
+                success: false, 
+                message: '读取更新信息文件失败' 
+            });
+        }
+        
+        try {
+            const jsonData = JSON.parse(data);
+            res.json(jsonData);
+        } catch (parseError) {
+            console.error(`解析更新信息文件失败: ${parseError}`);
+            res.status(500).json({ 
+                success: false, 
+                message: '解析更新信息文件失败' 
+            });
+        }
+    });
+});
+
+// 更新更新信息
+app.post('/updateUpdateInfo', (req, res) => {
+    const newUpdateInfo = req.body;
+    
+    // 验证更新信息数据结构
+    if (!newUpdateInfo || 
+        typeof newUpdateInfo.title !== 'string' || 
+        !Array.isArray(newUpdateInfo.content)) {
+        return res.status(400).json({
+            success: false,
+            message: '提供的更新信息数据格式无效或缺少必要字段'
+        });
+    }
+    
+    // 确保版本号格式正确
+    if (newUpdateInfo.version && !/^\d+\.\d+\.\d+$/.test(newUpdateInfo.version)) {
+        return res.status(400).json({
+            success: false,
+            message: '版本号格式无效，请使用类似 1.0.0 的格式'
+        });
+    }
+    
+    // 创建父目录（如果不存在）
+    const dirPath = path.dirname(updateInfoPath);
+    if (!fs.existsSync(dirPath)) {
+        try {
+            fs.mkdirSync(dirPath, { recursive: true });
+        } catch (mkdirError) {
+            console.error(`创建目录失败: ${mkdirError}`);
+            return res.status(500).json({
+                success: false,
+                message: '创建目录失败'
+            });
+        }
+    }
+    
+    // 写入文件
+    fs.writeFile(updateInfoPath, JSON.stringify(newUpdateInfo, null, 2), 'utf8', (err) => {
+        if (err) {
+            console.error(`写入更新信息文件失败: ${err}`);
+            return res.status(500).json({
+                success: false,
+                message: '写入更新信息文件失败'
+            });
+        }
+        
+        console.log('更新信息保存成功');
+        res.json({
+            success: true,
+            message: '更新信息保存成功',
+            data: newUpdateInfo
+        });
+    });
+});

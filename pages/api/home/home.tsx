@@ -896,7 +896,7 @@ const Home = ({
       }}
     >
       <Head>
-        <title>eduhub</title>
+        <title>llm</title>
         <meta name="description" content="ChatGPT but better." />
         <meta
           name="viewport"

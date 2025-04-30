@@ -10,7 +10,8 @@ import {
     QuestionOutlined,
     LogoutOutlined,
     SyncOutlined,
-    GlobalOutlined
+    GlobalOutlined,
+    NotificationOutlined
 } from '@ant-design/icons';
 import ApplicationPage  from "../../components/ApplicationPage";
 import IndexPage   from "../../components/IndexPage";
@@ -23,6 +24,7 @@ import SettingPage  from "../../components/SettingPage";
 import UserManagePage from "../../components/UserManagePage";
 import RebuildAndRestartButton from '../../components/RebuildAndRestartButton';
 import GlobalSettingsPage from '../../components/GlobalSettingsPage';
+import UpdateInfoPage from '../../components/UpdateInfoPage';
 
 const { Header, Content, Sider } = Layout;
 
@@ -72,6 +74,11 @@ const menuItems = [
         key: '8',
         icon: <QuestionOutlined />,
         label: '帮助管理',
+    },
+    {
+        key: '10',
+        icon: <NotificationOutlined />,
+        label: '更新信息管理',
     },
 ];
 
@@ -132,6 +139,7 @@ const AdminPage = () => {
                         {selectedMenu === '6' && <AppearancePage />}
                         {selectedMenu === '7' && <UserManagePage/>}
                         {selectedMenu === '8' && <HelpPage />}
+                        {selectedMenu === '10' && <UpdateInfoPage />}
                     </Content>
                 </Layout>
             </Layout>
