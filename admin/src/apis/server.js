@@ -1843,16 +1843,17 @@ app.post('/setGlobalDefaultModel', (req, res) => {
 });
 
 // 获取 metadata.json 内容接口
-app.get('/getMetadata', (req, res) => { // 重命名路由
-    fs.readFile(metadataJsonPath, 'utf8', (err, data) => { // 使用新路径变量
+app.get('/getMetadata', (req, res) => {
+    fs.readFile(metadataJsonPath, 'utf8', (err, data) => {
         if (err) {
-            // 如果文件不存在，返回完整的默认 metadata 结构
+            // 如果文件不存在，返回包含 pageTitle 的默认结构
             if (err.code === 'ENOENT') {
                 console.warn(`metadata.json not found at ${metadataJsonPath}, returning default structure.`);
                 res.json({
                     title: '',
                     subtitle: '',
-                    tooltipContent: '',
+                    pageTitle: 'BistuCopilot', // 添加默认 pageTitle
+                    aboutContent: '',
                     version: '',
                     copyright: '',
                     additionalInfo: {
@@ -1868,8 +1869,20 @@ app.get('/getMetadata', (req, res) => { // 重命名路由
         }
         try {
             const jsonData = JSON.parse(data);
-            // 可以选择性地验证返回的数据结构，或者信任文件内容
-            res.json(jsonData);
+            // 确保返回的数据包含 pageTitle，如果缺少则添加默认值
+            const completeData = {
+                title: jsonData.title || '',
+                subtitle: jsonData.subtitle || '',
+                pageTitle: jsonData.pageTitle || 'BistuCopilot',
+                aboutContent: jsonData.aboutContent || '',
+                version: jsonData.version || '',
+                copyright: jsonData.copyright || '',
+                additionalInfo: {
+                    developer: jsonData.additionalInfo?.developer || '',
+                    website: jsonData.additionalInfo?.website || ''
+                }
+            };
+            res.json(completeData);
         } catch (parseError) {
             console.error(`解析 metadata.json 失败: ${parseError}`);
             res.status(500).send('解析元数据文件失败');
@@ -1881,25 +1894,31 @@ app.get('/getMetadata', (req, res) => { // 重命名路由
 app.post('/updateMetadata', (req, res) => { 
     const newMetadata = req.body; 
 
-    // Validation updated to check for 'aboutContent' instead of 'tooltipContent'
+    // 更新验证逻辑，确保包含 pageTitle
     if (!newMetadata || 
         typeof newMetadata.title !== 'string' || 
         typeof newMetadata.subtitle !== 'string' || 
-        typeof newMetadata.aboutContent !== 'string' || // Check for aboutContent
+        typeof newMetadata.pageTitle !== 'string' || // 验证 pageTitle
+        typeof newMetadata.aboutContent !== 'string' ||
         typeof newMetadata.version !== 'string' || 
         typeof newMetadata.copyright !== 'string' || 
         typeof newMetadata.additionalInfo !== 'object' ||
         newMetadata.additionalInfo === null || 
         typeof newMetadata.additionalInfo.developer !== 'string' ||
         typeof newMetadata.additionalInfo.website !== 'string') {
-        return res.status(400).send('提供的元数据数据格式无效或缺少字段');
+        return res.status(400).json({
+            success: false,
+            message: '提供的元数据数据格式无效或缺少字段'
+        });
     }
 
     fs.writeFile(metadataJsonPath, JSON.stringify(newMetadata, null, 2), 'utf8', (err) => { 
         if (err) {
             console.error(`写入 metadata.json 失败: ${err}`);
-            res.status(500).send('更新元数据文件失败');
-            return;
+            return res.status(500).json({ 
+                success: false, 
+                message: '更新元数据文件失败' 
+            });
         }
         console.log('metadata.json 更新成功');
         res.json({ success: true, message: '元数据更新成功', data: newMetadata });
@@ -2112,3 +2131,4 @@ app.post('/updateUpdateInfo', (req, res) => {
         });
     });
 });
+

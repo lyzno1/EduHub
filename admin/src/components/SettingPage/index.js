@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, message, Spin, Divider } from 'antd';
+import { Card, Form, Input, Button, message, Spin, Divider, Alert, Tooltip } from 'antd';
+import { InfoCircleOutlined } from '@ant-design/icons';
 import { API_URL } from '../../config/config';
 const { TextArea } = Input;
 
@@ -9,6 +10,7 @@ const SettingPage = () => {
     const [metadata, setMetadata] = useState({
         title: '',
         subtitle: '',
+        pageTitle: '', // 添加pageTitle字段
         aboutContent: '', // Keep this field in the state
         version: '',
         copyright: '',
@@ -25,6 +27,7 @@ const SettingPage = () => {
                 const saneData = {
                     title: data?.title || '',
                     subtitle: data?.subtitle || '',
+                    pageTitle: data?.pageTitle || '', // 获取pageTitle
                     aboutContent: data?.aboutContent || '', // Fetch aboutContent
                     version: data?.version || '',
                     copyright: data?.copyright || '',
@@ -38,6 +41,7 @@ const SettingPage = () => {
                     // Set form values excluding aboutContent
                     title: saneData.title,
                     subtitle: saneData.subtitle,
+                    pageTitle: saneData.pageTitle, // 设置pageTitle表单值
                     version: saneData.version,
                     copyright: saneData.copyright,
                     developer: saneData.additionalInfo.developer,
@@ -58,6 +62,7 @@ const SettingPage = () => {
         const metadataToSave = {
             title: values.title,
             subtitle: values.subtitle,
+            pageTitle: values.pageTitle, // 添加pageTitle到保存对象中
             aboutContent: metadata.aboutContent, // Use aboutContent from state
             version: values.version,
             copyright: values.copyright,
@@ -82,6 +87,7 @@ const SettingPage = () => {
                      const updatedData = {
                         title: data.data?.title || '',
                         subtitle: data.data?.subtitle || '',
+                        pageTitle: data.data?.pageTitle || '', // 更新pageTitle
                         aboutContent: data.data?.aboutContent || '', // Update state with new aboutContent
                         version: data.data?.version || '',
                         copyright: data.data?.copyright || '',
@@ -95,6 +101,7 @@ const SettingPage = () => {
                         // Update form fields (excluding aboutContent)
                         title: updatedData.title,
                         subtitle: updatedData.subtitle,
+                        pageTitle: updatedData.pageTitle, // 更新表单中的pageTitle
                         version: updatedData.version,
                         copyright: updatedData.copyright,
                         developer: updatedData.additionalInfo.developer,
@@ -115,6 +122,20 @@ const SettingPage = () => {
     return (
         <Spin spinning={loading}>
             <Card title="应用元数据配置">
+                <Alert
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: '20px' }}
+                    message="标题配置说明"
+                    description={
+                        <ul style={{ paddingLeft: '20px', marginBottom: '0' }}>
+                            <li><strong>应用主标题</strong>: 显示在应用欢迎页面的主要标题文字</li>
+                            <li><strong>应用副标题</strong>: 显示在欢迎页面主标题下方的描述性文字</li>
+                            <li><strong>网站标题</strong>: 显示在浏览器标签页中的标题文字（页面的title标签）</li>
+                        </ul>
+                    }
+                />
+                
                 <Form
                     form={metadataForm}
                     layout="vertical"
@@ -123,6 +144,7 @@ const SettingPage = () => {
                     initialValues={{
                         title: metadata.title,
                         subtitle: metadata.subtitle,
+                        pageTitle: metadata.pageTitle, // 初始化pageTitle
                         version: metadata.version,
                         copyright: metadata.copyright,
                         developer: metadata.additionalInfo?.developer,
@@ -130,11 +152,30 @@ const SettingPage = () => {
                     }}
                 >
                     {/* ... Form Items for title, subtitle ... */}
-                    <Form.Item name="title" label="应用主标题" rules={[{ required: true }]}>
+                    <Form.Item 
+                        name="title" 
+                        label="应用主标题" 
+                        rules={[{ required: true, message: '请输入应用主标题' }]}
+                        tooltip="显示在欢迎页面的主要标题文字，用户打开应用时看到的主标题"
+                    >
                         <Input placeholder="例如：BistuCopilot 智能助手"/>
                     </Form.Item>
-                    <Form.Item name="subtitle" label="应用副标题">
+                    
+                    <Form.Item 
+                        name="subtitle" 
+                        label="应用副标题"
+                        tooltip="显示在欢迎页面主标题下方的描述性文字，简要说明应用的功能或特点"
+                    >
                         <Input placeholder="例如：基于大模型的知识问答与创作平台"/>
+                    </Form.Item>
+                    
+                    <Form.Item 
+                        name="pageTitle" 
+                        label="网站标题" 
+                        rules={[{ required: true, message: '请输入网站标题' }]}
+                        tooltip="显示在浏览器标签页中的标题文字，影响SEO和用户在多标签页下识别本站"
+                    >
+                        <Input placeholder="例如：BistuCopilot | 智能知识助手"/>
                     </Form.Item>
 
                     <Divider /> 
@@ -145,10 +186,10 @@ const SettingPage = () => {
                     </Form.Item> */}
                     
                     {/* ... Form Items for version, copyright, developer, website ... */}
-                    <Form.Item name="version" label="版本号" rules={[{ required: true }]}>
+                    <Form.Item name="version" label="版本号" rules={[{ required: true, message: '请输入版本号' }]}>
                         <Input placeholder="例如：v2.0.0"/>
                     </Form.Item>
-                    <Form.Item name="copyright" label="版权信息" rules={[{ required: true }]}>
+                    <Form.Item name="copyright" label="版权信息" rules={[{ required: true, message: '请输入版权信息' }]}>
                         <Input placeholder="例如：© 2023-2025 北京信息科技大学"/>
                     </Form.Item>
                      <Form.Item name="developer" label="开发者/组织">
