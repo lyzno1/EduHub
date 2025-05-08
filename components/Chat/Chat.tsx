@@ -38,7 +38,6 @@ import { ChatLoader } from './ChatLoader';
 import { ErrorMessageDiv } from './ErrorMessageDiv';
 import { MemoizedChatMessage } from './MemoizedChatMessage';
 import { FunctionCards } from './FunctionCards';
-import { ChatInput } from './ChatInput';
 import { ChatMessage } from './ChatMessage';
 import { AppPageTemplate } from '@/components/AppPages/common/AppPageTemplate';
 import difyConfigService from '@/services/difyConfigService';
