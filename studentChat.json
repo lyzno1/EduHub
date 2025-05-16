@@ -1,21 +1,27 @@
 {
   "allowedApps": {
-    "campusAssistant": [
-      "ca-student-qa",
-      "ca-freshman-helper",
-      "ca-network-qa",
-      "ca-teacher-qa"
-    ],
     "courseHelper": [
       "ch-swe-test",
       "ch-oss-dev"
     ],
     "deepseek": [
       "ds-network-search",
-      "ds-campus-kb",
-      "ds-academic-search",
       "ds-ai-tutor",
-      "ds-logistics-assistant"
+      "ds-campus-kb",
+      "ds-logistics-assistant",
+      "ds-academic-search"
+    ],
+    "campusAssistant": [
+      "ca-teacher-qa",
+      "ca-student-qa",
+      "ca-freshman-helper",
+      "ca-network-qa"
     ]
-  }
+  },
+  "appDisplayOrder": [
+    "deepseek",
+    "courseHelper",
+    "teacherAssistant",
+    "campusAssistant"
+  ]
 }
