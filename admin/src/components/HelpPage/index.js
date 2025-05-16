@@ -6,10 +6,11 @@ const { TextArea } = Input;
 const HelpPage = () => {
     const [loading, setLoading] = useState(true);
     // State to hold the full metadata object
-    const [metadata, setMetadata] = useState({
+    const [metadata, setMetadata] = useState({ // 确保初始状态包含所有后端期望的字段
         title: '',
         subtitle: '',
-        aboutContent: '', 
+        pageTitle: '', // 添加 pageTitle 初始值
+        aboutContent: '',
         version: '',
         copyright: '',
         additionalInfo: { developer: '', website: '' }
@@ -24,14 +25,15 @@ const HelpPage = () => {
             .then(data => {
                 // Ensure data structure is sound
                 const saneData = {
-                    title: data?.title || '',
-                    subtitle: data?.subtitle || '',
-                    aboutContent: data?.aboutContent || '', 
-                    version: data?.version || '',
-                    copyright: data?.copyright || '',
+                    title: data?.title ?? '', // 使用 ?? 运算符处理 null 和 undefined
+                    subtitle: data?.subtitle ?? '',
+                    pageTitle: data?.pageTitle ?? 'BistuCopilot', // 确保从后端获取或设置默认值
+                    aboutContent: data?.aboutContent ?? '',
+                    version: data?.version ?? '',
+                    copyright: data?.copyright ?? '',
                     additionalInfo: {
-                        developer: data?.additionalInfo?.developer || '',
-                        website: data?.additionalInfo?.website || ''
+                        developer: data?.additionalInfo?.developer ?? '',
+                        website: data?.additionalInfo?.website ?? ''
                     }
                 };
                 setMetadata(saneData);
@@ -64,17 +66,12 @@ const HelpPage = () => {
         .then(response => response.json())
         .then(data => {
             if(data.success) {
-                message.success(data.message || '关于信息保存成功');
+                message.success(data.message || '关于信息保存成功'); // 使用后端返回的消息
                 // Update local state if save was successful and data returned
                 if (data.data) {
-                    // Create a completely new object for the state update
-                    const updatedMetadata = {
-                        ...metadata, // Keep other fields from previous state
-                        aboutContent: data.data.aboutContent || ''
-                    };
-                    setMetadata(updatedMetadata);
+                    setMetadata(data.data); // 后端返回完整的更新后的元数据
                     // Reset the form to reflect the newly saved value
-                    aboutForm.setFieldsValue({ aboutContent: data.data.aboutContent || '' }); 
+                    aboutForm.setFieldsValue({ aboutContent: data.data.aboutContent ?? '' });
                 }
             } else {
                 message.error(data.message || '保存关于信息失败');
