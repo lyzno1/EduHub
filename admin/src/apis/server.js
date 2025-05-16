@@ -24,6 +24,7 @@ const blacklistPath = path.join(EDUHUB_BASE_PATH, 'blacklist.json');
 const openAiTsFile = path.join(EDUHUB_BASE_PATH, 'types/openai.ts');
 const metadataJsonPath = path.join(EDUHUB_BASE_PATH, 'public/config/metadata.json');
 const updateInfoPath = path.join(EDUHUB_BASE_PATH, 'public/config/update-info.json');
+const promptFunctionCardsPath = path.join(EDUHUB_BASE_PATH, 'promptFunctionCards.json'); // Path for general prompts (function cards)
 
 const bcrypt = require('bcryptjs');
 const { exec } = require('child_process');
@@ -660,15 +661,54 @@ app.post('/addChatTeacher', (req, res) => {
     });
 });
 
-app.get('/getPrompts', (req, res) => {
-    fs.readFile(promptPath, 'utf8', (err, data) => {
-        if (err) {
-            console.error('Error reading file:', err);
-            res.status(500).send('Error reading prompt file');
-            return;
+// 获取所有类型的提示词数据
+app.get('/getPrompts', async (req, res) => {
+    try {
+        // 读取 AppCard Prompts
+        let appCardPromptsData = {};
+        try {
+            const appCardFileContent = await fs.promises.readFile(promptPath, 'utf8');
+            appCardPromptsData = JSON.parse(appCardFileContent).appCardPrompts || {};
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                console.warn(`prompt.json not found at ${promptPath}, returning empty appCardPrompts.`);
+            } else {
+                console.error('Error reading appCardPrompts from prompt.json:', err);
+                // Decide if you want to throw or return partial data
+            }
         }
-        res.json(JSON.parse(data));
-    });
+
+        // 读取 General Prompts (Function Cards)
+        let generalPromptsData = [];
+        try {
+            console.log(`Attempting to read general prompts from: ${promptFunctionCardsPath}`);
+            const generalPromptsFileContent = await fs.promises.readFile(promptFunctionCardsPath, 'utf8');
+            const parsedData = JSON.parse(generalPromptsFileContent);
+            if (Array.isArray(parsedData)) {
+                generalPromptsData = parsedData;
+                console.log(`Successfully read and parsed ${generalPromptsData.length} general prompt folders.`);
+            } else {
+                console.error(`Parsed data from promptFunctionCards.json is not an array. Received:`, parsedData);
+                generalPromptsData = []; // Default to empty array if not an array
+            }
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                console.warn(`promptFunctionCards.json not found at ${promptFunctionCardsPath}. Returning empty array for general prompts.`);
+            } else {
+                console.error('Error reading or parsing generalPrompts from promptFunctionCards.json:', err);
+            }
+            generalPromptsData = []; // Ensure it's an empty array on any error during read/parse
+        }
+
+        res.json({
+            appCardPrompts: appCardPromptsData,
+            generalPrompts: generalPromptsData
+        });
+
+    } catch (error) {
+        console.error('Failed to fetch prompts data:', error);
+        res.status(500).send('Error fetching prompts data');
+    }
 });
 
 
@@ -928,230 +968,315 @@ app.post('/updateFoldersOrderTeacher', (req, res) => {
 });
 
 
-app.put('/updatePrompt/:id', (req, res) => {
-    const { id } = req.params;
-    const updatedPrompt = req.body;
+// --- General Prompts (Function Cards) Children Prompts Management ---
 
-    fs.readFile(promptPath, 'utf8', (err, data) => {
-        if (err) {
-            res.status(500).send('Error reading data file');
-            return;
-        }
+// Add a child prompt to a General Prompt Folder
+app.post('/api/general-prompts/folders/:folderId/prompts', async (req, res) => {
+    const { folderId } = req.params;
+    const { name, prompt: promptContent } = req.body; // 'prompt' is the key for content in promptFunctionCards.json
 
-        let jsonData = JSON.parse(data);
-        let prompts = jsonData.Prompts;
-        const promptIndex = prompts.findIndex(prompt => prompt.id === id);
-
-        if (promptIndex === -1) {
-            res.status(404).send('Prompt not found');
-            return;
-        }
-
-        prompts[promptIndex] = { ...prompts[promptIndex], ...updatedPrompt };
-        jsonData.Prompts = prompts;
-
-        fs.writeFile(promptPath, JSON.stringify(jsonData, null, 2), (err) => {
-            if (err) {
-                res.status(500).send('Error writing data file');
-                return;
-            }
-            res.json(prompts[promptIndex]);
-        });
-    });
-});
-
-app.delete('/deletePrompt/:id', (req, res) => {
-    const { id } = req.params;
-
-    fs.readFile(promptPath, 'utf8', (err, data) => {
-        if (err) {
-            res.status(500).send('Error reading data file');
-            return;
-        }
-
-        let jsonData = JSON.parse(data);
-        const prompts = jsonData.Prompts;
-        const filteredPrompts = prompts.filter(prompt => prompt.id !== id);
-
-        if (prompts.length === filteredPrompts.length) {
-            res.status(404).send('Prompt not found');
-            return;
-        }
-
-        jsonData.Prompts = filteredPrompts;
-
-        fs.writeFile(promptPath, JSON.stringify(jsonData, null, 2), (err) => {
-            if (err) {
-                res.status(500).send('Error writing data file');
-                return;
-            }
-            res.send('Prompt deleted successfully');
-        });
-    });
-});
-
-app.post('/addPrompt', (req, res) => {
-    const newPrompt = req.body;
-    newPrompt.id = uuidv4(); // 生成一个简单的UUID
-
-    fs.readFile(promptPath, 'utf8', (err, data) => {
-        if (err) {
-            res.status(500).send('Error reading data file');
-            return;
-        }
-
-        const jsonData = JSON.parse(data);
-        jsonData.Prompts.push(newPrompt); // 添加到Prompts数组
-
-        fs.writeFile(promptPath, JSON.stringify(jsonData, null, 2), (err) => {
-            if (err) {
-                res.status(500).send('Error writing data file');
-                return;
-            }
-            res.json(newPrompt);
-        });
-    });
-});
-
-app.post('/addPromptFolder', (req, res) => {
-    const { name, deletable } = req.body;
-
-    // 简单的验证
-    if (!name) {
-        return res.status(400).send('Name is required');
+    if (!name || !promptContent) {
+        return res.status(400).send('Prompt name and content are required.');
     }
 
-    // 读取现有的JSON文件
-    fs.readFile(promptPath, (err, data) => {
-        if (err) {
-            console.error('Failed to read JSON file:', err);
-            return res.status(500).send('Failed to read data');
+    try {
+        let generalPrompts = [];
+        try {
+            const data = await fs.promises.readFile(promptFunctionCardsPath, 'utf8');
+            generalPrompts = JSON.parse(data);
+        } catch (err) {
+            if (err.code === 'ENOENT') return res.status(404).send('Data file not found.');
+            throw err;
         }
 
-        // 解析JSON数据
-        const json = JSON.parse(data.toString());
-        const newFolder = {
-            id: uuidv4(), // 生成唯一ID
+        const folderIndex = generalPrompts.findIndex(folder => folder.id === folderId);
+        if (folderIndex === -1) {
+            return res.status(404).send('Folder not found.');
+        }
+
+        const newPrompt = {
+            id: uuidv4(),
             name,
-            deletable: !!deletable, // 确保deletable是布尔值
+            prompt: promptContent
         };
 
-        // 添加新文件夹到Folders数组
-        json.Folders.push(newFolder);
+        if (!generalPrompts[folderIndex].children) {
+            generalPrompts[folderIndex].children = [];
+        }
+        generalPrompts[folderIndex].children.push(newPrompt);
 
-        // 将更新后的数据写回JSON文件
-        fs.writeFile(promptPath, JSON.stringify(json, null, 2), (err) => {
-            if (err) {
-                console.error('Failed to write JSON file:', err);
-                return res.status(500).send('Failed to save data');
-            }
+        await fs.promises.writeFile(promptFunctionCardsPath, JSON.stringify(generalPrompts, null, 2));
+        res.status(201).json(newPrompt);
+    } catch (error) {
+        console.error('Failed to add child prompt:', error);
+        res.status(500).send('Failed to save prompt data.');
+    }
+});
 
-            res.status(201).json(newFolder);
-        });
-    });
+// Update a child prompt within a General Prompt Folder
+// We'll use promptId to find the prompt, assuming it's unique across all children for simplicity,
+// or frontend can pass folderId if needed for more precise targeting.
+app.put('/api/general-prompts/prompts/:promptId', async (req, res) => {
+    const { promptId } = req.params;
+    const { name, prompt: promptContent, folderId } = req.body; // folderId is crucial here
+
+    if (!name || !promptContent || !folderId) {
+        return res.status(400).send('Folder ID, prompt name, and content are required for update.');
+    }
+
+    try {
+        let generalPrompts = [];
+        try {
+            const data = await fs.promises.readFile(promptFunctionCardsPath, 'utf8');
+            generalPrompts = JSON.parse(data);
+        } catch (err) {
+            if (err.code === 'ENOENT') return res.status(404).send('Data file not found.');
+            throw err;
+        }
+
+        const folderIndex = generalPrompts.findIndex(folder => folder.id === folderId);
+        if (folderIndex === -1) {
+            return res.status(404).send('Parent folder not found.');
+        }
+
+        if (!generalPrompts[folderIndex].children) {
+            return res.status(404).send('Prompt not found in the specified folder (no children array).');
+        }
+        
+        const promptIndex = generalPrompts[folderIndex].children.findIndex(p => p.id === promptId);
+        if (promptIndex === -1) {
+            return res.status(404).send('Prompt not found in the specified folder.');
+        }
+
+        generalPrompts[folderIndex].children[promptIndex] = {
+            ...generalPrompts[folderIndex].children[promptIndex],
+            name,
+            prompt: promptContent
+        };
+
+        await fs.promises.writeFile(promptFunctionCardsPath, JSON.stringify(generalPrompts, null, 2));
+        res.status(200).json(generalPrompts[folderIndex].children[promptIndex]);
+    } catch (error) {
+        console.error('Failed to update child prompt:', error);
+        res.status(500).send('Failed to update prompt data.');
+    }
+});
+
+// Delete a child prompt from a General Prompt Folder
+app.delete('/api/general-prompts/folders/:folderId/prompts/:promptId', async (req, res) => {
+    const { folderId, promptId } = req.params;
+
+    try {
+        let generalPrompts = [];
+        try {
+            const data = await fs.promises.readFile(promptFunctionCardsPath, 'utf8');
+            generalPrompts = JSON.parse(data);
+        } catch (err) {
+            if (err.code === 'ENOENT') return res.status(404).send('Data file not found.');
+            throw err;
+        }
+
+        const folderIndex = generalPrompts.findIndex(folder => folder.id === folderId);
+        if (folderIndex === -1) {
+            return res.status(404).send('Folder not found.');
+        }
+
+        if (!generalPrompts[folderIndex].children) {
+             return res.status(404).send('Prompt not found (folder has no children).');
+        }
+
+        const originalLength = generalPrompts[folderIndex].children.length;
+        generalPrompts[folderIndex].children = generalPrompts[folderIndex].children.filter(p => p.id !== promptId);
+
+        if (generalPrompts[folderIndex].children.length === originalLength) {
+            return res.status(404).send('Prompt not found in the specified folder.');
+        }
+
+        await fs.promises.writeFile(promptFunctionCardsPath, JSON.stringify(generalPrompts, null, 2));
+        res.send('Child prompt deleted successfully.');
+    } catch (error) {
+        console.error('Failed to delete child prompt:', error);
+        res.status(500).send('Failed to delete prompt data.');
+    }
 });
 
 
-app.post('/updatePromptFolder/:id', (req, res) => {
-    const { id } = req.params; // 从请求参数中获取文件夹ID
-    const { name, deletable } = req.body; // 从请求体中获取更新的信息
+// Update order of child prompts within a General Prompt Folder
+app.post('/api/general-prompts/folders/:folderId/prompts/order', async (req, res) => {
+    const { folderId } = req.params;
+    const { orderedPrompts } = req.body; // Expecting an array of prompt objects in the new order
 
-    // 简单的验证
-    if (!name) {
-        return res.status(400).send('Name is required');
+    if (!Array.isArray(orderedPrompts)) {
+        return res.status(400).send('Invalid data format: orderedPrompts should be an array.');
     }
-
-    // 读取现有的JSON文件
-    fs.readFile(promptPath, (err, data) => {
-        if (err) {
-            console.error('Failed to read JSON file:', err);
-            return res.status(500).send('Failed to read data');
+    
+    try {
+        let generalPrompts = [];
+        try {
+            const data = await fs.promises.readFile(promptFunctionCardsPath, 'utf8');
+            generalPrompts = JSON.parse(data);
+        } catch (err) {
+            if (err.code === 'ENOENT') return res.status(404).send('Data file not found.');
+            throw err;
         }
 
-        // 解析JSON数据
-        const json = JSON.parse(data.toString());
-        const folderIndex = json.Folders.findIndex(folder => folder.id === id);
+        const folderIndex = generalPrompts.findIndex(folder => folder.id === folderId);
+        if (folderIndex === -1) {
+            return res.status(404).send('Folder not found.');
+        }
 
-        // 检查文件夹是否存在
+        // Basic validation: ensure all IDs in orderedPrompts exist in the original children
+        // and all original children are present in orderedPrompts.
+        // For simplicity, we'll directly replace the children array.
+        generalPrompts[folderIndex].children = orderedPrompts;
+
+        await fs.promises.writeFile(promptFunctionCardsPath, JSON.stringify(generalPrompts, null, 2));
+        res.status(200).json({ message: 'Child prompts order updated successfully.' });
+    } catch (error) {
+        console.error('Failed to update child prompts order:', error);
+        res.status(500).send('Failed to update prompts order.');
+    }
+});
+
+// Old prompt management APIs - to be removed or refactored for AppCard prompts
+// app.put('/updatePrompt/:id', ...
+// app.delete('/deletePrompt/:id', ...
+// app.post('/addPrompt', ...
+
+// --- General Prompts (Function Cards) Folder Management ---
+
+// Add a new General Prompt Folder (Top-level card)
+app.post('/api/general-prompts/folders', async (req, res) => {
+    const { name, icon, description } = req.body; // `deletable` is not part of promptFunctionCards.json structure for folders
+
+    if (!name) {
+        return res.status(400).send('Folder name is required');
+    }
+
+    try {
+        let generalPrompts = [];
+        try {
+            const data = await fs.promises.readFile(promptFunctionCardsPath, 'utf8');
+            generalPrompts = JSON.parse(data);
+        } catch (err) {
+            if (err.code !== 'ENOENT') throw err; // Re-throw if not a "file not found" error
+        }
+
+        const newFolder = {
+            id: uuidv4(),
+            name,
+            icon: icon || '', // Default icon if not provided
+            description: description || '', // Default description
+            children: [] // New folders start with no children prompts
+        };
+        generalPrompts.push(newFolder);
+
+        await fs.promises.writeFile(promptFunctionCardsPath, JSON.stringify(generalPrompts, null, 2));
+        res.status(201).json(newFolder);
+    } catch (error) {
+        console.error('Failed to add general prompt folder:', error);
+        res.status(500).send('Failed to save folder data');
+    }
+});
+
+// Update a General Prompt Folder
+app.put('/api/general-prompts/folders/:folderId', async (req, res) => {
+    const { folderId } = req.params;
+    const { name, icon, description } = req.body;
+
+    if (!name) {
+        return res.status(400).send('Folder name is required');
+    }
+
+    try {
+        let generalPrompts = [];
+        try {
+            const data = await fs.promises.readFile(promptFunctionCardsPath, 'utf8');
+            generalPrompts = JSON.parse(data);
+        } catch (err) {
+            if (err.code === 'ENOENT') return res.status(404).send('Data file not found.');
+            throw err;
+        }
+        
+        const folderIndex = generalPrompts.findIndex(folder => folder.id === folderId);
         if (folderIndex === -1) {
             return res.status(404).send('Folder not found');
         }
 
-        // 更新文件夹信息
-        json.Folders[folderIndex] = {
-            ...json.Folders[folderIndex],
+        generalPrompts[folderIndex] = {
+            ...generalPrompts[folderIndex],
             name,
-            deletable: !!deletable, // 确保deletable是布尔值
+            icon: icon !== undefined ? icon : generalPrompts[folderIndex].icon,
+            description: description !== undefined ? description : generalPrompts[folderIndex].description,
         };
 
-        // 将更新后的数据写回JSON文件
-        fs.writeFile(promptPath, JSON.stringify(json, null, 2), (err) => {
-            if (err) {
-                console.error('Failed to write JSON file:', err);
-                return res.status(500).send('Failed to save data');
-            }
-
-            res.status(200).json(json.Folders[folderIndex]);
-        });
-    });
+        await fs.promises.writeFile(promptFunctionCardsPath, JSON.stringify(generalPrompts, null, 2));
+        res.status(200).json(generalPrompts[folderIndex]);
+    } catch (error) {
+        console.error('Failed to update general prompt folder:', error);
+        res.status(500).send('Failed to update folder data');
+    }
 });
 
-app.delete('/deletePromptFolder/:id', (req, res) => {
-    const { id } = req.params;
+// Delete a General Prompt Folder
+app.delete('/api/general-prompts/folders/:folderId', async (req, res) => {
+    const { folderId } = req.params;
 
-    fs.readFile(promptPath, (err, data) => {
-        if (err) {
-            res.status(500).send('Error reading JSON file');
-            return;
+    try {
+        let generalPrompts = [];
+        try {
+            const data = await fs.promises.readFile(promptFunctionCardsPath, 'utf8');
+            generalPrompts = JSON.parse(data);
+        } catch (err) {
+            if (err.code === 'ENOENT') return res.status(404).send('Data file not found.');
+            throw err;
         }
 
-        const json = JSON.parse(data);
-        const folders = json.Folders;
-        const prompts = json.Prompts;
-
-        // 检查是否有属于该文件夹的提示词
-        const hasPrompts = prompts.some(prompt => prompt.folderId === id);
-        if (hasPrompts) {
-            res.status(400).send('Cannot delete folder because it contains prompts');
-            return;
+        const folderIndex = generalPrompts.findIndex(folder => folder.id === folderId);
+        if (folderIndex === -1) {
+            return res.status(404).send('Folder not found');
         }
 
-        // 删除文件夹
-        const updatedFolders = folders.filter(folder => folder.id !== id);
-        json.Folders = updatedFolders;
+        // Check if folder has children prompts
+        if (generalPrompts[folderIndex].children && generalPrompts[folderIndex].children.length > 0) {
+            return res.status(400).send('Cannot delete folder because it contains prompts. Please delete the prompts first.');
+        }
 
-        fs.writeFile(promptPath, JSON.stringify(json, null, 2), (err) => {
-            if (err) {
-                res.status(500).send('Error writing JSON file');
-                return;
-            }
+        generalPrompts.splice(folderIndex, 1); // Remove the folder
 
-            res.send('Folder deleted successfully');
-        });
-    });
+        await fs.promises.writeFile(promptFunctionCardsPath, JSON.stringify(generalPrompts, null, 2));
+        res.send('General prompt folder deleted successfully');
+    } catch (error) {
+        console.error('Failed to delete general prompt folder:', error);
+        res.status(500).send('Failed to delete folder data');
+    }
 });
 
-app.post('/updatePromptFoldersOrder', (req, res) => {
-    const { Folders } = req.body;
+// Update order of General Prompt Folders
+app.post('/api/general-prompts/folders/order', async (req, res) => {
+    const { orderedFolders } = req.body; // Expecting an array of folder objects in the new order
 
-    fs.readFile(promptPath, 'utf8', (err, data) => {
-        if (err) {
-            console.error('Error reading file:', err);
-            return res.status(500).json({ error: 'An error occurred while reading the file.' });
-        }
+    if (!Array.isArray(orderedFolders)) {
+        return res.status(400).send('Invalid data format: orderedFolders should be an array.');
+    }
 
-        const jsonData = JSON.parse(data);
-        jsonData.Folders = Folders; // 更新Folders数组
-
-        fs.writeFile(promptPath, JSON.stringify(jsonData, null, 2), 'utf8', (err) => {
-            if (err) {
-                console.error('Error writing file:', err);
-                return res.status(500).json({ error: 'An error occurred while writing to the file.' });
-            }
-            res.status(200).json({ message: 'File updated successfully' });
-        });
-    });
+    try {
+        // Validate that all original folders are present in the new order, if necessary,
+        // or simply overwrite with the new order. For simplicity, we'll overwrite.
+        await fs.promises.writeFile(promptFunctionCardsPath, JSON.stringify(orderedFolders, null, 2));
+        res.status(200).json({ message: 'General prompt folders order updated successfully' });
+    } catch (error) {
+        console.error('Failed to update general prompt folders order:', error);
+        res.status(500).send('Failed to update folders order');
+    }
 });
+
+
+// Old prompt management APIs - to be removed or refactored for AppCard prompts / General Prompts children
+// app.post('/addPromptFolder', ...
+// app.post('/updatePromptFolder/:id', ...
+// app.delete('/deletePromptFolder/:id', ...
+// app.post('/updatePromptFoldersOrder', ...
 
 // app.post('/updatePromptsOrder', async (req, res) => {
 //     const { updatedFolders } = req.body;
@@ -1177,29 +1302,190 @@ app.post('/updatePromptFoldersOrder', (req, res) => {
 //     }
 // });
 
-app.post('/updatePromptsOrder', async (req, res) => {
-    const { updatedPromptsOrder } = req.body;
+// app.post('/updatePromptsOrder', ... // This was for the old flat prompt structure
+
+
+// --- AppCard Prompts Management (from prompt.json) ---
+
+// Get all AppCard Prompts (already part of /getPrompts, but a dedicated one might be useful)
+app.get('/api/app-card-prompts', async (req, res) => {
+    try {
+        let appCardPromptsData = {};
+        try {
+            const appCardFileContent = await fs.promises.readFile(promptPath, 'utf8');
+            const jsonData = JSON.parse(appCardFileContent);
+            appCardPromptsData = jsonData.appCardPrompts || {};
+        } catch (err) {
+            if (err.code === 'ENOENT') {
+                console.warn(`prompt.json not found at ${promptPath}, returning empty appCardPrompts.`);
+            } else {
+                console.error('Error reading appCardPrompts from prompt.json:', err);
+                return res.status(500).send('Error reading AppCard prompts data.');
+            }
+        }
+        res.json(appCardPromptsData);
+    } catch (error) {
+        console.error('Failed to fetch AppCard prompts data:', error);
+        res.status(500).send('Error fetching AppCard prompts data');
+    }
+});
+
+// Add or Update an entire App Group's prompts in AppCard Prompts
+app.post('/api/app-card-prompts/:appKey', async (req, res) => {
+    const { appKey } = req.params;
+    const promptsForApp = req.body; // Expects an object of key-value pairs for the app's prompts
+
+    if (!appKey || typeof promptsForApp !== 'object' || promptsForApp === null) {
+        return res.status(400).send('App key and a valid prompts object are required.');
+    }
 
     try {
-        const data = await fs.promises.readFile(promptPath, 'utf8');
-        const jsonData = JSON.parse(data);
-
-        // 重新排序 Prompts 数组
-        const newPrompts = updatedPromptsOrder.map(orderItem => {
-            const prompt = jsonData.Prompts.find(prompt => prompt.id === orderItem.id);
-            if (prompt) {
-                return { ...prompt, folderId: orderItem.folderId };
+        let jsonData = { appCardPrompts: {} }; // Initialize with appCardPrompts structure
+        try {
+            const fileContent = await fs.promises.readFile(promptPath, 'utf8');
+            const parsedContent = JSON.parse(fileContent);
+            // Ensure jsonData.appCardPrompts exists and is an object
+            if (parsedContent && typeof parsedContent.appCardPrompts === 'object' && parsedContent.appCardPrompts !== null) {
+                jsonData.appCardPrompts = parsedContent.appCardPrompts;
+            } else if (parsedContent && !parsedContent.appCardPrompts) {
+                 // if prompt.json exists but appCardPrompts is missing, initialize it
+                jsonData.appCardPrompts = {};
+            } else if (!parsedContent) {
+                // if prompt.json is empty or malformed leading to null/undefined parse, initialize
+                jsonData.appCardPrompts = {};
             }
-            return null;
-        }).filter(prompt => prompt !== null);
+        } catch (err) {
+            if (err.code !== 'ENOENT') throw err;
+            // If file doesn't exist, jsonData.appCardPrompts is already {}
+        }
+        
+        jsonData.appCardPrompts[appKey] = promptsForApp;
 
-        jsonData.Prompts = newPrompts;
+        // Ensure the top-level structure of prompt.json is preserved if other keys exist
+        let fullJsonData = { ...jsonData }; // Start with our potentially modified/created appCardPrompts
+        try {
+            const originalFileContent = await fs.promises.readFile(promptPath, 'utf8');
+            const originalJson = JSON.parse(originalFileContent);
+            fullJsonData = { ...originalJson, ...jsonData }; // Merge, jsonData takes precedence for appCardPrompts
+        } catch (err) {
+            // If original file didn't exist or was invalid, fullJsonData is fine as is
+            if (err.code !== 'ENOENT') console.warn("Could not merge with original prompt.json, proceeding with new/modified appCardPrompts structure.");
+        }
+
+
+        await fs.promises.writeFile(promptPath, JSON.stringify(fullJsonData, null, 2));
+        res.status(200).json({ message: `AppCard prompts for '${appKey}' updated successfully.`, data: promptsForApp });
+    } catch (error) {
+        console.error(`Failed to update AppCard prompts for ${appKey}:`, error);
+        res.status(500).send('Failed to update AppCard prompts.');
+    }
+});
+
+// Delete an App Group from AppCard Prompts
+app.delete('/api/app-card-prompts/:appKey', async (req, res) => {
+    const { appKey } = req.params;
+
+    try {
+        let jsonData = {};
+        try {
+            const fileContent = await fs.promises.readFile(promptPath, 'utf8');
+            jsonData = JSON.parse(fileContent);
+        } catch (err) {
+            if (err.code === 'ENOENT') return res.status(404).send('Prompt data file not found.');
+            throw err;
+        }
+
+        if (!jsonData.appCardPrompts || !jsonData.appCardPrompts[appKey]) {
+            return res.status(404).send(`App group '${appKey}' not found in AppCard prompts.`);
+        }
+
+        delete jsonData.appCardPrompts[appKey];
 
         await fs.promises.writeFile(promptPath, JSON.stringify(jsonData, null, 2));
-        res.send({ message: 'Prompts order updated successfully' });
-    } catch (err) {
-        console.error('Failed to update prompts order:', err);
-        res.status(500).send('Failed to process the request');
+        res.send(`App group '${appKey}' deleted successfully from AppCard prompts.`);
+    } catch (error) {
+        console.error(`Failed to delete AppCard prompt group ${appKey}:`, error);
+        res.status(500).send('Failed to delete AppCard prompt group.');
+    }
+});
+
+// Add/Update a specific prompt within an App Group in AppCard Prompts
+app.post('/api/app-card-prompts/:appKey/prompts/:promptKey', async (req, res) => {
+    const { appKey, promptKey } = req.params;
+    const { content } = req.body; // Expects { "content": "new prompt text" }
+
+    if (!appKey || !promptKey || content === undefined) {
+        return res.status(400).send('App key, prompt key, and content are required.');
+    }
+
+    try {
+        let jsonData = { appCardPrompts: {} };
+        try {
+            const fileContent = await fs.promises.readFile(promptPath, 'utf8');
+            const parsedContent = JSON.parse(fileContent);
+            if (parsedContent && typeof parsedContent.appCardPrompts === 'object' && parsedContent.appCardPrompts !== null) {
+                jsonData.appCardPrompts = parsedContent.appCardPrompts;
+            } else if (parsedContent && !parsedContent.appCardPrompts) {
+                jsonData.appCardPrompts = {};
+            } else if (!parsedContent) {
+                jsonData.appCardPrompts = {};
+            }
+        } catch (err) {
+            if (err.code !== 'ENOENT') throw err;
+        }
+        
+        if (!jsonData.appCardPrompts[appKey]) jsonData.appCardPrompts[appKey] = {};
+        
+        jsonData.appCardPrompts[appKey][promptKey] = content;
+        
+        let fullJsonData = { ...jsonData };
+        try {
+            const originalFileContent = await fs.promises.readFile(promptPath, 'utf8');
+            const originalJson = JSON.parse(originalFileContent);
+            fullJsonData = { ...originalJson, ...jsonData };
+        } catch (err) {
+            if (err.code !== 'ENOENT') console.warn("Could not merge with original prompt.json for specific prompt update.");
+        }
+
+        await fs.promises.writeFile(promptPath, JSON.stringify(fullJsonData, null, 2));
+        res.status(200).json({ message: `Prompt '${promptKey}' in App '${appKey}' updated.`, content });
+    } catch (error) {
+        console.error(`Failed to update prompt '${promptKey}' in App '${appKey}':`, error);
+        res.status(500).send('Failed to update AppCard prompt.');
+    }
+});
+
+
+// Delete a specific prompt from an App Group in AppCard Prompts
+app.delete('/api/app-card-prompts/:appKey/prompts/:promptKey', async (req, res) => {
+    const { appKey, promptKey } = req.params;
+
+    try {
+        let jsonData = {};
+        try {
+            const fileContent = await fs.promises.readFile(promptPath, 'utf8');
+            jsonData = JSON.parse(fileContent);
+        } catch (err) {
+            if (err.code === 'ENOENT') return res.status(404).send('Prompt data file not found.');
+            throw err;
+        }
+
+        if (!jsonData.appCardPrompts || !jsonData.appCardPrompts[appKey] || jsonData.appCardPrompts[appKey][promptKey] === undefined) {
+            return res.status(404).send(`Prompt '${promptKey}' not found in app group '${appKey}'.`);
+        }
+
+        delete jsonData.appCardPrompts[appKey][promptKey];
+
+        // If the app group becomes empty, optionally delete the app group itself
+        if (Object.keys(jsonData.appCardPrompts[appKey]).length === 0) {
+            // delete jsonData.appCardPrompts[appKey]; // Uncomment to remove empty app groups
+        }
+
+        await fs.promises.writeFile(promptPath, JSON.stringify(jsonData, null, 2));
+        res.send(`Prompt '${promptKey}' deleted from app group '${appKey}' successfully.`);
+    } catch (error) {
+        console.error(`Failed to delete AppCard prompt '${promptKey}' from ${appKey}:`, error);
+        res.status(500).send('Failed to delete AppCard prompt.');
     }
 });
 
