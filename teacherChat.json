@@ -1,8 +1,36 @@
 {
   "allowedApps": {
     "courseHelper": [
-      "ch-swe-test",
-      "ch-oss-dev"
+      "ch-oss-dev",
+      "ch-swe-test"
+    ],
+    "campusAssistant": [
+      "ca-network-qa",
+      "ca-teacher-qa",
+      "ca-student-qa",
+      "ca-freshman-helper"
+    ],
+    "teacherAssistant": [
+      "ta-assignment-ideas",
+      "ta-student-tutoring",
+      "ta-concept-explanation",
+      "ta-lecture-design",
+      "ta-lesson-plan",
+      "ta-quiz-generation",
+      "ta-meeting-summary"
+    ],
+    "deepseek": [
+      "ds-network-search",
+      "ds-campus-kb",
+      "ds-academic-search",
+      "ds-ai-tutor",
+      "ds-logistics-assistant"
     ]
-  }
+  },
+  "appDisplayOrder": [
+    "teacherAssistant",
+    "deepseek",
+    "courseHelper",
+    "campusAssistant"
+  ]
 }
